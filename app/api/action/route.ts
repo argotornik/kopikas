@@ -62,8 +62,9 @@ export async function POST(req: Request) {
       break;
     }
     case "settle": {
+      // Sign is direction: positive = Anni paid Argo, negative = Argo paid Anni.
       const amount = Number(action.amount);
-      if (!(amount > 0)) return bad("positive amount required");
+      if (!Number.isFinite(amount) || amount === 0) return bad("non-zero amount required");
       db.settlements.push({
         id: newId("stl"),
         amount,

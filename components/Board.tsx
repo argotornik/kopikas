@@ -313,7 +313,8 @@ export default function Board({ initial }: { initial: BoardData }) {
                     key={sg.txId}
                   >
                     <span>
-                      <span className="font-mono tabular-nums">{eur.format(sg.amount)}</span> from {sg.counterparty} on{" "}
+                      <span className="font-mono tabular-nums">{eur.format(Math.abs(sg.amount))}</span>{" "}
+                      {sg.amount > 0 ? `from ${sg.counterparty}` : `to ${sg.counterparty}`} on{" "}
                       {shortDate.format(new Date(sg.date))}
                     </span>
                     <Button

@@ -142,10 +142,10 @@ export function monthlyBurn(statuses: SubStatus[]): number {
   return Math.round(total * 100) / 100;
 }
 
-// Incoming transfers from Anni not yet recorded as settlements.
+// Transfers between the couple not yet recorded as settlements — incoming
+// (Anni repaying) and outgoing (Argo repaying her). The tx amount's sign
+// carries the direction: positive settles toward "Anni paid Argo".
 export function settlementSuggestions(db: Db): Tx[] {
   const used = new Set(db.settlements.map((s) => s.txId).filter(Boolean));
-  return db.transactions.filter(
-    (t) => t.amount > 0 && matches(t, ANNI_MATCH) && !used.has(t.id)
-  );
+  return db.transactions.filter((t) => matches(t, ANNI_MATCH) && !used.has(t.id));
 }
