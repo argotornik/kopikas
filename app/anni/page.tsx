@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { HandCoinsIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
@@ -56,7 +58,7 @@ export default function AnniPage() {
   const bal = view.balance;
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-5 py-6">
+    <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 py-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight">Shared with Argo</h1>
         <div className="flex items-center gap-1.5">
@@ -69,18 +71,33 @@ export default function AnniPage() {
 
       <Card className="gap-3 py-4">
         <CardContent className="px-4">
-          <div
-            className={cn(
-              "mb-2 text-base font-semibold",
-              bal <= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-            )}
-          >
-            {bal === 0
-              ? "All square"
-              : bal > 0
-                ? `You owe Argo ${eur.format(bal)}`
-                : `Argo owes you ${eur.format(-bal)}`}
-          </div>
+          {view.sharedItems.length === 0 && (
+            <Empty className="p-4">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <HandCoinsIcon />
+                </EmptyMedia>
+                <EmptyTitle className="text-sm">All square</EmptyTitle>
+                <EmptyDescription>
+                  Anything either of you marks as shared shows up here, with the running balance.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
+          {view.sharedItems.length > 0 && (
+            <div
+              className={cn(
+                "mb-2 text-base font-semibold",
+                bal <= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+              )}
+            >
+              {bal === 0
+                ? "All square"
+                : bal > 0
+                  ? `You owe Argo ${eur.format(bal)}`
+                  : `Argo owes you ${eur.format(-bal)}`}
+            </div>
+          )}
           {view.sharedItems.map((s) => (
             <div className="flex justify-between gap-2 py-1 text-xs text-muted-foreground" key={s.id}>
               <span className="text-foreground">
@@ -100,7 +117,7 @@ export default function AnniPage() {
             I paid for something shared
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 px-4">
+        <CardContent className="flex flex-col gap-2 px-4">
           <Input
             placeholder="What was it, e.g. Dinner at Kivi Paber Käärid"
             value={desc}

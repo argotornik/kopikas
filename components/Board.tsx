@@ -14,9 +14,11 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
+import { CheckCircle2Icon, HandCoinsIcon, InboxIcon, RepeatIcon } from "lucide-react";
 import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -141,30 +143,47 @@ export default function Board({ initial }: { initial: BoardData }) {
 
         <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
           <div className="min-w-0">
-            {days.map(([date, txs]) => (
-              <div key={date}>
-                <div className="mb-1.5 mt-4 text-xs text-muted-foreground first:mt-0">
-                  {dayFmt.format(new Date(date))}
+            {days.length === 0 ? (
+              <Empty>
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <InboxIcon />
+                  </EmptyMedia>
+                  <EmptyTitle>No transactions yet</EmptyTitle>
+                  <EmptyDescription>Once the LHV sync runs, your feed shows up here.</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              days.map(([date, txs]) => (
+                <div key={date}>
+                  <div className="mb-1.5 mt-4 text-xs text-muted-foreground first:mt-0">
+                    {dayFmt.format(new Date(date))}
+                  </div>
+                  {txs.map((tx) => (
+                    <Tile key={tx.id} tx={tx} onUnshare={(id) => void post({ type: "unshare", shareId: id })} />
+                  ))}
                 </div>
-                {txs.map((tx) => (
-                  <Tile key={tx.id} tx={tx} onUnshare={(id) => void post({ type: "unshare", shareId: id })} />
-                ))}
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
-          <div className="min-w-0 space-y-4">
+          <div className="flex min-w-0 flex-col gap-4">
             <Card className="gap-3 py-4">
               <CardHeader className="px-4">
                 <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
                   Categories · {board.month}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-0.5 px-4">
-                {board.uncategorizedCount > 0 && (
+              <CardContent className="flex flex-col gap-0.5 px-4">
+                {board.uncategorizedCount > 0 ? (
                   <div className="flex justify-between rounded-md bg-orange-50 px-2.5 py-1.5 text-sm font-medium text-orange-800 dark:bg-orange-950/50 dark:text-orange-300">
                     <span>Uncategorized</span>
                     <span>{board.uncategorizedCount} tiles — drag them</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-muted-foreground">
+                    <CheckCircle2Icon className="size-4 text-emerald-600 dark:text-emerald-400" />
+                    Everything filed
                   </div>
                 )}
                 {board.categories.map((c) => (
@@ -179,6 +198,19 @@ export default function Board({ initial }: { initial: BoardData }) {
               </CardHeader>
               <CardContent className="px-4">
                 <SubsZone />
+                {board.subscriptions.filter((s) => s.sub.active).length === 0 && (
+                  <Empty className="p-4">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <RepeatIcon />
+                      </EmptyMedia>
+                      <EmptyTitle className="text-sm">No subscriptions tracked</EmptyTitle>
+                      <EmptyDescription>
+                        Drag a recurring charge into the zone above — the board watches its price and due date for you.
+                      </EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
+                )}
                 <div className="divide-y">
                   {board.subscriptions
                     .filter((s) => s.sub.active)
@@ -203,7 +235,7 @@ export default function Board({ initial }: { initial: BoardData }) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 text-muted-foreground"
+                          className="size-6 text-muted-foreground"
                           title="Mark cancelled"
                           onClick={() => void post({ type: "unsubscribe", subId: s.sub.id })}
                         >
@@ -212,9 +244,11 @@ export default function Board({ initial }: { initial: BoardData }) {
                       </div>
                     ))}
                 </div>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  Monthly burn: <span className="font-semibold text-foreground">{eur.format(board.monthlyBurn)}</span>
-                </div>
+                {board.subscriptions.some((s) => s.sub.active) && (
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    Monthly burn: <span className="font-semibold text-foreground">{eur.format(board.monthlyBurn)}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -224,18 +258,31 @@ export default function Board({ initial }: { initial: BoardData }) {
               </CardHeader>
               <CardContent className="px-4">
                 <AnniZone />
-                <div
-                  className={cn(
-                    "mb-2 text-base font-semibold",
-                    bal >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-                  )}
-                >
-                  {bal === 0
-                    ? "All square"
-                    : bal > 0
-                      ? `Anni owes you ${eur.format(bal)}`
-                      : `You owe Anni ${eur.format(-bal)}`}
-                </div>
+                {board.sharedItems.length === 0 && (
+                  <Empty className="p-4">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <HandCoinsIcon />
+                      </EmptyMedia>
+                      <EmptyTitle className="text-sm">Nothing shared yet</EmptyTitle>
+                      <EmptyDescription>Drop an expense on the zone above to split it 50/50 with Anni.</EmptyDescription>
+                    </EmptyHeader>
+                  </Empty>
+                )}
+                {board.sharedItems.length > 0 && (
+                  <div
+                    className={cn(
+                      "mb-2 text-base font-semibold",
+                      bal >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                    )}
+                  >
+                    {bal === 0
+                      ? "All square"
+                      : bal > 0
+                        ? `Anni owes you ${eur.format(bal)}`
+                        : `You owe Anni ${eur.format(-bal)}`}
+                  </div>
+                )}
                 {board.sharedItems.slice(0, 6).map((s) => (
                   <div className="flex justify-between gap-2 py-1 text-xs text-muted-foreground" key={s.id}>
                     <span className="text-foreground">
@@ -360,7 +407,7 @@ function Stat({
 }) {
   return (
     <Card className={cn("gap-0.5 rounded-xl py-3.5", interactive && "transition-colors hover:border-primary")}>
-      <CardContent className="space-y-0.5 px-4">
+      <CardContent className="flex flex-col gap-0.5 px-4">
         <div className="text-xs text-muted-foreground">{label}</div>
         <div className="text-lg font-semibold tracking-tight">{value}</div>
         {sub && <div className="text-[11px] leading-tight text-muted-foreground">{sub}</div>}
