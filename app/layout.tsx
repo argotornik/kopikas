@@ -8,8 +8,8 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono-var" });
 
 export const metadata: Metadata = {
-  title: "Expense Board",
-  description: "Personal costs and savings tracker",
+  title: "Kopikas",
+  description: "Iga kopikas loeb — personal money board",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

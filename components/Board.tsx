@@ -111,7 +111,7 @@ export default function Board({ initial }: { initial: BoardData }) {
     >
       <div className="mx-auto max-w-6xl px-5 py-6 pb-20">
         <div className="mb-5 flex items-center justify-between">
-          <h1 className="text-lg font-semibold tracking-tight">Expense board</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Kopikas</h1>
           <div className="flex items-center gap-1.5">
             <a href="/anni" className="text-sm text-muted-foreground hover:text-foreground">
               Shared with Anni →

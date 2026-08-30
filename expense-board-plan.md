@@ -1,4 +1,7 @@
-# Expense Board — personal finance webapp (plan)
+# Kopikas — personal finance webapp (plan)
+
+> Named 2026-08-30: *kopikas*, the humble old coin — "iga kopikas loeb" (every
+> penny counts). GitHub repo: `argotornik/kopikas` (private).
 
 A minimal, Bilance-like personal webapp for tracking costs and savings. Bank-familiar
 transaction feed rendered as draggable tiles: drag to a category to categorize (and teach
