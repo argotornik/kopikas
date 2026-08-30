@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
+const dayFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
 interface SharedView {
   balance: number;
@@ -97,12 +98,19 @@ export default function AnniPage() {
             </div>
           )}
           {view.sharedItems.map((s) => (
-            <div className="flex justify-between gap-2 py-1 text-xs text-muted-foreground" key={s.id}>
-              <span className="text-foreground">
-                {s.description} · {s.date} · {s.paidBy === "argo" ? "Argo paid" : "you paid"}
+            <div className="flex items-baseline gap-2 py-1 text-xs" key={s.id}>
+              <span className="min-w-0 flex-1 truncate text-foreground">
+                {s.description}
+                <span className="text-muted-foreground">
+                  {" "}
+                  · {s.paidBy === "argo" ? "Argo paid" : "you paid"} · {dayFmt.format(new Date(s.date))}
+                </span>
               </span>
-              <span className="font-mono tabular-nums">
-                {eur.format(s.total)} <span className="text-muted-foreground">(½ {eur.format(s.total / 2)})</span>
+              <span className="w-20 shrink-0 text-right font-mono tabular-nums text-foreground">
+                {eur.format(s.total)}
+              </span>
+              <span className="hidden w-20 shrink-0 text-right font-mono tabular-nums text-muted-foreground sm:block">
+                ½ {eur.format(s.total / 2)}
               </span>
             </div>
           ))}
