@@ -134,13 +134,15 @@ export default function Board({ initial }: { initial: BoardData }) {
           />
           <Stat label="LHV · everyday" value={eur.format(board.balances.everyday)} spark={board.sparks.everyday} />
           <Stat label="LHV · savings" value={eur.format(board.balances.savings)} spark={board.sparks.savings} />
-          <button className="text-left" onClick={() => setSnapOpen(true)}>
+          <button className="h-full text-left" onClick={() => setSnapOpen(true)}>
             <Stat
               label="Lightyear"
               value={board.snapshot ? eur.format(board.snapshot.total) : "—"}
               sub={
                 board.snapshot
-                  ? `as of ${board.snapshot.at.slice(0, 10)} · click to update`
+                  ? `as of ${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(
+                      new Date(board.snapshot.at)
+                    )} · update`
                   : "click to add"
               }
               interactive
@@ -380,7 +382,7 @@ function Sparkline({ spark }: { spark: Spark }) {
   const color = SPARK_COLORS[spark.tone];
   const data = spark.points.map((v, i) => ({ i, v }));
   return (
-    <div className="mt-1.5 h-8 w-full">
+    <div className="mt-auto h-8 w-full pt-1.5">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
           <YAxis hide domain={["dataMin", "dataMax"]} />
@@ -418,17 +420,17 @@ function Stat({
   return (
     <Card
       className={cn(
-        "gap-0.5 rounded-xl py-3.5",
+        "h-full gap-0.5 rounded-xl py-3.5",
         interactive && "transition-colors hover:border-primary",
         hero && "border-primary/50"
       )}
     >
-      <CardContent className="flex flex-col gap-0.5 px-4">
-        <div className={cn("text-xs", hero ? "font-medium text-primary" : "text-muted-foreground")}>{label}</div>
-        <div className={cn("font-mono font-semibold tabular-nums tracking-tight", hero ? "text-2xl" : "text-lg")}>
-          {value}
+      <CardContent className="flex h-full flex-col gap-0.5 px-4">
+        <div className={cn("truncate text-xs", hero ? "font-medium text-primary" : "text-muted-foreground")}>
+          {label}
         </div>
-        {sub && <div className="text-xs leading-tight text-muted-foreground">{sub}</div>}
+        <div className="font-mono text-lg font-semibold tabular-nums tracking-tight">{value}</div>
+        <div className="min-h-4 truncate text-xs leading-4 text-muted-foreground">{sub}</div>
         {spark && <Sparkline spark={spark} />}
       </CardContent>
     </Card>
