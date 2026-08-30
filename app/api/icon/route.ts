@@ -26,8 +26,13 @@ export async function GET(req: Request) {
   const buf = new Uint8Array(await res.arrayBuffer());
   if (buf.length < 50) return new NextResponse(null, { status: 404 });
 
-  await fs.mkdir(CACHE_DIR, { recursive: true });
-  await fs.writeFile(file, buf);
+  try {
+    await fs.mkdir(CACHE_DIR, { recursive: true });
+    await fs.writeFile(file, buf);
+  } catch {
+    // Read-only filesystem (serverless): serve uncached until the icons
+    // table takes over as the cache in the hosted build.
+  }
   return icon(buf);
 }
 

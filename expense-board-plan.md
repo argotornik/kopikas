@@ -94,6 +94,34 @@ libraries, any always-on machine.
 - Supply-chain hygiene at init: committed lockfile, `.npmrc` with `min-release-age`
   (multi-day cooldown on fresh releases), installs with `--ignore-scripts`.
 
+### Environment setup — personal-machine checklist (~20 min, in this order)
+
+Repo is already deploy-prepped: `vercel.json` (daily cron 05:00 UTC → `/api/sync`),
+a sync stub that honors `CRON_SECRET`, `db/schema.sql` for Neon, and an icon route
+that tolerates read-only serverless FS. All accounts below: personal email only.
+
+1. **GitHub** — create repo under `argotornik`, rewrite commit authorship
+   (`git config user.email "argo.tornik@gmail.com" && git config user.name "Argo Tornik" &&
+   git rebase --root --exec "git commit --amend --no-edit --reset-author"`), push.
+2. **Vercel** — sign up/in with personal GitHub → New Project → import the repo.
+   Next.js auto-detected; no build config needed. Note: the app will 500 at runtime
+   until step 5 (dev storage writes JSON files; serverless FS is read-only) — expected.
+3. **Neon** — Vercel dashboard → Storage → Neon (free tier) → attach to the project
+   (injects `DATABASE_URL`). Open Neon's SQL editor and run `db/schema.sql`.
+4. **Clerk** — clerk.com → new application → put `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+   + `CLERK_SECRET_KEY` in Vercel env. Two users ever: Argo (everything), Anni
+   (`/anni` + quick-add only). Middleware wiring is a build step, not a click.
+5. **Storage swap** — implement the Postgres adapter inside `lib/storage.ts`
+   (branch on `DATABASE_URL`: present → Postgres, absent → JSON dev adapter stays
+   for local work). Icon cache moves to the `icons` table in the same pass.
+6. **Secrets** — `openssl rand -base64 32` twice: `ENCRYPTION_KEY` (seals the LHV
+   token row) and `CRON_SECRET` (already enforced by `/api/sync` when set).
+7. **LHV** — Smart-ID at api.lhv.ai/api-access → paste the refresh token into the
+   settings page (build step) → lands encrypted in the `tokens` table. Verify
+   empirically whether refresh tokens rotate on use.
+8. **Claude on the personal machine** — authorize the Vercel connector there if
+   Claude should drive deploys (deliberately left unauthorized on the work machine).
+
 ---
 
 ## Data model
