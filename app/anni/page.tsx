@@ -1,0 +1,119 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+
+const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
+
+interface SharedView {
+  balance: number;
+  sharedItems: { id: string; paidBy: string; date: string; description: string; total: number }[];
+  settlements: { id: string; amount: number; date: string }[];
+}
+
+export default function AnniPage() {
+  const [view, setView] = useState<SharedView | null>(null);
+  const [desc, setDesc] = useState("");
+  const [amount, setAmount] = useState("");
+  const [err, setErr] = useState("");
+
+  const refetch = useCallback(async () => {
+    const res = await fetch("/api/shared", { cache: "no-store" });
+    setView(await res.json());
+  }, []);
+
+  useEffect(() => {
+    void refetch();
+  }, [refetch]);
+
+  const add = async () => {
+    const a = Number(amount.replace(",", "."));
+    if (!desc.trim() || !(a > 0)) {
+      setErr("Add a description and a positive amount");
+      return;
+    }
+    setErr("");
+    await fetch("/api/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "quickadd",
+        description: desc,
+        amount: a,
+        date: new Date().toISOString().slice(0, 10),
+      }),
+    });
+    setDesc("");
+    setAmount("");
+    await refetch();
+  };
+
+  if (!view) return <div className="mx-auto max-w-xl px-5 py-6 text-sm text-muted-foreground">Loading…</div>;
+  const bal = view.balance;
+
+  return (
+    <div className="mx-auto max-w-xl space-y-4 px-5 py-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold tracking-tight">Shared with Argo</h1>
+        <div className="flex items-center gap-1.5">
+          <a href="/" className="text-sm text-muted-foreground hover:text-foreground">
+            ← board
+          </a>
+          <ThemeToggle />
+        </div>
+      </div>
+
+      <Card className="gap-3 py-4">
+        <CardContent className="px-4">
+          <div
+            className={cn(
+              "mb-2 text-base font-semibold",
+              bal <= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+            )}
+          >
+            {bal === 0
+              ? "All square"
+              : bal > 0
+                ? `You owe Argo ${eur.format(bal)}`
+                : `Argo owes you ${eur.format(-bal)}`}
+          </div>
+          {view.sharedItems.map((s) => (
+            <div className="flex justify-between gap-2 py-1 text-xs text-muted-foreground" key={s.id}>
+              <span className="text-foreground">
+                {s.description} · {s.date} · {s.paidBy === "argo" ? "Argo paid" : "you paid"}
+              </span>
+              <span>
+                {eur.format(s.total)} <span className="text-muted-foreground">(½ {eur.format(s.total / 2)})</span>
+              </span>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card className="gap-3 py-4">
+        <CardHeader className="px-4">
+          <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+            I paid for something shared
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 px-4">
+          <Input
+            placeholder="What was it, e.g. Dinner at Kivi Paber Käärid"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <Input placeholder="Amount, e.g. 54.00" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <Button onClick={() => void add()}>Add</Button>
+          </div>
+          {err && <p className="text-xs text-destructive">{err}</p>}
+          <p className="text-xs text-muted-foreground">Added at full price — the split math takes your half automatically.</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

@@ -1,0 +1,478 @@
+"use client";
+
+import { useCallback, useMemo, useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import type { Board as BoardData, BoardTx } from "@/lib/board";
+import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+
+const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
+const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" });
+
+type Prompt = { txId: string; merchant: string; category: string };
+
+export default function Board({ initial }: { initial: BoardData }) {
+  const [board, setBoard] = useState(initial);
+  const [activeTx, setActiveTx] = useState<BoardTx | null>(null);
+  const [prompt, setPrompt] = useState<Prompt | null>(null);
+  const [snapOpen, setSnapOpen] = useState(false);
+
+  const refetch = useCallback(async () => {
+    const res = await fetch("/api/board", { cache: "no-store" });
+    setBoard(await res.json());
+  }, []);
+
+  const post = useCallback(
+    async (action: object) => {
+      await fetch("/api/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(action),
+      });
+      await refetch();
+    },
+    [refetch]
+  );
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const onDragStart = (e: DragStartEvent) => {
+    setActiveTx(board.txs.find((t) => t.id === e.active.id) ?? null);
+  };
+
+  const onDragEnd = (e: DragEndEvent) => {
+    const tx = board.txs.find((t) => t.id === e.active.id);
+    setActiveTx(null);
+    const over = e.over?.id as string | undefined;
+    if (!tx || !over) return;
+    if (over === "anni") {
+      if (!tx.shared) void post({ type: "share", txId: tx.id });
+    } else if (over === "subs") {
+      void post({ type: "subscribe", txId: tx.id });
+    } else if (over.startsWith("cat:")) {
+      const category = over.slice(4);
+      if (category !== tx.category) setPrompt({ txId: tx.id, merchant: tx.counterparty, category });
+    }
+  };
+
+  const days = useMemo(() => {
+    const map = new Map<string, BoardTx[]>();
+    for (const tx of board.txs) {
+      if (!map.has(tx.date)) map.set(tx.date, []);
+      map.get(tx.date)!.push(tx);
+    }
+    return [...map.entries()];
+  }, [board.txs]);
+
+  const bal = board.balance;
+
+  return (
+    <DndContext
+      id="board"
+      sensors={sensors}
+      collisionDetection={pointerWithin}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+    >
+      <div className="mx-auto max-w-6xl px-5 py-6 pb-20">
+        <div className="mb-5 flex items-center justify-between">
+          <h1 className="text-lg font-semibold tracking-tight">Expense board</h1>
+          <div className="flex items-center gap-1.5">
+            <a href="/anni" className="text-sm text-muted-foreground hover:text-foreground">
+              Anni&apos;s view →
+            </a>
+            <ThemeToggle />
+          </div>
+        </div>
+
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+          <Stat label="LHV · everyday" value={eur.format(board.balances.everyday)} />
+          <Stat label="LHV · savings" value={eur.format(board.balances.savings)} />
+          <button className="text-left" onClick={() => setSnapOpen(true)}>
+            <Stat
+              label="Lightyear"
+              value={board.snapshot ? eur.format(board.snapshot.total) : "—"}
+              sub={
+                board.snapshot
+                  ? `as of ${board.snapshot.at.slice(0, 10)} · click to update`
+                  : "click to add"
+              }
+              interactive
+            />
+          </button>
+          <Stat label={`Spent in ${board.month}`} value={eur.format(board.spentThisMonth)} sub="your share of shared items" />
+          <Stat
+            label={`Saved in ${board.month}`}
+            value={eur.format(board.savedThisMonth)}
+            sub={`last month ${eur.format(board.savedLastMonth)}`}
+          />
+        </div>
+
+        <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+          <div className="min-w-0">
+            {days.map(([date, txs]) => (
+              <div key={date}>
+                <div className="mb-1.5 mt-4 text-xs text-muted-foreground first:mt-0">
+                  {dayFmt.format(new Date(date))}
+                </div>
+                {txs.map((tx) => (
+                  <Tile key={tx.id} tx={tx} onUnshare={(id) => void post({ type: "unshare", shareId: id })} />
+                ))}
+              </div>
+            ))}
+          </div>
+
+          <div className="min-w-0 space-y-4">
+            <Card className="gap-3 py-4">
+              <CardHeader className="px-4">
+                <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Categories · {board.month}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-0.5 px-4">
+                {board.uncategorizedCount > 0 && (
+                  <div className="flex justify-between rounded-md bg-orange-50 px-2.5 py-1.5 text-sm font-medium text-orange-800 dark:bg-orange-950/50 dark:text-orange-300">
+                    <span>Uncategorized</span>
+                    <span>{board.uncategorizedCount} tiles — drag them</span>
+                  </div>
+                )}
+                {board.categories.map((c) => (
+                  <CategoryRow key={c.name} name={c.name} total={c.total} />
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="gap-3 py-4">
+              <CardHeader className="px-4">
+                <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Subscriptions</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4">
+                <SubsZone />
+                <div className="divide-y">
+                  {board.subscriptions
+                    .filter((s) => s.sub.active)
+                    .map((s) => (
+                      <div className="flex items-center gap-2 py-2 text-sm" key={s.sub.id}>
+                        <span className="min-w-0 flex-1 truncate">
+                          {s.sub.name}
+                          <span className="text-xs text-muted-foreground"> · {s.sub.cadence}</span>
+                        </span>
+                        {s.priceChanged && s.lastCharge && (
+                          <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                            {eur.format(s.sub.expectedAmount)} → {eur.format(s.lastCharge.amount)}
+                          </Badge>
+                        )}
+                        {s.overdue && (
+                          <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300">
+                            gone quiet
+                          </Badge>
+                        )}
+                        <span className="text-xs text-muted-foreground">due {s.nextDue ?? "?"}</span>
+                        <span className="font-medium">{eur.format(s.lastCharge?.amount ?? s.sub.expectedAmount)}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground"
+                          title="Mark cancelled"
+                          onClick={() => void post({ type: "unsubscribe", subId: s.sub.id })}
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ))}
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Monthly burn: <span className="font-semibold text-foreground">{eur.format(board.monthlyBurn)}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="gap-3 py-4">
+              <CardHeader className="px-4">
+                <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Split with Anni</CardTitle>
+              </CardHeader>
+              <CardContent className="px-4">
+                <AnniZone />
+                <div
+                  className={cn(
+                    "mb-2 text-base font-semibold",
+                    bal >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                  )}
+                >
+                  {bal === 0
+                    ? "All square"
+                    : bal > 0
+                      ? `Anni owes you ${eur.format(bal)}`
+                      : `You owe Anni ${eur.format(-bal)}`}
+                </div>
+                {board.sharedItems.slice(0, 6).map((s) => (
+                  <div className="flex justify-between gap-2 py-1 text-xs text-muted-foreground" key={s.id}>
+                    <span className="text-foreground">
+                      {s.description} <span className="text-muted-foreground">· {s.paidBy === "argo" ? "you paid" : "Anni paid"}</span>
+                    </span>
+                    <span>{eur.format(s.total)}</span>
+                  </div>
+                ))}
+                {board.suggestions.map((sg) => (
+                  <div
+                    className="mt-2 flex items-center justify-between gap-2 rounded-md bg-emerald-50 p-2.5 text-xs dark:bg-emerald-950/40"
+                    key={sg.txId}
+                  >
+                    <span>
+                      {eur.format(sg.amount)} from {sg.counterparty} on {sg.date}
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => void post({ type: "settle", amount: sg.amount, date: sg.date, txId: sg.txId })}
+                    >
+                      Record repayment
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+
+      <DragOverlay>
+        {activeTx && (
+          <div className="cursor-grabbing rounded-lg border border-primary bg-card px-3 py-2 text-sm font-medium shadow-lg">
+            {activeTx.counterparty} · {eur.format(Math.abs(activeTx.amount))}
+          </div>
+        )}
+      </DragOverlay>
+
+      <Dialog open={!!prompt} onOpenChange={(o) => !o && setPrompt(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>File under {prompt?.category}?</DialogTitle>
+            <DialogDescription>{prompt?.merchant}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <Button
+              onClick={() => {
+                if (!prompt) return;
+                void post({ type: "rule", match: prompt.merchant, category: prompt.category }).then(() =>
+                  post({ type: "override", txId: prompt.txId, category: prompt.category })
+                );
+                setPrompt(null);
+              }}
+            >
+              Always — teach a rule for “{prompt?.merchant}”
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!prompt) return;
+                void post({ type: "override", txId: prompt.txId, category: prompt.category });
+                setPrompt(null);
+              }}
+            >
+              Only this one
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <SnapshotEditor
+        open={snapOpen}
+        onClose={() => setSnapOpen(false)}
+        onSave={(total, holdings) => {
+          void post({ type: "snapshot", total, holdings });
+          setSnapOpen(false);
+        }}
+      />
+    </DndContext>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  sub,
+  interactive,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  interactive?: boolean;
+}) {
+  return (
+    <Card className={cn("gap-0.5 rounded-xl py-3.5", interactive && "transition-colors hover:border-primary")}>
+      <CardContent className="space-y-0.5 px-4">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="text-lg font-semibold tracking-tight">{value}</div>
+        {sub && <div className="text-[11px] leading-tight text-muted-foreground">{sub}</div>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => void }) {
+  const draggable = tx.amount < 0;
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: tx.id,
+    disabled: !draggable,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "mb-1.5 flex touch-none select-none items-center gap-2.5 rounded-lg border bg-card px-3 py-2",
+        draggable && "cursor-grab",
+        isDragging && "opacity-40"
+      )}
+      {...listeners}
+      {...attributes}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[13.5px] font-medium">{tx.counterparty}</div>
+        <div className="truncate text-xs text-muted-foreground">{tx.description}</div>
+      </div>
+      {tx.shared && tx.shareId && (
+        <Badge
+          className="cursor-pointer bg-violet-100 text-violet-800 hover:bg-violet-200 dark:bg-violet-950 dark:text-violet-300"
+          title="Shared 50/50 with Anni — click to unshare"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => onUnshare(tx.shareId!)}
+        >
+          ½ Anni
+        </Badge>
+      )}
+      {tx.amount < 0 &&
+        (tx.category ? (
+          <Badge variant="secondary" className={cn(tx.categorySource === "override" && "border border-dashed border-border")}>
+            {tx.category}
+          </Badge>
+        ) : (
+          <Badge className="bg-orange-100 font-semibold text-orange-800 dark:bg-orange-950 dark:text-orange-300">
+            uncategorized
+          </Badge>
+        ))}
+      <span className={cn("text-[13.5px] font-semibold", tx.amount > 0 && "text-emerald-700 dark:text-emerald-400")}>
+        {tx.amount > 0 ? "+" : "−"}
+        {eur.format(Math.abs(tx.amount))}
+      </span>
+    </div>
+  );
+}
+
+function CategoryRow({ name, total }: { name: string; total: number }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `cat:${name}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex justify-between rounded-md border border-dashed border-transparent px-2.5 py-1.5 text-sm",
+        isOver && "border-primary bg-accent"
+      )}
+    >
+      <span>{name}</span>
+      <span className="text-muted-foreground">{isOver ? "drop here" : total > 0 ? eur.format(total) : ""}</span>
+    </div>
+  );
+}
+
+function SubsZone() {
+  const { setNodeRef, isOver } = useDroppable({ id: "subs" });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "mb-2 rounded-lg border-2 border-dashed p-2.5 text-center text-xs text-muted-foreground",
+        isOver && "border-primary bg-accent text-foreground"
+      )}
+    >
+      {isOver ? "Drop to register subscription" : "Drag a recurring charge here"}
+    </div>
+  );
+}
+
+function AnniZone() {
+  const { setNodeRef, isOver } = useDroppable({ id: "anni" });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "mb-2 rounded-lg border-2 border-dashed p-2.5 text-center text-xs text-muted-foreground",
+        isOver && "border-primary bg-accent text-foreground"
+      )}
+    >
+      {isOver ? "Drop to split 50/50" : "Drag an expense here to split with Anni"}
+    </div>
+  );
+}
+
+function SnapshotEditor({
+  open,
+  onClose,
+  onSave,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (total: number, holdings: { name: string; pct: number }[]) => void;
+}) {
+  const [total, setTotal] = useState("");
+  const [holdings, setHoldings] = useState("");
+  const [err, setErr] = useState("");
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Update Lightyear value</DialogTitle>
+          <DialogDescription>
+            Every update is logged — decreases too. Holdings like “VWCE 70, MMF 25”.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-2">
+          <Input placeholder="Total value, e.g. 9450.20" value={total} onChange={(e) => setTotal(e.target.value)} autoFocus />
+          <Input placeholder="Holdings % (optional)" value={holdings} onChange={(e) => setHoldings(e.target.value)} />
+          {err && <p className="text-xs text-destructive">{err}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              const t = Number(total.replace(",", "."));
+              if (!(t >= 0)) return setErr("Enter the total value first");
+              const parsed = holdings
+                .split(",")
+                .map((part) => part.trim().match(/^(.+?)\s+(\d+(?:\.\d+)?)$/))
+                .filter(Boolean)
+                .map((m) => ({ name: m![1], pct: Number(m![2]) }));
+              onSave(t, parsed);
+            }}
+          >
+            Save snapshot
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
