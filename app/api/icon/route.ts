@@ -38,6 +38,6 @@ export async function GET(req: Request) {
 
 function icon(buf: Uint8Array) {
   return new NextResponse(new Blob([Uint8Array.from(buf)]), {
-    headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=2592000" },
+    headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=2592000, s-maxage=2592000" },
   });
 }
