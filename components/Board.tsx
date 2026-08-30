@@ -35,6 +35,7 @@ import { Input } from "@/components/ui/input";
 
 const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
 const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" });
+const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
 type Prompt = { txId: string; merchant: string; category: string };
 
@@ -125,6 +126,7 @@ export default function Board({ initial }: { initial: BoardData }) {
             sub={`last month ${eur.format(board.savedLastMonth)}`}
             spark={board.sparks.saved}
             hero
+            className="col-span-2 md:col-span-1"
           />
           <Stat
             label={`Spent in ${monthName}`}
@@ -225,25 +227,28 @@ export default function Board({ initial }: { initial: BoardData }) {
                   {board.subscriptions
                     .filter((s) => s.sub.active)
                     .map((s) => (
-                      <div className="flex items-center gap-2 py-2 text-sm" key={s.sub.id}>
-                        <span className="min-w-0 flex-1 truncate">
-                          {s.sub.name}
-                          <span className="text-xs text-muted-foreground"> · {s.sub.cadence}</span>
-                        </span>
-                        {s.priceChanged && s.lastCharge && (
-                          <Badge className="bg-attention/15 font-mono tabular-nums text-attention">
-                            {eur.format(s.sub.expectedAmount)} → {eur.format(s.lastCharge.amount)}
-                          </Badge>
-                        )}
-                        {s.overdue && <Badge className="bg-attention/15 text-attention">gone quiet</Badge>}
-                        <span className="text-xs text-muted-foreground">due {s.nextDue ?? "?"}</span>
-                        <span className="font-mono font-medium tabular-nums">
+                      <div className="flex items-center gap-2 py-2" key={s.sub.id}>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium">{s.sub.name}</div>
+                          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
+                            <span>
+                              {s.sub.cadence} · due {s.nextDue ? shortDate.format(new Date(s.nextDue)) : "?"}
+                            </span>
+                            {s.priceChanged && s.lastCharge && (
+                              <Badge className="bg-attention/15 font-mono tabular-nums text-attention">
+                                {eur.format(s.sub.expectedAmount)} → {eur.format(s.lastCharge.amount)}
+                              </Badge>
+                            )}
+                            {s.overdue && <Badge className="bg-attention/15 text-attention">gone quiet</Badge>}
+                          </div>
+                        </div>
+                        <span className="shrink-0 font-mono text-sm font-medium tabular-nums">
                           {eur.format(s.lastCharge?.amount ?? s.sub.expectedAmount)}
                         </span>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="size-6 text-muted-foreground"
+                          className="size-6 shrink-0 text-muted-foreground"
                           title="Mark cancelled"
                           onClick={() => void post({ type: "unsubscribe", subId: s.sub.id })}
                         >
@@ -307,7 +312,7 @@ export default function Board({ initial }: { initial: BoardData }) {
                   >
                     <span>
                       <span className="font-mono tabular-nums">{eur.format(sg.amount)}</span> from {sg.counterparty} on{" "}
-                      {sg.date}
+                      {shortDate.format(new Date(sg.date))}
                     </span>
                     <Button
                       size="sm"
@@ -409,6 +414,7 @@ function Stat({
   interactive,
   spark,
   hero,
+  className,
 }: {
   label: string;
   value: string;
@@ -416,13 +422,15 @@ function Stat({
   interactive?: boolean;
   spark?: Spark;
   hero?: boolean;
+  className?: string;
 }) {
   return (
     <Card
       className={cn(
         "h-full gap-0.5 rounded-xl py-3.5",
         interactive && "transition-colors hover:border-primary",
-        hero && "border-primary/50"
+        hero && "border-primary/50",
+        className
       )}
     >
       <CardContent className="flex h-full flex-col gap-0.5 px-4">
