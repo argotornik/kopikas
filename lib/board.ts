@@ -14,6 +14,7 @@ import {
   subscriptionStatus,
 } from "./engine";
 import { MOCK_BALANCES } from "./seed";
+import { guessDomain } from "./icons";
 
 export interface Spark {
   points: number[];
@@ -34,6 +35,7 @@ export interface BoardTx {
   amount: number;
   counterparty: string;
   description: string;
+  domain: string | null;
   category: string | null;
   categorySource: "rule" | "override" | null;
   shared: boolean;
@@ -56,6 +58,7 @@ export function buildBoard(db: Db, today = new Date()) {
         amount: tx.amount,
         counterparty: tx.counterparty,
         description: tx.description,
+        domain: guessDomain(tx.counterparty),
         category: cat,
         categorySource: override ? "override" : cat ? "rule" : null,
         shared: !!share,
@@ -64,7 +67,10 @@ export function buildBoard(db: Db, today = new Date()) {
     });
 
   const totals = categoryTotals(db, month);
-  const subStatuses = db.subscriptions.map((s) => subscriptionStatus(s, db.transactions, today));
+  const subStatuses = db.subscriptions.map((s) => ({
+    ...subscriptionStatus(s, db.transactions, today),
+    domain: guessDomain(s.name),
+  }));
   const latestSnap = [...db.snapshots].sort((a, b) => a.at.localeCompare(b.at)).at(-1) ?? null;
 
   const sharedItems = [...db.shares]

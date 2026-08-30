@@ -19,6 +19,7 @@ import { CheckCircle2Icon, HandCoinsIcon, InboxIcon, RepeatIcon } from "lucide-r
 import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MerchantIcon } from "@/components/merchant-icon";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -228,6 +229,7 @@ export default function Board({ initial }: { initial: BoardData }) {
                     .filter((s) => s.sub.active)
                     .map((s) => (
                       <div className="flex items-center gap-2 py-2" key={s.sub.id}>
+                        <MerchantIcon name={s.sub.name} domain={s.domain} className="size-6" />
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-medium">{s.sub.name}</div>
                           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
@@ -463,6 +465,7 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
       {...listeners}
       {...attributes}
     >
+      <MerchantIcon name={tx.counterparty} domain={tx.domain} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{tx.counterparty}</div>
         <div className="truncate text-xs text-muted-foreground">{tx.description}</div>
