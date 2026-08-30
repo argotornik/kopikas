@@ -85,17 +85,15 @@ export default function AnniPage() {
             </Empty>
           )}
           {view.sharedItems.length > 0 && (
-            <div
-              className={cn(
-                "mb-2 text-base font-semibold",
-                bal <= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+            <div className={cn("mb-2 text-base font-semibold", bal <= 0 ? "text-gain" : "text-loss")}>
+              {bal === 0 ? (
+                "All square"
+              ) : (
+                <>
+                  {bal > 0 ? "You owe Argo " : "Argo owes you "}
+                  <span className="font-mono tabular-nums">{eur.format(Math.abs(bal))}</span>
+                </>
               )}
-            >
-              {bal === 0
-                ? "All square"
-                : bal > 0
-                  ? `You owe Argo ${eur.format(bal)}`
-                  : `Argo owes you ${eur.format(-bal)}`}
             </div>
           )}
           {view.sharedItems.map((s) => (
@@ -103,7 +101,7 @@ export default function AnniPage() {
               <span className="text-foreground">
                 {s.description} · {s.date} · {s.paidBy === "argo" ? "Argo paid" : "you paid"}
               </span>
-              <span>
+              <span className="font-mono tabular-nums">
                 {eur.format(s.total)} <span className="text-muted-foreground">(½ {eur.format(s.total / 2)})</span>
               </span>
             </div>

@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
   pointerWithin,
   useDraggable,
@@ -60,7 +61,10 @@ export default function Board({ initial }: { initial: BoardData }) {
     [refetch]
   );
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
 
   const onDragStart = (e: DragStartEvent) => {
     setActiveTx(board.txs.find((t) => t.id === e.active.id) ?? null);
@@ -91,6 +95,9 @@ export default function Board({ initial }: { initial: BoardData }) {
   }, [board.txs]);
 
   const bal = board.balance;
+  const monthName = new Intl.DateTimeFormat("en-GB", { month: "long" }).format(
+    new Date(board.month + "-01T00:00:00Z")
+  );
 
   return (
     <DndContext
@@ -105,13 +112,26 @@ export default function Board({ initial }: { initial: BoardData }) {
           <h1 className="text-lg font-semibold tracking-tight">Expense board</h1>
           <div className="flex items-center gap-1.5">
             <a href="/anni" className="text-sm text-muted-foreground hover:text-foreground">
-              Anni&apos;s view →
+              Shared with Anni →
             </a>
             <ThemeToggle />
           </div>
         </div>
 
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+          <Stat
+            label={`Saved in ${monthName}`}
+            value={eur.format(board.savedThisMonth)}
+            sub={`last month ${eur.format(board.savedLastMonth)}`}
+            spark={board.sparks.saved}
+            hero
+          />
+          <Stat
+            label={`Spent in ${monthName}`}
+            value={eur.format(board.spentThisMonth)}
+            sub="your share of shared items"
+            spark={board.sparks.spent}
+          />
           <Stat label="LHV · everyday" value={eur.format(board.balances.everyday)} spark={board.sparks.everyday} />
           <Stat label="LHV · savings" value={eur.format(board.balances.savings)} spark={board.sparks.savings} />
           <button className="text-left" onClick={() => setSnapOpen(true)}>
@@ -127,18 +147,6 @@ export default function Board({ initial }: { initial: BoardData }) {
               spark={board.sparks.lightyear}
             />
           </button>
-          <Stat
-            label={`Spent in ${board.month}`}
-            value={eur.format(board.spentThisMonth)}
-            sub="your share of shared items"
-            spark={board.sparks.spent}
-          />
-          <Stat
-            label={`Saved in ${board.month}`}
-            value={eur.format(board.savedThisMonth)}
-            sub={`last month ${eur.format(board.savedLastMonth)}`}
-            spark={board.sparks.saved}
-          />
         </div>
 
         <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
@@ -171,18 +179,18 @@ export default function Board({ initial }: { initial: BoardData }) {
             <Card className="gap-3 py-4">
               <CardHeader className="px-4">
                 <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Categories · {board.month}
+                  Categories · {monthName}
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-0.5 px-4">
                 {board.uncategorizedCount > 0 ? (
-                  <div className="flex justify-between rounded-md bg-orange-50 px-2.5 py-1.5 text-sm font-medium text-orange-800 dark:bg-orange-950/50 dark:text-orange-300">
+                  <div className="flex justify-between rounded-md bg-attention/15 px-2.5 py-1.5 text-sm font-medium text-attention">
                     <span>Uncategorized</span>
                     <span>{board.uncategorizedCount} tiles — drag them</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-muted-foreground">
-                    <CheckCircle2Icon className="size-4 text-emerald-600 dark:text-emerald-400" />
+                    <CheckCircle2Icon className="size-4 text-gain" />
                     Everything filed
                   </div>
                 )}
@@ -221,17 +229,15 @@ export default function Board({ initial }: { initial: BoardData }) {
                           <span className="text-xs text-muted-foreground"> · {s.sub.cadence}</span>
                         </span>
                         {s.priceChanged && s.lastCharge && (
-                          <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                          <Badge className="bg-attention/15 font-mono tabular-nums text-attention">
                             {eur.format(s.sub.expectedAmount)} → {eur.format(s.lastCharge.amount)}
                           </Badge>
                         )}
-                        {s.overdue && (
-                          <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300">
-                            gone quiet
-                          </Badge>
-                        )}
+                        {s.overdue && <Badge className="bg-attention/15 text-attention">gone quiet</Badge>}
                         <span className="text-xs text-muted-foreground">due {s.nextDue ?? "?"}</span>
-                        <span className="font-medium">{eur.format(s.lastCharge?.amount ?? s.sub.expectedAmount)}</span>
+                        <span className="font-mono font-medium tabular-nums">
+                          {eur.format(s.lastCharge?.amount ?? s.sub.expectedAmount)}
+                        </span>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -246,7 +252,10 @@ export default function Board({ initial }: { initial: BoardData }) {
                 </div>
                 {board.subscriptions.some((s) => s.sub.active) && (
                   <div className="mt-2 text-xs text-muted-foreground">
-                    Monthly burn: <span className="font-semibold text-foreground">{eur.format(board.monthlyBurn)}</span>
+                    Monthly burn:{" "}
+                    <span className="font-mono font-semibold tabular-nums text-foreground">
+                      {eur.format(board.monthlyBurn)}
+                    </span>
                   </div>
                 )}
               </CardContent>
@@ -270,17 +279,15 @@ export default function Board({ initial }: { initial: BoardData }) {
                   </Empty>
                 )}
                 {board.sharedItems.length > 0 && (
-                  <div
-                    className={cn(
-                      "mb-2 text-base font-semibold",
-                      bal >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                  <div className={cn("mb-2 text-base font-semibold", bal >= 0 ? "text-gain" : "text-loss")}>
+                    {bal === 0 ? (
+                      "All square"
+                    ) : (
+                      <>
+                        {bal > 0 ? "Anni owes you " : "You owe Anni "}
+                        <span className="font-mono tabular-nums">{eur.format(Math.abs(bal))}</span>
+                      </>
                     )}
-                  >
-                    {bal === 0
-                      ? "All square"
-                      : bal > 0
-                        ? `Anni owes you ${eur.format(bal)}`
-                        : `You owe Anni ${eur.format(-bal)}`}
                   </div>
                 )}
                 {board.sharedItems.slice(0, 6).map((s) => (
@@ -288,16 +295,17 @@ export default function Board({ initial }: { initial: BoardData }) {
                     <span className="text-foreground">
                       {s.description} <span className="text-muted-foreground">· {s.paidBy === "argo" ? "you paid" : "Anni paid"}</span>
                     </span>
-                    <span>{eur.format(s.total)}</span>
+                    <span className="font-mono tabular-nums">{eur.format(s.total)}</span>
                   </div>
                 ))}
                 {board.suggestions.map((sg) => (
                   <div
-                    className="mt-2 flex items-center justify-between gap-2 rounded-md bg-emerald-50 p-2.5 text-xs dark:bg-emerald-950/40"
+                    className="mt-2 flex items-center justify-between gap-2 rounded-md bg-gain/10 p-2.5 text-xs"
                     key={sg.txId}
                   >
                     <span>
-                      {eur.format(sg.amount)} from {sg.counterparty} on {sg.date}
+                      <span className="font-mono tabular-nums">{eur.format(sg.amount)}</span> from {sg.counterparty} on{" "}
+                      {sg.date}
                     </span>
                     <Button
                       size="sm"
@@ -316,7 +324,7 @@ export default function Board({ initial }: { initial: BoardData }) {
       <DragOverlay>
         {activeTx && (
           <div className="cursor-grabbing rounded-lg border border-primary bg-card px-3 py-2 text-sm font-medium shadow-lg">
-            {activeTx.counterparty} · {eur.format(Math.abs(activeTx.amount))}
+            {activeTx.counterparty} · <span className="font-mono tabular-nums">{eur.format(Math.abs(activeTx.amount))}</span>
           </div>
         )}
       </DragOverlay>
@@ -365,7 +373,7 @@ export default function Board({ initial }: { initial: BoardData }) {
   );
 }
 
-const SPARK_COLORS = { green: "#10b981", red: "#ef4444", neutral: "#94a3b8" };
+const SPARK_COLORS = { green: "var(--gain)", red: "var(--loss)", neutral: "var(--muted-foreground)" };
 
 function Sparkline({ spark }: { spark: Spark }) {
   if (spark.points.length < 2) return null;
@@ -398,19 +406,29 @@ function Stat({
   sub,
   interactive,
   spark,
+  hero,
 }: {
   label: string;
   value: string;
   sub?: string;
   interactive?: boolean;
   spark?: Spark;
+  hero?: boolean;
 }) {
   return (
-    <Card className={cn("gap-0.5 rounded-xl py-3.5", interactive && "transition-colors hover:border-primary")}>
+    <Card
+      className={cn(
+        "gap-0.5 rounded-xl py-3.5",
+        interactive && "transition-colors hover:border-primary",
+        hero && "border-primary/50"
+      )}
+    >
       <CardContent className="flex flex-col gap-0.5 px-4">
-        <div className="text-xs text-muted-foreground">{label}</div>
-        <div className="text-lg font-semibold tracking-tight">{value}</div>
-        {sub && <div className="text-[11px] leading-tight text-muted-foreground">{sub}</div>}
+        <div className={cn("text-xs", hero ? "font-medium text-primary" : "text-muted-foreground")}>{label}</div>
+        <div className={cn("font-mono font-semibold tabular-nums tracking-tight", hero ? "text-2xl" : "text-lg")}>
+          {value}
+        </div>
+        {sub && <div className="text-xs leading-tight text-muted-foreground">{sub}</div>}
         {spark && <Sparkline spark={spark} />}
       </CardContent>
     </Card>
@@ -428,6 +446,7 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
       ref={setNodeRef}
       className={cn(
         "mb-1.5 flex touch-none select-none items-center gap-2.5 rounded-lg border bg-card px-3 py-2",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         draggable && "cursor-grab",
         isDragging && "opacity-40"
       )}
@@ -435,12 +454,12 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
       {...attributes}
     >
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[13.5px] font-medium">{tx.counterparty}</div>
+        <div className="truncate text-sm font-medium">{tx.counterparty}</div>
         <div className="truncate text-xs text-muted-foreground">{tx.description}</div>
       </div>
       {tx.shared && tx.shareId && (
         <Badge
-          className="cursor-pointer bg-violet-100 text-violet-800 hover:bg-violet-200 dark:bg-violet-950 dark:text-violet-300"
+          className="cursor-pointer bg-shared/15 text-shared hover:bg-shared/25"
           title="Shared 50/50 with Anni — click to unshare"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => onUnshare(tx.shareId!)}
@@ -454,11 +473,9 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
             {tx.category}
           </Badge>
         ) : (
-          <Badge className="bg-orange-100 font-semibold text-orange-800 dark:bg-orange-950 dark:text-orange-300">
-            uncategorized
-          </Badge>
+          <Badge className="bg-attention/15 font-semibold text-attention">uncategorized</Badge>
         ))}
-      <span className={cn("text-[13.5px] font-semibold", tx.amount > 0 && "text-emerald-700 dark:text-emerald-400")}>
+      <span className={cn("font-mono text-sm font-semibold tabular-nums", tx.amount > 0 && "text-gain")}>
         {tx.amount > 0 ? "+" : "−"}
         {eur.format(Math.abs(tx.amount))}
       </span>
@@ -477,7 +494,9 @@ function CategoryRow({ name, total }: { name: string; total: number }) {
       )}
     >
       <span>{name}</span>
-      <span className="text-muted-foreground">{isOver ? "drop here" : total > 0 ? eur.format(total) : ""}</span>
+      <span className={cn("text-muted-foreground", !isOver && "font-mono tabular-nums")}>
+        {isOver ? "drop here" : total > 0 ? eur.format(total) : ""}
+      </span>
     </div>
   );
 }
