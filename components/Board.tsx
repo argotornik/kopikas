@@ -13,7 +13,8 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import type { Board as BoardData, BoardTx } from "@/lib/board";
+import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
+import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/ui/badge";
@@ -109,8 +110,8 @@ export default function Board({ initial }: { initial: BoardData }) {
         </div>
 
         <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
-          <Stat label="LHV · everyday" value={eur.format(board.balances.everyday)} />
-          <Stat label="LHV · savings" value={eur.format(board.balances.savings)} />
+          <Stat label="LHV · everyday" value={eur.format(board.balances.everyday)} spark={board.sparks.everyday} />
+          <Stat label="LHV · savings" value={eur.format(board.balances.savings)} spark={board.sparks.savings} />
           <button className="text-left" onClick={() => setSnapOpen(true)}>
             <Stat
               label="Lightyear"
@@ -121,13 +122,20 @@ export default function Board({ initial }: { initial: BoardData }) {
                   : "click to add"
               }
               interactive
+              spark={board.sparks.lightyear}
             />
           </button>
-          <Stat label={`Spent in ${board.month}`} value={eur.format(board.spentThisMonth)} sub="your share of shared items" />
+          <Stat
+            label={`Spent in ${board.month}`}
+            value={eur.format(board.spentThisMonth)}
+            sub="your share of shared items"
+            spark={board.sparks.spent}
+          />
           <Stat
             label={`Saved in ${board.month}`}
             value={eur.format(board.savedThisMonth)}
             sub={`last month ${eur.format(board.savedLastMonth)}`}
+            spark={board.sparks.saved}
           />
         </div>
 
@@ -310,16 +318,45 @@ export default function Board({ initial }: { initial: BoardData }) {
   );
 }
 
+const SPARK_COLORS = { green: "#10b981", red: "#ef4444", neutral: "#94a3b8" };
+
+function Sparkline({ spark }: { spark: Spark }) {
+  if (spark.points.length < 2) return null;
+  const color = SPARK_COLORS[spark.tone];
+  const data = spark.points.map((v, i) => ({ i, v }));
+  return (
+    <div className="mt-1.5 h-8 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
+          <YAxis hide domain={["dataMin", "dataMax"]} />
+          <Area
+            type="monotone"
+            dataKey="v"
+            stroke={color}
+            strokeWidth={1.5}
+            fill={color}
+            fillOpacity={0.12}
+            isAnimationActive={false}
+            dot={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 function Stat({
   label,
   value,
   sub,
   interactive,
+  spark,
 }: {
   label: string;
   value: string;
   sub?: string;
   interactive?: boolean;
+  spark?: Spark;
 }) {
   return (
     <Card className={cn("gap-0.5 rounded-xl py-3.5", interactive && "transition-colors hover:border-primary")}>
@@ -327,6 +364,7 @@ function Stat({
         <div className="text-xs text-muted-foreground">{label}</div>
         <div className="text-lg font-semibold tracking-tight">{value}</div>
         {sub && <div className="text-[11px] leading-tight text-muted-foreground">{sub}</div>}
+        {spark && <Sparkline spark={spark} />}
       </CardContent>
     </Card>
   );

@@ -1,6 +1,7 @@
 import type { Db } from "./types";
 import {
   CATEGORIES,
+  SAVINGS,
   balance,
   categoryOf,
   categoryTotals,
@@ -13,6 +14,19 @@ import {
   subscriptionStatus,
 } from "./engine";
 import { MOCK_BALANCES } from "./seed";
+
+export interface Spark {
+  points: number[];
+  tone: "green" | "red" | "neutral";
+}
+
+const DAY = 86400000;
+
+// last===first → neutral; otherwise green when it moved in the good direction.
+function sparkTone(first: number, last: number, upIsGood = true): Spark["tone"] {
+  if (last === first) return "neutral";
+  return last > first === upIsGood ? "green" : "red";
+}
 
 export interface BoardTx {
   id: string;
@@ -64,9 +78,65 @@ export function buildBoard(db: Db, today = new Date()) {
     }))
     .sort((a, b) => b.date.localeCompare(a.date));
 
+  const todayStr = today.toISOString().slice(0, 10);
+  const sharedTxIds = new Set(db.shares.filter((s) => s.txId).map((s) => s.txId));
+
+  // Everyday balance, last 30 days: today's known balance minus everything that happened after day d.
+  const everydayPoints: number[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today.getTime() - i * DAY).toISOString().slice(0, 10);
+    const after = db.transactions.filter((t) => t.date > d).reduce((s, t) => s + t.amount, 0);
+    everydayPoints.push(Math.round((MOCK_BALANCES.everyday - after) * 100) / 100);
+  }
+
+  const snapSorted = [...db.snapshots].sort((a, b) => a.at.localeCompare(b.at));
+  const lightyearPoints = snapSorted.map((s) => s.total);
+
+  // Cumulative spend (Argo's share, savings excluded) per day of the current month.
+  const spentPoints: number[] = [];
+  for (let d = new Date(month + "-01T00:00:00Z"); d.toISOString().slice(0, 10) <= todayStr; d = new Date(d.getTime() + DAY)) {
+    const day = d.toISOString().slice(0, 10);
+    let total = 0;
+    for (const tx of db.transactions) {
+      if (monthKey(tx.date) !== month || tx.date > day || tx.amount >= 0) continue;
+      if (categoryOf(tx, db.rules, db.overrides) === SAVINGS) continue;
+      total += Math.abs(tx.amount) * (sharedTxIds.has(tx.id) ? 0.5 : 1);
+    }
+    for (const s of db.shares) {
+      if (s.manual && s.paidBy === "anni" && monthKey(s.manual.date) === month && s.manual.date <= day) {
+        total += s.manual.amount / 2;
+      }
+    }
+    spentPoints.push(Math.round(total * 100) / 100);
+  }
+
+  const spentNow = monthlySpend(db, month);
+  const spentPrev = monthlySpend(db, prevMonth(month));
+  const savedNow = savedInMonth(db, month);
+  const savedPrev = savedInMonth(db, prevMonth(month));
+
+  const sparks: Record<"everyday" | "savings" | "lightyear" | "spent" | "saved", Spark> = {
+    everyday: {
+      points: everydayPoints,
+      tone: sparkTone(everydayPoints[0], everydayPoints[everydayPoints.length - 1]),
+    },
+    savings: { points: [MOCK_BALANCES.savings, MOCK_BALANCES.savings], tone: "neutral" },
+    lightyear: {
+      points: lightyearPoints,
+      tone:
+        lightyearPoints.length > 1
+          ? sparkTone(lightyearPoints[lightyearPoints.length - 2], lightyearPoints[lightyearPoints.length - 1])
+          : "neutral",
+    },
+    // Spending up vs last month is the bad direction.
+    spent: { points: spentPoints, tone: sparkTone(spentPrev, spentNow, false) },
+    saved: { points: [savedPrev, savedNow], tone: sparkTone(savedPrev, savedNow) },
+  };
+
   return {
     month,
     txs,
+    sparks,
     categories: CATEGORIES.map((c) => ({ name: c, total: Math.round((totals[c] ?? 0) * 100) / 100 })),
     uncategorizedCount: txs.filter((t) => !t.category && t.amount < 0).length,
     balance: balance(db.shares, db.settlements, db.transactions),
@@ -82,9 +152,9 @@ export function buildBoard(db: Db, today = new Date()) {
     monthlyBurn: monthlyBurn(subStatuses),
     snapshot: latestSnap,
     snapshotHistory: [...db.snapshots].sort((a, b) => a.at.localeCompare(b.at)),
-    spentThisMonth: monthlySpend(db, month),
-    savedThisMonth: savedInMonth(db, month),
-    savedLastMonth: savedInMonth(db, prevMonth(month)),
+    spentThisMonth: spentNow,
+    savedThisMonth: savedNow,
+    savedLastMonth: savedPrev,
     balances: MOCK_BALANCES,
   };
 }

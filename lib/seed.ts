@@ -99,6 +99,9 @@ export function seedDb(): Db {
       },
     ],
     snapshots: [
+      { id: "snap-0a", total: 8140.0, holdings: [], at: "2026-05-16T18:00:00Z" },
+      { id: "snap-0b", total: 8655.3, holdings: [], at: "2026-06-14T18:00:00Z" },
+      { id: "snap-0c", total: 8990.1, holdings: [], at: "2026-07-12T18:00:00Z" },
       {
         id: "snap-1",
         total: 9314.55,
