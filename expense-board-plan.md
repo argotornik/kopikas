@@ -94,7 +94,13 @@ libraries, any always-on machine.
 - Supply-chain hygiene at init: committed lockfile, `.npmrc` with `min-release-age`
   (multi-day cooldown on fresh releases), installs with `--ignore-scripts`.
 
-### Environment setup — personal-machine checklist (~20 min, in this order)
+### Environment setup — provisioning checklist (~20 min, in this order)
+
+Everything HOSTS on cloud infra (Vercel/Neon/Clerk — no machine of ours ever serves
+anything). "Personal" below means personal *identity*: do these signups from any
+browser logged in as yourself, never with work accounts. Development can also be
+fully cloud: Claude Code cloud sessions (claude.ai/code, personal account) working
+the GitHub repo, with Vercel auto-deploying every push.
 
 Repo is already deploy-prepped: `vercel.json` (daily cron 05:00 UTC → `/api/sync`),
 a sync stub that honors `CRON_SECRET`, `db/schema.sql` for Neon, and an icon route
