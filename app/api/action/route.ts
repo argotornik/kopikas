@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { newId, readDb, writeCollection } from "@/lib/storage";
 import { inferCadence } from "@/lib/engine";
+import { currentRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,13 @@ type Action =
 
 export async function POST(req: Request) {
   const action = (await req.json()) as Action;
+
+  // Argo: everything. Anni: quick-add only. Anyone else: nothing.
+  const role = await currentRole();
+  if (role !== "argo" && !(role === "anni" && action.type === "quickadd")) {
+    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+  }
+
   const db = await readDb();
   const now = new Date().toISOString();
 

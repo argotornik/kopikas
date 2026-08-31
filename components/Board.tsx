@@ -20,6 +20,7 @@ import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MerchantIcon } from "@/components/merchant-icon";
+import { UserMenu } from "@/components/user-menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -117,6 +118,7 @@ export default function Board({ initial }: { initial: BoardData }) {
               Shared with Anni →
             </a>
             <ThemeToggle />
+            <UserMenu />
           </div>
         </div>
 
