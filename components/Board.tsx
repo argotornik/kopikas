@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -18,6 +18,7 @@ import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import {
   CheckCircle2Icon,
+  ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   HandCoinsIcon,
@@ -74,6 +75,25 @@ export default function Board({ initial }: { initial: BoardData }) {
   // Month shown on the Categories card (and month-scoped filter figures).
   // Defaults to now; browsable back to the earliest synced month.
   const [month, setMonth] = useState(initial.month);
+  // Rail cards collapse to a summary line, remembered per browser. A drag
+  // needs every drop target visible, so collapsed cards reopen while one
+  // is in flight (activeTx) and settle back after.
+  const [collapsed, setCollapsed] = useState<{ categories?: boolean; subs?: boolean }>({});
+  useEffect(() => {
+    try {
+      setCollapsed(JSON.parse(localStorage.getItem("kopikas-collapsed") ?? "{}"));
+    } catch {}
+  }, []);
+  const toggleCollapsed = (key: "categories" | "subs") =>
+    setCollapsed((c) => {
+      const next = { ...c, [key]: !c[key] };
+      try {
+        localStorage.setItem("kopikas-collapsed", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  const showCategories = !collapsed.categories || !!activeTx;
+  const showSubs = !collapsed.subs || !!activeTx;
 
   const refetch = useCallback(async () => {
     const res = await fetch("/api/board", { cache: "no-store" });
@@ -486,6 +506,14 @@ export default function Board({ initial }: { initial: BoardData }) {
                     >
                       <ChevronRightIcon className="size-3.5" />
                     </button>
+                    <button
+                      aria-label={showCategories ? "Collapse categories" : "Expand categories"}
+                      aria-expanded={showCategories}
+                      onClick={() => toggleCollapsed("categories")}
+                      className="ml-1 flex size-5 items-center justify-center rounded-md hover:bg-accent hover:text-foreground"
+                    >
+                      <ChevronDownIcon className={cn("size-3.5 transition-transform", !showCategories && "-rotate-90")} />
+                    </button>
                   </span>
                 </CardTitle>
               </CardHeader>
@@ -512,32 +540,46 @@ export default function Board({ initial }: { initial: BoardData }) {
                     <span className="text-xs italic opacity-70">· iga kopikas loeb</span>
                   </div>
                 )}
-                {board.categories.map((c) => (
-                  <CategoryRow
-                    key={c.name}
-                    name={c.name}
-                    total={Math.round((monthCategoryTotals.get(c.name) ?? 0) * 100) / 100}
-                    active={filter === c.name}
-                    onSelect={() => toggleFilter(c.name)}
-                  />
-                ))}
-                <div
-                  className="mt-1 flex justify-between border-t px-2.5 pt-2 text-sm font-medium"
-                  title="Everything going out except Savings and micro-investing; shared expenses at full price"
-                >
-                  <span>Spent</span>
-                  <span className="font-mono tabular-nums">{eur.format(monthSpentTotal)}</span>
-                </div>
+                {showCategories && (
+                  <>
+                    {board.categories.map((c) => (
+                      <CategoryRow
+                        key={c.name}
+                        name={c.name}
+                        total={Math.round((monthCategoryTotals.get(c.name) ?? 0) * 100) / 100}
+                        active={filter === c.name}
+                        onSelect={() => toggleFilter(c.name)}
+                      />
+                    ))}
+                    <div
+                      className="mt-1 flex justify-between border-t px-2.5 pt-2 text-sm font-medium"
+                      title="Everything going out except Savings and micro-investing; shared expenses at full price"
+                    >
+                      <span>Spent</span>
+                      <span className="font-mono tabular-nums">{eur.format(monthSpentTotal)}</span>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 
             <Card className="shrink-0 gap-3 py-4">
               <CardHeader className="px-4">
-                <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Subscriptions</CardTitle>
+                <CardTitle className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
+                  <span>Subscriptions</span>
+                  <button
+                    aria-label={showSubs ? "Collapse subscriptions" : "Expand subscriptions"}
+                    aria-expanded={showSubs}
+                    onClick={() => toggleCollapsed("subs")}
+                    className="flex size-5 items-center justify-center rounded-md hover:bg-accent hover:text-foreground"
+                  >
+                    <ChevronDownIcon className={cn("size-3.5 transition-transform", !showSubs && "-rotate-90")} />
+                  </button>
+                </CardTitle>
               </CardHeader>
               <CardContent className="px-4">
-                <SubsZone />
-                {board.subscriptions.filter((s) => s.sub.active).length === 0 && (
+                {showSubs && <SubsZone />}
+                {showSubs && board.subscriptions.filter((s) => s.sub.active).length === 0 && (
                   <Empty className="p-4">
                     <EmptyHeader>
                       <EmptyMedia variant="icon">
@@ -550,7 +592,8 @@ export default function Board({ initial }: { initial: BoardData }) {
                     </EmptyHeader>
                   </Empty>
                 )}
-                {(["monthly", "yearly"] as const)
+                {showSubs &&
+                  (["monthly", "yearly"] as const)
                   .map((cadence) => ({
                     cadence,
                     subs: board.subscriptions.filter((s) => s.sub.active && s.sub.cadence === cadence),
