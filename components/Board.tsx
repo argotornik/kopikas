@@ -105,21 +105,20 @@ export default function Board({ initial }: { initial: BoardData }) {
     return [...map.entries()];
   }, [board.txs, filter]);
 
-  // This month's outgoing total for the active filter (mirrors the rail's math).
-  const filterMonthTotal = useMemo(() => {
-    if (!filter) return 0;
-    return (
-      Math.round(
-        board.txs
-          .filter(
-            (t) =>
-              t.date.slice(0, 7) === board.month &&
-              t.amount < 0 &&
-              (filter === "Uncategorized" ? !t.category && !t.micro : t.category === filter)
-          )
-          .reduce((s, t) => s + Math.abs(t.amount), 0) * 100
-      ) / 100
+  // Totals for the active filter: everything visible, plus this month's slice.
+  const filterStats = useMemo(() => {
+    if (!filter) return { total: 0, count: 0, monthTotal: 0 };
+    const matching = board.txs.filter(
+      (t) =>
+        t.amount < 0 && (filter === "Uncategorized" ? !t.category && !t.micro : t.category === filter)
     );
+    const sum = (rows: typeof matching) =>
+      Math.round(rows.reduce((s, t) => s + Math.abs(t.amount), 0) * 100) / 100;
+    return {
+      total: sum(matching),
+      count: matching.length,
+      monthTotal: sum(matching.filter((t) => t.date.slice(0, 7) === board.month)),
+    };
   }, [board.txs, board.month, filter]);
 
   const toggleFilter = (name: string) => setFilter((f) => (f === name ? null : name));
@@ -214,8 +213,9 @@ export default function Board({ initial }: { initial: BoardData }) {
                 className="mb-2 flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm"
               >
                 <span className="font-medium">{filter}</span>
-                <span className="font-mono tabular-nums text-muted-foreground">
-                  {eur.format(filterMonthTotal)} in {monthName}
+                <span className="font-mono tabular-nums">{eur.format(filterStats.total)}</span>
+                <span className="text-xs text-muted-foreground">
+                  {filterStats.count} transactions · {eur.format(filterStats.monthTotal)} in {monthName}
                 </span>
                 <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => setFilter(null)}>
                   Show all
