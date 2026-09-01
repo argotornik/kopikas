@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
-import { anniShareOf, inferCadence } from "@/lib/engine";
+import { anniShareOf, inferCadence, subscriptionStatus } from "@/lib/engine";
 import { merchantFromDescription } from "@/lib/lhv";
 import { currentRole } from "@/lib/auth";
 import { stripPeriod } from "@/lib/utils";
@@ -25,6 +25,7 @@ type Action =
   | { type: "settle"; amount: number; date: string; txId?: string; note?: string }
   | { type: "subscribe"; txId: string }
   | { type: "unsubscribe"; subId: string }
+  | { type: "accept-price"; subId: string }
   | { type: "snapshot"; total: number; holdings: { name: string; pct: number }[]; returnPct?: number }
   | { type: "set-lhv-token"; refreshToken: string };
 
@@ -140,6 +141,17 @@ export async function POST(req: Request) {
         db.rules.push({ id: newId("rule"), match, category: "Subscriptions", createdAt: now });
         await writeCollection("rules", db.rules);
       }
+      break;
+    }
+    case "accept-price": {
+      // The last matched charge becomes the expected price — the badge's
+      // "10,99 € → 8,00 €" stops nagging once the new price is blessed.
+      const sub = db.subscriptions.find((s) => s.id === action.subId);
+      if (!sub) return bad("unknown subscription");
+      const status = subscriptionStatus(sub, db.transactions, new Date());
+      if (!status.lastCharge) return bad("no charge to accept");
+      sub.expectedAmount = status.lastCharge.amount;
+      await writeCollection("subscriptions", db.subscriptions);
       break;
     }
     case "unsubscribe": {

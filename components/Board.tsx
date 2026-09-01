@@ -15,7 +15,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
-import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import {
   CheckCircle2Icon,
   ChevronLeftIcon,
@@ -38,6 +38,12 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import {
   Dialog,
   DialogContent,
@@ -574,7 +580,11 @@ export default function Board({ initial }: { initial: BoardData }) {
                                   : "no charge matched yet"}
                             </span>
                             {s.priceChanged && s.lastCharge && (
-                              <Badge className="bg-attention/15 font-mono tabular-nums text-attention">
+                              <Badge
+                                className="cursor-pointer bg-attention/15 font-mono tabular-nums text-attention hover:bg-attention/25"
+                                title={`Price changed — click to accept ${eur.format(s.lastCharge.amount)} as the new price`}
+                                onClick={() => void post({ type: "accept-price", subId: s.sub.id })}
+                              >
                                 {eur.format(s.sub.expectedAmount)} → {eur.format(s.lastCharge.amount)}
                               </Badge>
                             )}
@@ -674,10 +684,62 @@ export default function Board({ initial }: { initial: BoardData }) {
                 ))}
               </CardContent>
             </Card>
+
+            <Card className="shrink-0 gap-3 py-4">
+              <CardHeader className="px-4">
+                <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Savings over time
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4">
+                {board.snapshotHistory.length >= 2 ? (
+                  <ChartContainer config={SAVINGS_CHART} className="aspect-[2/1] w-full">
+                    <AreaChart
+                      data={board.snapshotHistory.map((s) => ({ date: s.at.slice(0, 10), total: s.total }))}
+                      margin={{ top: 6, right: 4, bottom: 0, left: 4 }}
+                    >
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={6}
+                        minTickGap={32}
+                        tickFormatter={(d: string) => shortDate.format(new Date(d))}
+                      />
+                      <YAxis hide domain={["auto", "auto"]} />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            hideIndicator
+                            labelFormatter={(d) => shortDate.format(new Date(String(d)))}
+                            formatter={(value) => (
+                              <span className="font-mono tabular-nums">{eur.format(Number(value))}</span>
+                            )}
+                          />
+                        }
+                      />
+                      <Area
+                        dataKey="total"
+                        type="monotone"
+                        stroke="var(--color-total)"
+                        strokeWidth={1.5}
+                        fill="var(--color-total)"
+                        fillOpacity={0.12}
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Log a Lightyear update now and then — two snapshots make a line.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
-
       <DragOverlay>
         {activeTx && (
           <div className="cursor-grabbing rounded-lg border border-primary bg-card px-3 py-2 text-sm font-medium shadow-lg">
@@ -751,6 +813,12 @@ function CoinMark() {
 }
 
 const SPARK_COLORS = { green: "var(--gain)", red: "var(--loss)", neutral: "var(--muted-foreground)" };
+
+// The savings chart plots Lightyear snapshots — same green the Lightyear
+// tile's sparkline speaks.
+const SAVINGS_CHART = {
+  total: { label: "Lightyear", color: "var(--gain)" },
+} satisfies ChartConfig;
 
 function Sparkline({ spark }: { spark: Spark }) {
   if (spark.points.length < 2) return null;
