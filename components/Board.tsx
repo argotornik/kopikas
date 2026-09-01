@@ -15,7 +15,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
-import { CheckCircle2Icon, HandCoinsIcon, InboxIcon, RepeatIcon, SettingsIcon } from "lucide-react";
+import { CheckCircle2Icon, HandCoinsIcon, InboxIcon, RepeatIcon, SettingsIcon, SproutIcon } from "lucide-react";
 import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -188,20 +188,41 @@ export default function Board({ initial }: { initial: BoardData }) {
                 </EmptyHeader>
               </Empty>
             ) : (
-              days.map(([date, txs]) => (
-                <div key={date}>
-                  <div className="mb-1.5 mt-4 text-xs text-muted-foreground first:mt-0">
-                    {dayFmt.format(new Date(date))}
+              days.map(([date, txs]) => {
+                const micro = txs.filter((t) => t.micro);
+                const microOut = micro.filter((t) => t.amount < 0);
+                const microTotal = microOut.reduce((s, t) => s + Math.abs(t.amount), 0);
+                return (
+                  <div key={date}>
+                    <div className="mb-1.5 mt-4 text-xs text-muted-foreground first:mt-0">
+                      {dayFmt.format(new Date(date))}
+                    </div>
+                    {txs
+                      .filter((t) => !t.micro)
+                      .map((tx) => (
+                        <Tile key={tx.id} tx={tx} onUnshare={(id) => void post({ type: "unshare", shareId: id })} />
+                      ))}
+                    {micro.length > 0 && (
+                      <div className="mb-1.5 flex items-center gap-2 rounded-lg border border-dashed px-3 py-1.5 text-xs text-muted-foreground">
+                        <SproutIcon className="size-3.5 shrink-0" />
+                        <span className="min-w-0 flex-1 truncate">
+                          Mikroinvesteering · {microOut.length || micro.length} transfer
+                          {(microOut.length || micro.length) === 1 ? "" : "s"}
+                        </span>
+                        {microTotal > 0 && (
+                          <span className="font-mono tabular-nums">
+                            −{eur.format(microTotal)} → Savings
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  {txs.map((tx) => (
-                    <Tile key={tx.id} tx={tx} onUnshare={(id) => void post({ type: "unshare", shareId: id })} />
-                  ))}
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
-          <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex min-w-0 flex-col gap-4 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start md:overflow-y-auto">
             <Card className="gap-3 py-4">
               <CardHeader className="px-4">
                 <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">

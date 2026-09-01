@@ -42,6 +42,9 @@ export interface BoardTx {
   categorySource: "rule" | "override" | null;
   shared: boolean;
   shareId?: string;
+  // Set-and-forget noise (LHV micro-investing round-ups): collapsed into a
+  // per-day rollup line in the feed. Math still counts the underlying rows.
+  micro: boolean;
 }
 
 // Reconstruct a 30-day balance line for one account: today's known balance
@@ -73,6 +76,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
         counterparty: tx.counterparty,
         description: tx.description,
         domain: guessDomain(tx.counterparty),
+        micro: (tx.counterparty + " " + tx.description).toLowerCase().includes("mikroinvesteering"),
         category: cat,
         categorySource: override ? "override" : cat ? "rule" : null,
         shared: !!share,
