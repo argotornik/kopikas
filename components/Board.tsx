@@ -133,6 +133,9 @@ export default function Board({ initial }: { initial: BoardData }) {
       id="board"
       sensors={sensors}
       collisionDetection={pointerWithin}
+      // No drag auto-scroll: the sticky rail keeps every drop target on
+      // screen, so edge-scrolling only fights the gesture.
+      autoScroll={false}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
