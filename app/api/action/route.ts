@@ -97,10 +97,21 @@ export async function POST(req: Request) {
       if (!tx) return bad("unknown tx");
       const cleanName = merchantFromDescription(tx.counterparty) ?? tx.counterparty;
       const match = cleanPattern(tx.counterparty);
-      if (!db.subscriptions.some((s) => s.match === match && s.active)) {
+      // Aggregators bill many subscriptions under one merchant string —
+      // amount-match those so each stays a distinct record.
+      const isAggregator = ["apple.com/bill", "google play"].some((a) => match.includes(a));
+      const txAmount = Math.abs(tx.amount);
+      const duplicate = db.subscriptions.some(
+        (s) =>
+          s.active &&
+          s.match === match &&
+          (!s.matchAmount || Math.abs(s.expectedAmount - txAmount) <= 0.01)
+      );
+      if (!duplicate) {
         db.subscriptions.push({
           id: newId("sub"),
           name: cleanName,
+          matchAmount: isAggregator,
           match,
           expectedAmount: Math.abs(tx.amount),
           cadence: inferCadence(db.transactions, match),
