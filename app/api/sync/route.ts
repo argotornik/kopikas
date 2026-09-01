@@ -40,6 +40,7 @@ async function run(req: Request) {
     );
   }
 
+  let refreshFailure: string | null = null;
   try {
     // Design intent: the stored token is a refresh token. Reality check: if
     // the refresh grant fails, try the stored token directly as a bearer —
@@ -53,10 +54,9 @@ async function run(req: Request) {
       accessToken = refreshed.accessToken;
       newRefreshToken = refreshed.newRefreshToken;
     } catch (refreshError) {
+      refreshFailure = refreshError instanceof Error ? refreshError.message : String(refreshError);
       accessToken = tokens.refreshToken;
-      tokenMode = `direct — stored token used as bearer (refresh grant failed: ${
-        refreshError instanceof Error ? refreshError.message : String(refreshError)
-      })`;
+      tokenMode = "direct — stored token used as bearer (refresh grant failed, see refreshGrant)";
     }
     if (newRefreshToken) await saveLhvTokens(newRefreshToken);
 
@@ -88,6 +88,7 @@ async function run(req: Request) {
     return NextResponse.json({
       ok: true,
       tokenMode,
+      refreshGrant: refreshFailure ?? undefined,
       accounts: accounts.length,
       fetched,
       mapped: txs.length,
@@ -98,7 +99,11 @@ async function run(req: Request) {
     });
   } catch (e) {
     return NextResponse.json(
-      { ok: false, error: e instanceof Error ? e.message : String(e) },
+      {
+        ok: false,
+        error: e instanceof Error ? e.message : String(e),
+        refreshGrant: refreshFailure ?? undefined,
+      },
       { status: 502 }
     );
   }
