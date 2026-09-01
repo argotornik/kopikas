@@ -16,7 +16,16 @@ import {
 } from "@dnd-kit/core";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
-import { CheckCircle2Icon, HandCoinsIcon, InboxIcon, RepeatIcon, SettingsIcon, SproutIcon } from "lucide-react";
+import {
+  CheckCircle2Icon,
+  HandCoinsIcon,
+  InboxIcon,
+  RepeatIcon,
+  SearchIcon,
+  SettingsIcon,
+  SproutIcon,
+  XIcon,
+} from "lucide-react";
 import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -49,6 +58,8 @@ export default function Board({ initial }: { initial: BoardData }) {
   const [snapOpen, setSnapOpen] = useState(false);
   // Category filter: a category name, "Uncategorized", or null for the full feed.
   const [filter, setFilter] = useState<string | null>(null);
+  // Free-text search over counterparty + description; combines with the filter.
+  const [query, setQuery] = useState("");
 
   const refetch = useCallback(async () => {
     const res = await fetch("/api/board", { cache: "no-store" });
@@ -92,18 +103,35 @@ export default function Board({ initial }: { initial: BoardData }) {
   };
 
   const days = useMemo(() => {
-    const visible = filter
+    const q = query.trim().toLowerCase();
+    let visible = filter
       ? board.txs.filter((t) =>
           filter === "Uncategorized" ? !t.category && t.amount < 0 && !t.micro : t.category === filter
         )
       : board.txs;
+    if (q) {
+      visible = visible.filter((t) => (t.counterparty + " " + t.description).toLowerCase().includes(q));
+    }
     const map = new Map<string, BoardTx[]>();
     for (const tx of visible) {
       if (!map.has(tx.date)) map.set(tx.date, []);
       map.get(tx.date)!.push(tx);
     }
     return [...map.entries()];
-  }, [board.txs, filter]);
+  }, [board.txs, filter, query]);
+
+  // Match count + outgoing total for the active search ("how much at X?").
+  const searchStats = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return null;
+    const rows = days.flatMap(([, txs]) => txs);
+    return {
+      count: rows.length,
+      total:
+        Math.round(rows.filter((t) => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0) * 100) /
+        100,
+    };
+  }, [days, query]);
 
   // Totals for the active filter: everything visible, plus this month's slice.
   const filterStats = useMemo(() => {
@@ -207,6 +235,30 @@ export default function Board({ initial }: { initial: BoardData }) {
 
         <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
           <div className="min-w-0">
+            <div className="relative mb-2">
+              <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="pl-8 pr-8"
+                placeholder="Search transactions…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {query && (
+                <button
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setQuery("")}
+                  aria-label="Clear search"
+                >
+                  <XIcon className="size-4" />
+                </button>
+              )}
+            </div>
+            {searchStats && (
+              <div className="mb-2 px-1 text-xs text-muted-foreground">
+                {searchStats.count} match{searchStats.count === 1 ? "" : "es"} ·{" "}
+                <span className="font-mono tabular-nums">{eur.format(searchStats.total)}</span> spent
+              </div>
+            )}
             {filter && (
               <motion.div
                 key={filter}
@@ -226,7 +278,7 @@ export default function Board({ initial }: { initial: BoardData }) {
               </motion.div>
             )}
             {days.length === 0 ? (
-              filter ? (
+              filter || query ? (
                 <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}>
                 <Empty className="p-6">
                   <EmptyHeader>
@@ -234,10 +286,21 @@ export default function Board({ initial }: { initial: BoardData }) {
                       <CheckCircle2Icon />
                     </EmptyMedia>
                     <EmptyTitle className="text-sm">
-                      {filter === "Uncategorized" ? "Everything filed" : `No ${filter} transactions`}
+                      {query
+                        ? `No matches for “${query.trim()}”`
+                        : filter === "Uncategorized"
+                          ? "Everything filed"
+                          : `No ${filter} transactions`}
                     </EmptyTitle>
                     <EmptyDescription>
-                      <Button variant="outline" size="sm" onClick={() => setFilter(null)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setFilter(null);
+                          setQuery("");
+                        }}
+                      >
                         Show all
                       </Button>
                     </EmptyDescription>
