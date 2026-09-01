@@ -18,6 +18,8 @@ import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
 import {
   CheckCircle2Icon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   HandCoinsIcon,
   InboxIcon,
   RepeatIcon,
@@ -62,6 +64,9 @@ export default function Board({ initial }: { initial: BoardData }) {
   const [query, setQuery] = useState("");
   // Anni's fraction for the next drop on the Anni zone (the ½/⅓/¼ toggle).
   const [anniShare, setAnniShare] = useState(0.5);
+  // Month shown on the Categories card (and month-scoped filter figures).
+  // Defaults to now; browsable back to the earliest synced month.
+  const [month, setMonth] = useState(initial.month);
 
   const refetch = useCallback(async () => {
     const res = await fetch("/api/board", { cache: "no-store" });
@@ -136,7 +141,7 @@ export default function Board({ initial }: { initial: BoardData }) {
     };
   }, [days, query]);
 
-  // Totals for the active filter: everything visible, plus this month's slice.
+  // Totals for the active filter: everything visible, plus the viewed month's slice.
   const filterStats = useMemo(() => {
     if (!filter) return { total: 0, count: 0, monthTotal: 0 };
     const matching = board.txs.filter(
@@ -148,11 +153,37 @@ export default function Board({ initial }: { initial: BoardData }) {
     return {
       total: sum(matching),
       count: matching.length,
-      monthTotal: sum(matching.filter((t) => t.date.slice(0, 7) === board.month)),
+      monthTotal: sum(matching.filter((t) => t.date.slice(0, 7) === month)),
     };
-  }, [board.txs, board.month, filter]);
+  }, [board.txs, month, filter]);
 
   const toggleFilter = (name: string) => setFilter((f) => (f === name ? null : name));
+
+  // Category totals for the viewed month, from the same per-tx categories the
+  // server assigns — matches engine.categoryTotals for the current month.
+  const monthCategoryTotals = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const t of board.txs) {
+      if (t.amount >= 0 || t.date.slice(0, 7) !== month) continue;
+      const key = t.category ?? "Uncategorized";
+      totals.set(key, (totals.get(key) ?? 0) + Math.abs(t.amount));
+    }
+    return totals;
+  }, [board.txs, month]);
+
+  const earliestMonth = useMemo(
+    () => board.txs.reduce((min, t) => (t.date.slice(0, 7) < min ? t.date.slice(0, 7) : min), board.month),
+    [board.txs, board.month]
+  );
+  const shiftMonth = (m: string, by: number) => {
+    const [y, mo] = m.split("-").map(Number);
+    return new Date(Date.UTC(y, mo - 1 + by, 1)).toISOString().slice(0, 7);
+  };
+  const fmtMonth = (m: string) =>
+    new Intl.DateTimeFormat(
+      "en-GB",
+      m.slice(0, 4) === board.month.slice(0, 4) ? { month: "long" } : { month: "long", year: "numeric" }
+    ).format(new Date(m + "-01T00:00:00Z"));
 
   const bal = board.balance;
   const monthName = new Intl.DateTimeFormat("en-GB", { month: "long" }).format(
@@ -277,7 +308,7 @@ export default function Board({ initial }: { initial: BoardData }) {
                 <span className="font-medium">{filter}</span>
                 <span className="font-mono tabular-nums">{eur.format(filterStats.total)}</span>
                 <span className="text-xs text-muted-foreground">
-                  {filterStats.count} transactions · {eur.format(filterStats.monthTotal)} in {monthName}
+                  {filterStats.count} transactions · {eur.format(filterStats.monthTotal)} in {fmtMonth(month)}
                 </span>
                 <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => setFilter(null)}>
                   Show all
@@ -376,8 +407,26 @@ export default function Board({ initial }: { initial: BoardData }) {
           <div className="flex min-w-0 flex-col gap-4 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start md:overflow-y-auto">
             <Card className="shrink-0 gap-3 py-4">
               <CardHeader className="px-4">
-                <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Categories · {monthName}
+                <CardTitle className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
+                  <span>Categories · {fmtMonth(month)}</span>
+                  <span className="flex items-center gap-0.5">
+                    <button
+                      aria-label="Previous month"
+                      disabled={month <= earliestMonth}
+                      onClick={() => setMonth((m) => shiftMonth(m, -1))}
+                      className="flex size-5 items-center justify-center rounded-md hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+                    >
+                      <ChevronLeftIcon className="size-3.5" />
+                    </button>
+                    <button
+                      aria-label="Next month"
+                      disabled={month >= board.month}
+                      onClick={() => setMonth((m) => shiftMonth(m, 1))}
+                      className="flex size-5 items-center justify-center rounded-md hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+                    >
+                      <ChevronRightIcon className="size-3.5" />
+                    </button>
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-0.5 px-1.5">
@@ -402,7 +451,7 @@ export default function Board({ initial }: { initial: BoardData }) {
                   <CategoryRow
                     key={c.name}
                     name={c.name}
-                    total={c.total}
+                    total={Math.round((monthCategoryTotals.get(c.name) ?? 0) * 100) / 100}
                     active={filter === c.name}
                     onSelect={() => toggleFilter(c.name)}
                   />
