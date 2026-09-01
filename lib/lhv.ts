@@ -60,7 +60,10 @@ async function lhvGet(accessToken: string, path: string): Promise<unknown> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
   });
-  if (!res.ok) throw new Error(`LHV GET ${path.split("?")[0]} failed: HTTP ${res.status}`);
+  if (!res.ok) {
+    const body = (await res.text().catch(() => "")).slice(0, 200);
+    throw new Error(`LHV GET ${path.split("?")[0]} failed: HTTP ${res.status}${body ? ` — ${body}` : ""}`);
+  }
   return res.json();
 }
 

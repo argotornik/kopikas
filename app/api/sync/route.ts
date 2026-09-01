@@ -41,6 +41,7 @@ async function run(req: Request) {
   }
 
   let refreshFailure: string | null = null;
+  let tokenModeReport = "not attempted";
   try {
     // Design intent: the stored token is a refresh token. Reality check: if
     // the refresh grant fails, try the stored token directly as a bearer —
@@ -58,6 +59,7 @@ async function run(req: Request) {
       accessToken = tokens.refreshToken;
       tokenMode = "direct — stored token used as bearer (refresh grant failed, see refreshGrant)";
     }
+    tokenModeReport = tokenMode;
     if (newRefreshToken) await saveLhvTokens(newRefreshToken);
 
     const { accounts, unmapped: accountUnmapped } = await fetchAccounts(accessToken);
@@ -102,6 +104,7 @@ async function run(req: Request) {
       {
         ok: false,
         error: e instanceof Error ? e.message : String(e),
+        tokenMode: tokenModeReport,
         refreshGrant: refreshFailure ?? undefined,
       },
       { status: 502 }
