@@ -266,6 +266,7 @@ export default function Board({ initial }: { initial: BoardData }) {
             <a
               href="/settings"
               title="Settings"
+              aria-label="Settings"
               className="flex size-8 items-center justify-center text-muted-foreground hover:text-foreground"
             >
               <SettingsIcon className="size-4" />
@@ -331,6 +332,8 @@ export default function Board({ initial }: { initial: BoardData }) {
               <Input
                 className="pl-8 pr-8"
                 placeholder="Search transactions…"
+                aria-label="Search transactions"
+                name="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -624,8 +627,10 @@ export default function Board({ initial }: { initial: BoardData }) {
                             </span>
                             {s.priceChanged && s.lastCharge && (
                               <Badge
+                                render={<button type="button" />}
                                 className="cursor-pointer bg-attention/15 font-mono tabular-nums text-attention hover:bg-attention/25"
                                 title={`Price changed — click to accept ${eur.format(s.lastCharge.amount)} as the new price`}
+                                aria-label={`Accept ${eur.format(s.lastCharge.amount)} as the new price for ${s.sub.name}`}
                                 onClick={() => void post({ type: "accept-price", subId: s.sub.id })}
                               >
                                 {eur.format(s.sub.expectedAmount)} → {eur.format(s.lastCharge.amount)}
@@ -642,6 +647,7 @@ export default function Board({ initial }: { initial: BoardData }) {
                           size="icon"
                           className="size-6 shrink-0 text-muted-foreground"
                           title="Mark cancelled"
+                          aria-label={`Cancel ${s.sub.name} subscription`}
                           onClick={() => void post({ type: "unsubscribe", subId: s.sub.id })}
                         >
                           ✕
@@ -937,6 +943,8 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
       ref={setNodeRef}
       className={cn(
         "mb-1.5 flex touch-none select-none items-center gap-2.5 rounded-lg border bg-card px-3 py-2",
+        // Offscreen tiles skip render work — the full feed is ~1,000 rows.
+        "[contain-intrinsic-size:auto_56px] [content-visibility:auto]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         draggable && "cursor-grab",
         isDragging && "opacity-40"
@@ -951,8 +959,10 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
       </div>
       {tx.shared && tx.shareId && (
         <Badge
+          render={<button type="button" />}
           className="cursor-pointer bg-shared/15 text-shared hover:bg-shared/25"
           title={`Shared with Anni — she pays ${shareLabel(tx.anniShare)}. Click to unshare`}
+          aria-label={`Unshare — Anni pays ${shareLabel(tx.anniShare)} of this`}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => onUnshare(tx.shareId!)}
         >
@@ -988,14 +998,12 @@ function CategoryRow({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `cat:${name}` });
   return (
-    <div
+    <button
+      type="button"
       ref={setNodeRef}
-      role="button"
-      tabIndex={0}
       onClick={onSelect}
-      onKeyDown={(e) => e.key === "Enter" && onSelect()}
       className={cn(
-        "flex cursor-pointer justify-between rounded-md border border-dashed border-transparent px-2.5 py-1.5 text-sm hover:bg-accent/50",
+        "flex w-full cursor-pointer justify-between rounded-md border border-dashed border-transparent px-2.5 py-1.5 text-left text-sm hover:bg-accent/50",
         isOver && "border-primary bg-accent",
         active && "bg-accent font-medium"
       )}
@@ -1004,7 +1012,7 @@ function CategoryRow({
       <span className={cn("text-muted-foreground", !isOver && "font-mono tabular-nums")}>
         {isOver ? "drop here" : total > 0 ? eur.format(total) : ""}
       </span>
-    </div>
+    </button>
   );
 }
 
@@ -1086,14 +1094,27 @@ function SnapshotEditor({
           <DialogDescription>Every update is logged — decreases too.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">
-          <Input placeholder="Total value, e.g. 5917" value={total} onChange={(e) => setTotal(e.target.value)} autoFocus />
+          <Input
+            placeholder="Total value, e.g. 5917"
+            aria-label="Total value in euros"
+            name="lightyear-total"
+            inputMode="decimal"
+            value={total}
+            onChange={(e) => setTotal(e.target.value)}
+            autoFocus
+          />
           <Input
             placeholder="Return % from Lightyear, e.g. 2.24 (optional)"
+            aria-label="Return percent"
+            name="lightyear-return"
+            inputMode="decimal"
             value={returnPct}
             onChange={(e) => setReturnPct(e.target.value)}
           />
           <Input
             placeholder="Allocations like “VWCE 70, MMF 25” (optional)"
+            aria-label="Allocations"
+            name="lightyear-holdings"
             value={holdings}
             onChange={(e) => setHoldings(e.target.value)}
           />

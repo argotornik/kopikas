@@ -135,11 +135,20 @@ export default function AnniPage() {
         <CardContent className="flex flex-col gap-2 px-4">
           <Input
             placeholder="What was it, e.g. Dinner at Kivi Paber Käärid"
+            aria-label="What was it"
+            name="description"
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
           />
           <div className="flex gap-2">
-            <Input placeholder="Amount, e.g. 54.00" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <Input
+              placeholder="Amount, e.g. 54.00"
+              aria-label="Amount in euros"
+              name="amount"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
             <Button onClick={() => void add()}>Add</Button>
           </div>
           {err && <p className="text-xs text-destructive">{err}</p>}

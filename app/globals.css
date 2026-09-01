@@ -56,6 +56,8 @@
    with the primary shifted from template terracotta to Kopikas copper — the metal
    kopikas coins were struck from. Keeps brand distinct from --attention orange. */
 :root {
+    /* Native scrollbars and form controls follow the theme. */
+    color-scheme: light;
     --background: oklch(0.94 0 236.5);
     --foreground: oklch(0.32 0 0);
     --card: oklch(1 0 0);
@@ -96,6 +98,7 @@
 }
 
 .dark {
+    color-scheme: dark;
     --background: oklch(0.26 0.03 262.67);
     --foreground: oklch(0.92 0 0);
     --card: oklch(0.31 0.03 268.64);

@@ -33,6 +33,9 @@ export function MerchantIcon({
     <img
       src={`/api/icon?domain=${domain}`}
       alt=""
+      width={28}
+      height={28}
+      loading="lazy"
       className={cn("size-7 shrink-0 rounded-full border bg-card object-contain p-0.5", className)}
       onError={() => setFailed(true)}
     />

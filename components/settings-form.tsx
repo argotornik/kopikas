@@ -19,6 +19,7 @@ export function SettingsForm({
 }) {
   const [token, setToken] = useState("");
   const [saveMsg, setSaveMsg] = useState("");
+  const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState("");
 
@@ -27,13 +28,18 @@ export function SettingsForm({
       setSaveMsg("Paste the refresh token first");
       return;
     }
-    const res = await fetch("/api/action", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "set-lhv-token", refreshToken: token }),
-    });
-    setToken("");
-    setSaveMsg(res.ok ? "Token stored (encrypted). Run a sync to test it." : "Saving failed — try again.");
+    setSaving(true);
+    try {
+      const res = await fetch("/api/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "set-lhv-token", refreshToken: token }),
+      });
+      setToken("");
+      setSaveMsg(res.ok ? "Token stored (encrypted). Run a sync to test it." : "Saving failed — try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const syncNow = async () => {
@@ -69,17 +75,25 @@ export function SettingsForm({
             <Input
               type="password"
               placeholder="Paste refresh token"
+              aria-label="LHV refresh token"
+              name="lhv-refresh-token"
+              autoComplete="off"
+              spellCheck={false}
               value={token}
               onChange={(e) => setToken(e.target.value)}
             />
-            <Button onClick={() => void saveToken()}>Save</Button>
+            <Button onClick={() => void saveToken()} disabled={saving}>
+              {saving ? "Saving…" : "Save"}
+            </Button>
           </div>
           <p className="text-xs text-muted-foreground">
             Token stored: <span className="font-mono">{when(tokenUpdatedAt)}</span> · Accounts known:{" "}
             <span className="font-mono tabular-nums">{accountCount}</span> · Balances fetched:{" "}
             <span className="font-mono">{when(accountsFetchedAt)}</span>
           </p>
-          {saveMsg && <p className="text-xs text-foreground">{saveMsg}</p>}
+          <p className="min-h-4 text-xs text-foreground" aria-live="polite">
+            {saveMsg}
+          </p>
         </CardContent>
       </Card>
 
