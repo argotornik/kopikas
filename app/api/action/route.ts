@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
 import { inferCadence } from "@/lib/engine";
+import { merchantFromDescription } from "@/lib/lhv";
 import { currentRole } from "@/lib/auth";
+
+// Rules and subscription patterns must never contain a raw card string —
+// "( ..3696) 2026-08-18 16:14 GR. TK. VIIMSI\..." has a timestamp in it and
+// matches exactly one transaction ever. Extract the merchant part if present.
+function cleanPattern(raw: string): string {
+  return (merchantFromDescription(raw) ?? raw).trim().toLowerCase();
+}
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +39,7 @@ export async function POST(req: Request) {
 
   switch (action.type) {
     case "rule": {
-      const match = action.match.trim().toLowerCase();
+      const match = cleanPattern(action.match ?? "");
       if (!match || !action.category) return bad("match and category required");
       if (!db.rules.some((r) => r.match === match && r.category === action.category)) {
         db.rules.push({ id: newId("rule"), match, category: action.category, createdAt: now });
@@ -87,11 +95,12 @@ export async function POST(req: Request) {
     case "subscribe": {
       const tx = db.transactions.find((t) => t.id === action.txId);
       if (!tx) return bad("unknown tx");
-      const match = tx.counterparty.trim().toLowerCase();
+      const cleanName = merchantFromDescription(tx.counterparty) ?? tx.counterparty;
+      const match = cleanPattern(tx.counterparty);
       if (!db.subscriptions.some((s) => s.match === match && s.active)) {
         db.subscriptions.push({
           id: newId("sub"),
-          name: tx.counterparty,
+          name: cleanName,
           match,
           expectedAmount: Math.abs(tx.amount),
           cadence: inferCadence(db.transactions, match),

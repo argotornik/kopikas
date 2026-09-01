@@ -197,7 +197,7 @@ const DEBIT_MARKERS = new Set(["DBIT", "DEBIT", "D", "OUT", "OUTGOING", "DEB", "
 // card suffix + timestamp.
 const CARD_DESC = /^\(\.\.\d{3,4}\)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+([^\\]+)/;
 
-function merchantFromDescription(description: string): string | undefined {
+export function merchantFromDescription(description: string): string | undefined {
   const m = description.match(CARD_DESC);
   const name = m?.[1]?.trim();
   return name && name.length > 1 ? name : undefined;
