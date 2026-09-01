@@ -72,7 +72,10 @@ async function run(req: Request) {
       .sort()
       .at(-1);
     const to = new Date().toISOString().slice(0, 10);
-    const from = newestLhv ? isoMinusDays(newestLhv, 7) : isoMinusDays(to, 90);
+    // ?full=1 forces the whole 90-day window — useful after mapper
+    // improvements, since upserts refresh names on re-fetched rows.
+    const full = new URL(req.url).searchParams.get("full") === "1";
+    const from = !full && newestLhv ? isoMinusDays(newestLhv, 7) : isoMinusDays(to, 90);
 
     let fetched = 0;
     const txs: Tx[] = [];

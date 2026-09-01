@@ -145,10 +145,13 @@ async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Pro
   switch (name) {
     case "transactions": {
       // Append-only facts: upsert, never delete (shares/overrides hold FKs).
+      // Display fields refresh on conflict so mapper improvements reach
+      // already-stored rows on re-sync; date/amount stay immutable facts.
       for (const t of value as Db["transactions"]) {
         await sql.query(
           `insert into transactions (id, date, amount, currency, counterparty, description, iban)
-           values ($1, $2, $3, $4, $5, $6, $7) on conflict (id) do nothing`,
+           values ($1, $2, $3, $4, $5, $6, $7)
+           on conflict (id) do update set counterparty = excluded.counterparty, description = excluded.description`,
           [t.id, t.date, t.amount, t.currency, t.counterparty, t.description, t.iban]
         );
       }

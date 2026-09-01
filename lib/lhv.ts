@@ -204,7 +204,13 @@ function mapTransaction(r: Record<string, unknown>, iban: string): { tx: Tx | nu
 
   const cp = r.counterparty as Record<string, unknown> | undefined;
   const merchant = r.merchant as Record<string, unknown> | undefined;
+  // Transfers carry nested debtor/creditor parties: the counterparty is the
+  // creditor when money leaves, the debtor when it arrives.
+  const debtor = pd.debtor as Record<string, unknown> | undefined;
+  const creditor = pd.creditor as Record<string, unknown> | undefined;
+  const partner = amount < 0 ? (creditor ?? debtor) : (debtor ?? creditor);
   const counterparty = str(
+    partner?.name,
     cp?.name,
     r.counterpartyName,
     r.creditorName,
