@@ -19,6 +19,7 @@ export const dynamic = "force-dynamic";
 type Action =
   | { type: "rule"; match: string; category: string }
   | { type: "override"; txId: string; category: string }
+  | { type: "unrule"; ruleId: string }
   | { type: "share"; txId: string; anniShare?: number }
   | { type: "unshare"; shareId: string }
   | { type: "quickadd"; description: string; amount: number; date: string }
@@ -49,6 +50,14 @@ export async function POST(req: Request) {
         db.rules.push({ id: newId("rule"), match, category: action.category, createdAt: now });
         await writeCollection("rules", db.rules);
       }
+      break;
+    }
+    case "unrule": {
+      // Forgetting a rule un-files everything it decided; overrides and
+      // other rules still apply.
+      if (!db.rules.some((r) => r.id === action.ruleId)) return bad("unknown rule");
+      db.rules = db.rules.filter((r) => r.id !== action.ruleId);
+      await writeCollection("rules", db.rules);
       break;
     }
     case "override": {
