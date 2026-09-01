@@ -126,14 +126,20 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
   const snapSorted = [...db.snapshots].sort((a, b) => a.at.localeCompare(b.at));
   const lightyearPoints = snapSorted.map((s) => s.total);
 
-  // Cumulative spend (Argo's share, savings excluded) per day of the current month.
+  // Cumulative spend (Argo's share, savings excluded) and cumulative savings
+  // per day of the current month.
   const spentPoints: number[] = [];
+  const savedPoints: number[] = [];
   for (let d = new Date(month + "-01T00:00:00Z"); d.toISOString().slice(0, 10) <= todayStr; d = new Date(d.getTime() + DAY)) {
     const day = d.toISOString().slice(0, 10);
     let total = 0;
+    let saved = 0;
     for (const tx of db.transactions) {
       if (monthKey(tx.date) !== month || tx.date > day || tx.amount >= 0) continue;
-      if (categoryOf(tx, db.rules, db.overrides) === SAVINGS) continue;
+      if (categoryOf(tx, db.rules, db.overrides) === SAVINGS) {
+        saved += Math.abs(tx.amount);
+        continue;
+      }
       const share = shareByTx.get(tx.id);
       total += Math.abs(tx.amount) * (share ? 1 - anniShareOf(share) : 1);
     }
@@ -143,6 +149,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
       }
     }
     spentPoints.push(Math.round(total * 100) / 100);
+    savedPoints.push(Math.round(saved * 100) / 100);
   }
 
   const spentNow = monthlySpend(db, month);
@@ -160,7 +167,10 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     },
     // Spending up vs last month is the bad direction.
     spent: { points: spentPoints, tone: sparkTone(spentPrev, spentNow, false) },
-    saved: { points: [savedPrev, savedNow], tone: sparkTone(savedPrev, savedNow) },
+    // The hero shows this month's trajectory, not last-month-vs-now: a young
+    // month always loses that comparison and rendered as a red cliff. Savings
+    // only accumulate, so the tone is never red.
+    saved: { points: savedPoints, tone: savedNow > 0 ? "green" : "neutral" },
   };
 
   // Repayment suggestions only while something is actually owed, and only

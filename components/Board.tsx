@@ -218,7 +218,10 @@ export default function Board({ initial }: { initial: BoardData }) {
       <MotionConfig reducedMotion="user">
       <div className="mx-auto max-w-6xl px-5 py-6 pb-20">
         <div className="mb-5 flex items-center justify-between">
-          <h1 className="text-lg font-semibold tracking-tight">Kopikas</h1>
+          <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+            <CoinMark />
+            Kopikas
+          </h1>
           <div className="flex items-center gap-1.5">
             <a href="/anni" className="text-sm text-muted-foreground hover:text-foreground">
               Shared with Anni →
@@ -460,9 +463,10 @@ export default function Board({ initial }: { initial: BoardData }) {
                     </span>
                   </button>
                 ) : (
-                  <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-muted-foreground">
-                    <CheckCircle2Icon className="size-4 text-gain" />
+                  <div className="flex items-baseline gap-1.5 px-2.5 py-1.5 text-sm text-muted-foreground">
+                    <CheckCircle2Icon className="size-4 self-center text-gain" />
                     Everything filed
+                    <span className="text-xs italic opacity-70">· iga kopikas loeb</span>
                   </div>
                 )}
                 {board.categories.map((c) => (
@@ -687,6 +691,25 @@ export default function Board({ initial }: { initial: BoardData }) {
       />
       </MotionConfig>
     </DndContext>
+  );
+}
+
+// The kopikas coin: copper disc with a reeded inner ring.
+function CoinMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-5 shrink-0" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" className="fill-primary" />
+      <circle
+        cx="12"
+        cy="12"
+        r="7"
+        fill="none"
+        stroke="var(--primary-foreground)"
+        strokeOpacity="0.55"
+        strokeWidth="1.2"
+        strokeDasharray="1.6 2.3"
+      />
+    </svg>
   );
 }
 

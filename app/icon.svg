@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- The kopikas coin, copper (matches --primary: oklch(0.60 0.11 55)). -->
+  <circle cx="16" cy="16" r="15" fill="#b06e3e"/>
+  <circle cx="16" cy="16" r="10.5" fill="none" stroke="#fff" stroke-opacity="0.55" stroke-width="1.6" stroke-dasharray="2.2 3.1"/>
+</svg>
