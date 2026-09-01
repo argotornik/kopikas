@@ -368,14 +368,16 @@ export default function Board({ initial }: { initial: BoardData }) {
             )}
           </div>
 
+          {/* Cards must not flex-shrink: Card is overflow-hidden, so a squeezed
+              card silently clips its bottom rows instead of overflowing. */}
           <div className="flex min-w-0 flex-col gap-4 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start md:overflow-y-auto">
-            <Card className="gap-3 py-4">
+            <Card className="shrink-0 gap-3 py-4">
               <CardHeader className="px-4">
                 <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
                   Categories · {monthName}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col gap-0.5 px-4">
+              <CardContent className="flex flex-col gap-0.5 px-1.5">
                 {board.uncategorizedCount > 0 ? (
                   <button
                     className={cn(
@@ -405,7 +407,7 @@ export default function Board({ initial }: { initial: BoardData }) {
               </CardContent>
             </Card>
 
-            <Card className="gap-3 py-4">
+            <Card className="shrink-0 gap-3 py-4">
               <CardHeader className="px-4">
                 <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Subscriptions</CardTitle>
               </CardHeader>
@@ -439,7 +441,7 @@ export default function Board({ initial }: { initial: BoardData }) {
                                 ? ` · paid ${shortDate.format(new Date(s.lastCharge.date))}`
                                 : s.nextDue
                                   ? ` · due ${shortDate.format(new Date(s.nextDue))}`
-                                  : " · no charge matched yet — ✕ and re-drag if this persists"}
+                                  : " · no charge matched yet"}
                             </span>
                             {s.priceChanged && s.lastCharge && (
                               <Badge className="bg-attention/15 font-mono tabular-nums text-attention">
@@ -479,7 +481,7 @@ export default function Board({ initial }: { initial: BoardData }) {
               </CardContent>
             </Card>
 
-            <Card className="gap-3 py-4">
+            <Card className="shrink-0 gap-3 py-4">
               <CardHeader className="px-4">
                 <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Split with Anni</CardTitle>
               </CardHeader>
