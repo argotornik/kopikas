@@ -191,6 +191,18 @@ export async function fetchStatement(
 
 const DEBIT_MARKERS = new Set(["DBIT", "DEBIT", "D", "OUT", "OUTGOING", "DEB", "EXPENSE"]);
 
+// LHV card payments embed the merchant in the description:
+// "(..3696) 2026-08-30 17:39 SOLARISE TOIDUPOOD \ESTONIA PST 9 \TALLINN ..."
+// -> "SOLARISE TOIDUPOOD". The backslash starts the address; the prefix is
+// card suffix + timestamp.
+const CARD_DESC = /^\(\.\.\d{3,4}\)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+([^\\]+)/;
+
+function merchantFromDescription(description: string): string | undefined {
+  const m = description.match(CARD_DESC);
+  const name = m?.[1]?.trim();
+  return name && name.length > 1 ? name : undefined;
+}
+
 function mapTransaction(r: Record<string, unknown>, iban: string): { tx: Tx | null; pdKeys: string[] | null } {
   const pd = (r.paymentData ?? {}) as Record<string, unknown>;
   const id = idStr(r.id, r.transactionId, r.entryReference, r.reference, r.bankReference);
@@ -237,7 +249,7 @@ function mapTransaction(r: Record<string, unknown>, iban: string): { tx: Tx | nu
       date: rawDate.slice(0, 10),
       amount: Math.round(amount * 100) / 100,
       currency: (str(r.currency) ?? "EUR") as Tx["currency"],
-      counterparty: counterparty ?? (description.slice(0, 60) || "Unknown"),
+      counterparty: counterparty ?? merchantFromDescription(description) ?? (description.slice(0, 60) || "Unknown"),
       description,
       iban,
     },
