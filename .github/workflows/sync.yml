@@ -1,0 +1,40 @@
+# Hourly LHV sync. Vercel Hobby crons run at most once a day (vercel.json keeps
+# the 05:00 UTC run as a backstop); this pokes /api/sync every hour with the
+# same CRON_SECRET bearer the route already checks. Sync is idempotent (upsert
+# by transaction id), so overlaps with the Vercel cron are harmless.
+#
+# Repo settings needed once:
+#   Secrets  → CRON_SECRET  (same value as the Vercel env var)
+#   Variables → SYNC_URL    (optional; defaults to the vercel.app production URL)
+name: Hourly LHV sync
+
+on:
+  schedule:
+    - cron: "7 * * * *" # :07 past every hour — off the top-of-hour rush
+  workflow_dispatch: {}
+
+concurrency:
+  group: lhv-sync
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      SYNC_URL: ${{ vars.SYNC_URL || 'https://kopikas-rouge.vercel.app/api/sync' }}
+    steps:
+      - name: Call /api/sync
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET secret is not set on this repository" >&2
+            exit 1
+          fi
+          # Diagnostics are values-free by design (counts and key names only).
+          curl --silent --show-error --fail-with-body \
+            --max-time 240 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$SYNC_URL"
