@@ -41,12 +41,17 @@ export function shareAmount(s: Share, txs: Tx[]): number {
   return tx ? Math.abs(tx.amount) : 0;
 }
 
+// Anni's fraction of a shared expense; shares predating split options are 50/50.
+export const anniShareOf = (s: Share): number => s.anniShare ?? 0.5;
+
 // Positive = Anni owes Argo.
 export function balance(shares: Share[], settlements: { amount: number }[], txs: Tx[]): number {
   let b = 0;
   for (const s of shares) {
-    const half = shareAmount(s, txs) / 2;
-    b += s.paidBy === "argo" ? half : -half;
+    const total = shareAmount(s, txs);
+    const anniPart = total * anniShareOf(s);
+    // Whoever paid is owed the other's portion.
+    b += s.paidBy === "argo" ? anniPart : -(total - anniPart);
   }
   for (const st of settlements) b -= st.amount;
   return Math.round(b * 100) / 100;
@@ -57,18 +62,19 @@ export function monthKey(date: string): string {
 }
 
 // Spend for a month = Argo's consumption: his outgoing non-savings expenses,
-// shared ones counted at half, plus half of Anni-paid shared expenses.
+// shared ones counted at his portion, plus his portion of Anni-paid shared expenses.
 export function monthlySpend(db: Db, month: string): number {
-  const sharedTxIds = new Set(db.shares.filter((s) => s.txId).map((s) => s.txId));
+  const shareByTx = new Map(db.shares.filter((s) => s.txId).map((s) => [s.txId!, s]));
   let total = 0;
   for (const tx of db.transactions) {
     if (monthKey(tx.date) !== month || tx.amount >= 0) continue;
     if (categoryOf(tx, db.rules, db.overrides) === SAVINGS) continue;
-    total += Math.abs(tx.amount) * (sharedTxIds.has(tx.id) ? 0.5 : 1);
+    const share = shareByTx.get(tx.id);
+    total += Math.abs(tx.amount) * (share ? 1 - anniShareOf(share) : 1);
   }
   for (const s of db.shares) {
     if (s.manual && s.paidBy === "anni" && monthKey(s.manual.date) === month) {
-      total += s.manual.amount / 2;
+      total += s.manual.amount * (1 - anniShareOf(s));
     }
   }
   return Math.round(total * 100) / 100;

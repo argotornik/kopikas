@@ -81,13 +81,15 @@ async function pgReadDb(): Promise<Db> {
   // Lazy migration for columns added after the original schema shipped.
   await sql`alter table snapshots add column if not exists return_pct numeric(6,2)`;
   await sql`alter table subscriptions add column if not exists match_amount boolean not null default false`;
+  await sql`alter table shares add column if not exists anni_share numeric(6,5)`;
   const [txs, rules, overrides, shares, settlements, subscriptions, snapshots] = await Promise.all([
     sql`select id, date::text as date, amount::float8 as amount, currency, counterparty, description, iban
         from transactions order by date, id`,
     sql`select id, match, category, created_at::text as created_at from rules order by created_at, id`,
     sql`select tx_id, category from overrides`,
     sql`select id, paid_by, tx_id, manual_date::text as manual_date, manual_description,
-        manual_amount::float8 as manual_amount, created_at::text as created_at
+        manual_amount::float8 as manual_amount, anni_share::float8 as anni_share,
+        created_at::text as created_at
         from shares order by created_at, id`,
     sql`select id, amount::float8 as amount, date::text as date, tx_id, note from settlements order by date, id`,
     sql`select id, name, match, expected_amount::float8 as expected_amount, cadence, active,
@@ -121,6 +123,7 @@ async function pgReadDb(): Promise<Db> {
         r.manual_amount != null
           ? { date: r.manual_date, description: r.manual_description ?? "", amount: r.manual_amount }
           : undefined,
+      anniShare: r.anni_share ?? undefined,
       createdAt: r.created_at,
     })),
     settlements: settlements.map((r) => ({
@@ -187,11 +190,12 @@ async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Pro
       return;
     }
     case "shares": {
+      await sql`alter table shares add column if not exists anni_share numeric(6,5)`;
       await sql`delete from shares`;
       for (const s of value as Db["shares"]) {
         await sql.query(
-          `insert into shares (id, paid_by, tx_id, manual_date, manual_description, manual_amount, created_at)
-           values ($1, $2, $3, $4, $5, $6, $7)`,
+          `insert into shares (id, paid_by, tx_id, manual_date, manual_description, manual_amount, anni_share, created_at)
+           values ($1, $2, $3, $4, $5, $6, $7, $8)`,
           [
             s.id,
             s.paidBy,
@@ -199,6 +203,7 @@ async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Pro
             s.manual?.date ?? null,
             s.manual?.description ?? null,
             s.manual?.amount ?? null,
+            s.anniShare ?? null,
             s.createdAt,
           ]
         );

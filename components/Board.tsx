@@ -27,7 +27,7 @@ import {
   XIcon,
 } from "lucide-react";
 import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
-import { cn } from "@/lib/utils";
+import { cn, shareLabel } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { UserMenu } from "@/components/user-menu";
@@ -60,6 +60,8 @@ export default function Board({ initial }: { initial: BoardData }) {
   const [filter, setFilter] = useState<string | null>(null);
   // Free-text search over counterparty + description; combines with the filter.
   const [query, setQuery] = useState("");
+  // Anni's fraction for the next drop on the Anni zone (the ½/⅓/¼ toggle).
+  const [anniShare, setAnniShare] = useState(0.5);
 
   const refetch = useCallback(async () => {
     const res = await fetch("/api/board", { cache: "no-store" });
@@ -93,7 +95,8 @@ export default function Board({ initial }: { initial: BoardData }) {
     const over = e.over?.id as string | undefined;
     if (!tx || !over) return;
     if (over === "anni") {
-      if (!tx.shared) void post({ type: "share", txId: tx.id });
+      // Also handles re-drops: the server updates the fraction of an existing share.
+      void post({ type: "share", txId: tx.id, anniShare });
     } else if (over === "subs") {
       void post({ type: "subscribe", txId: tx.id });
     } else if (over.startsWith("cat:")) {
@@ -486,7 +489,7 @@ export default function Board({ initial }: { initial: BoardData }) {
                 <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Split with Anni</CardTitle>
               </CardHeader>
               <CardContent className="px-4">
-                <AnniZone />
+                <AnniZone share={anniShare} onShareChange={setAnniShare} />
                 {board.sharedItems.length === 0 && (
                   <Empty className="p-4">
                     <EmptyHeader>
@@ -513,7 +516,11 @@ export default function Board({ initial }: { initial: BoardData }) {
                 {board.sharedItems.slice(0, 6).map((s) => (
                   <div className="flex justify-between gap-2 py-1 text-xs text-muted-foreground" key={s.id}>
                     <span className="text-foreground">
-                      {s.description} <span className="text-muted-foreground">· {s.paidBy === "argo" ? "you paid" : "Anni paid"}</span>
+                      {s.description}{" "}
+                      <span className="text-muted-foreground">
+                        · {s.paidBy === "argo" ? "you paid" : "Anni paid"}
+                        {shareLabel(s.anniShare) !== "½" && ` · her ${shareLabel(s.anniShare)}`}
+                      </span>
                     </span>
                     <span className="font-mono tabular-nums">{eur.format(s.total)}</span>
                   </div>
@@ -686,11 +693,11 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
       {tx.shared && tx.shareId && (
         <Badge
           className="cursor-pointer bg-shared/15 text-shared hover:bg-shared/25"
-          title="Shared 50/50 with Anni — click to unshare"
+          title={`Shared with Anni — she pays ${shareLabel(tx.anniShare)}. Click to unshare`}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => onUnshare(tx.shareId!)}
         >
-          ½ Anni
+          {shareLabel(tx.anniShare)} Anni
         </Badge>
       )}
       {tx.amount < 0 &&
@@ -757,17 +764,44 @@ function SubsZone() {
   );
 }
 
-function AnniZone() {
+const SPLIT_OPTIONS = [
+  { fraction: 0.5, label: "½" },
+  { fraction: 1 / 3, label: "⅓" },
+  { fraction: 0.25, label: "¼" },
+];
+
+function AnniZone({ share, onShareChange }: { share: number; onShareChange: (f: number) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: "anni" });
   return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        "mb-2 rounded-lg border-2 border-dashed p-2.5 text-center text-xs text-muted-foreground",
-        isOver && "border-primary bg-accent text-foreground"
-      )}
-    >
-      {isOver ? "Drop to split 50/50" : "Drag an expense here to split with Anni"}
+    <div className="mb-2">
+      <div className="mb-1.5 flex items-center justify-between text-xs text-muted-foreground">
+        <span>Anni pays</span>
+        <div className="flex gap-1">
+          {SPLIT_OPTIONS.map((o) => (
+            <button
+              key={o.label}
+              onClick={() => onShareChange(o.fraction)}
+              className={cn(
+                "min-w-8 rounded-md border border-transparent px-2 py-0.5 font-mono",
+                share === o.fraction
+                  ? "border-shared/40 bg-shared/15 font-semibold text-shared"
+                  : "hover:bg-accent hover:text-foreground"
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div
+        ref={setNodeRef}
+        className={cn(
+          "rounded-lg border-2 border-dashed p-2.5 text-center text-xs text-muted-foreground",
+          isOver && "border-primary bg-accent text-foreground"
+        )}
+      >
+        {isOver ? `Drop to split — Anni pays ${shareLabel(share)}` : "Drag an expense here to split with Anni"}
+      </div>
     </div>
   );
 }

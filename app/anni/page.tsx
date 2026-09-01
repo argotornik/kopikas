@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { HandCoinsIcon } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, shareLabel } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
@@ -15,7 +15,14 @@ const dayFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short"
 
 interface SharedView {
   balance: number;
-  sharedItems: { id: string; paidBy: string; date: string; description: string; total: number }[];
+  sharedItems: {
+    id: string;
+    paidBy: string;
+    date: string;
+    description: string;
+    total: number;
+    anniShare?: number;
+  }[];
   settlements: { id: string; amount: number; date: string }[];
 }
 
@@ -112,7 +119,7 @@ export default function AnniPage() {
                 {eur.format(s.total)}
               </span>
               <span className="hidden w-20 shrink-0 text-right font-mono tabular-nums text-muted-foreground sm:block">
-                ½ {eur.format(s.total / 2)}
+                {shareLabel(s.anniShare)} {eur.format(s.total * (s.anniShare ?? 0.5))}
               </span>
             </div>
           ))}

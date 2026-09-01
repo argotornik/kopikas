@@ -2,6 +2,7 @@ import type { Db } from "./types";
 import {
   CATEGORIES,
   SAVINGS,
+  anniShareOf,
   balance,
   categoryOf,
   categoryTotals,
@@ -42,6 +43,7 @@ export interface BoardTx {
   categorySource: "rule" | "override" | null;
   shared: boolean;
   shareId?: string;
+  anniShare?: number;
   // Set-and-forget noise (LHV micro-investing round-ups): collapsed into a
   // per-day rollup line in the feed. Math still counts the underlying rows.
   micro: boolean;
@@ -81,6 +83,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
         categorySource: override ? "override" : cat ? "rule" : null,
         shared: !!share,
         shareId: share?.id,
+        anniShare: share ? anniShareOf(share) : undefined,
       };
     });
 
@@ -99,11 +102,11 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
       description:
         s.manual?.description ?? db.transactions.find((t) => t.id === s.txId)?.counterparty ?? "",
       total: shareAmount(s, db.transactions),
+      anniShare: anniShareOf(s),
     }))
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const todayStr = today.toISOString().slice(0, 10);
-  const sharedTxIds = new Set(db.shares.filter((s) => s.txId).map((s) => s.txId));
 
   // Real LHV accounts when the sync has run; the two mock pseudo-accounts otherwise.
   const accountRows: LhvAccount[] =
@@ -131,11 +134,12 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     for (const tx of db.transactions) {
       if (monthKey(tx.date) !== month || tx.date > day || tx.amount >= 0) continue;
       if (categoryOf(tx, db.rules, db.overrides) === SAVINGS) continue;
-      total += Math.abs(tx.amount) * (sharedTxIds.has(tx.id) ? 0.5 : 1);
+      const share = shareByTx.get(tx.id);
+      total += Math.abs(tx.amount) * (share ? 1 - anniShareOf(share) : 1);
     }
     for (const s of db.shares) {
       if (s.manual && s.paidBy === "anni" && monthKey(s.manual.date) === month && s.manual.date <= day) {
-        total += s.manual.amount / 2;
+        total += s.manual.amount * (1 - anniShareOf(s));
       }
     }
     spentPoints.push(Math.round(total * 100) / 100);
@@ -159,21 +163,31 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     saved: { points: [savedPrev, savedNow], tone: sparkTone(savedPrev, savedNow) },
   };
 
+  // Repayment suggestions only while something is actually owed, and only
+  // transfers in the direction that would settle it — anything else is noise.
+  const bal = balance(db.shares, db.settlements, db.transactions);
+  const suggestions =
+    bal === 0
+      ? []
+      : settlementSuggestions(db, process.env.ANNI_MATCH || undefined)
+          .filter((t) => (bal > 0 ? t.amount > 0 : t.amount < 0))
+          .map((t) => ({
+            txId: t.id,
+            date: t.date,
+            amount: t.amount,
+            counterparty: t.counterparty,
+          }));
+
   return {
     month,
     txs,
     sparks,
     categories: CATEGORIES.map((c) => ({ name: c, total: Math.round((totals[c] ?? 0) * 100) / 100 })),
     uncategorizedCount: txs.filter((t) => !t.category && t.amount < 0).length,
-    balance: balance(db.shares, db.settlements, db.transactions),
+    balance: bal,
     sharedItems,
     settlements: db.settlements,
-    suggestions: settlementSuggestions(db, process.env.ANNI_MATCH || undefined).map((t) => ({
-      txId: t.id,
-      date: t.date,
-      amount: t.amount,
-      counterparty: t.counterparty,
-    })),
+    suggestions,
     subscriptions: subStatuses,
     monthlyBurn: monthlyBurn(subStatuses),
     subsPaidThisMonth:

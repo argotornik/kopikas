@@ -22,13 +22,16 @@ export interface Override {
   category: string;
 }
 
-// A shared (50/50) expense. Either points at a bank transaction (txId)
+// A shared expense. Either points at a bank transaction (txId)
 // or is a manual quick-add (Anni paid with her own money).
 export interface Share {
   id: string;
   paidBy: Person;
   txId?: string;
   manual?: { date: string; description: string; amount: number }; // amount positive
+  // Fraction of the expense that is Anni's responsibility. Absent = 0.5,
+  // so shares from before split options keep meaning 50/50.
+  anniShare?: number;
   createdAt: string;
 }
 

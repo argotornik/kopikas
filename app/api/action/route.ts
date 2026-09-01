@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
-import { inferCadence } from "@/lib/engine";
+import { anniShareOf, inferCadence } from "@/lib/engine";
 import { merchantFromDescription } from "@/lib/lhv";
 import { currentRole } from "@/lib/auth";
 
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 type Action =
   | { type: "rule"; match: string; category: string }
   | { type: "override"; txId: string; category: string }
-  | { type: "share"; txId: string }
+  | { type: "share"; txId: string; anniShare?: number }
   | { type: "unshare"; shareId: string }
   | { type: "quickadd"; description: string; amount: number; date: string }
   | { type: "settle"; amount: number; date: string; txId?: string; note?: string }
@@ -55,8 +55,21 @@ export async function POST(req: Request) {
     }
     case "share": {
       if (!db.transactions.some((t) => t.id === action.txId)) return bad("unknown tx");
-      if (!db.shares.some((s) => s.txId === action.txId)) {
-        db.shares.push({ id: newId("share"), paidBy: "argo", txId: action.txId, createdAt: now });
+      const fraction = Number(action.anniShare ?? 0.5);
+      if (!(fraction > 0 && fraction < 1)) return bad("anniShare must be between 0 and 1");
+      const existing = db.shares.find((s) => s.txId === action.txId);
+      if (!existing) {
+        db.shares.push({
+          id: newId("share"),
+          paidBy: "argo",
+          txId: action.txId,
+          anniShare: fraction,
+          createdAt: now,
+        });
+        await writeCollection("shares", db.shares);
+      } else if (anniShareOf(existing) !== fraction) {
+        // Re-dropping with a different toggle just changes the split.
+        existing.anniShare = fraction;
         await writeCollection("shares", db.shares);
       }
       break;
