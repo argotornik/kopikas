@@ -176,6 +176,12 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     })),
     subscriptions: subStatuses,
     monthlyBurn: monthlyBurn(subStatuses),
+    subsPaidThisMonth:
+      Math.round(
+        subStatuses
+          .filter((s) => s.sub.active && s.lastCharge && s.lastCharge.date.slice(0, 7) === month)
+          .reduce((sum, s) => sum + (s.lastCharge?.amount ?? 0), 0) * 100
+      ) / 100,
     snapshot: latestSnap,
     snapshotHistory: [...db.snapshots].sort((a, b) => a.at.localeCompare(b.at)),
     spentThisMonth: spentNow,

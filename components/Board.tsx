@@ -435,9 +435,11 @@ export default function Board({ initial }: { initial: BoardData }) {
                           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
                             <span>
                               {s.sub.cadence}
-                              {s.nextDue
-                                ? ` · due ${shortDate.format(new Date(s.nextDue))}`
-                                : " · no charge matched yet — ✕ and re-drag if this persists"}
+                              {s.lastCharge && s.lastCharge.date.slice(0, 7) === board.month
+                                ? ` · paid ${shortDate.format(new Date(s.lastCharge.date))}`
+                                : s.nextDue
+                                  ? ` · due ${shortDate.format(new Date(s.nextDue))}`
+                                  : " · no charge matched yet — ✕ and re-drag if this persists"}
                             </span>
                             {s.priceChanged && s.lastCharge && (
                               <Badge className="bg-attention/15 font-mono tabular-nums text-attention">
@@ -467,6 +469,10 @@ export default function Board({ initial }: { initial: BoardData }) {
                     Monthly burn:{" "}
                     <span className="font-mono font-semibold tabular-nums text-foreground">
                       {eur.format(board.monthlyBurn)}
+                    </span>{" "}
+                    · paid this month:{" "}
+                    <span className="font-mono font-semibold tabular-nums text-foreground">
+                      {eur.format(board.subsPaidThisMonth)}
                     </span>
                   </div>
                 )}
