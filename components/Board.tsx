@@ -224,7 +224,11 @@ export default function Board({ initial }: { initial: BoardData }) {
                 board.snapshot
                   ? `as of ${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(
                       new Date(board.snapshot.at)
-                    )} · update`
+                    )}${
+                      board.snapshot.returnPct != null
+                        ? ` · ${board.snapshot.returnPct > 0 ? "+" : ""}${board.snapshot.returnPct}%`
+                        : ""
+                    } · update`
                   : "click to add"
               }
               interactive
@@ -573,8 +577,8 @@ export default function Board({ initial }: { initial: BoardData }) {
       <SnapshotEditor
         open={snapOpen}
         onClose={() => setSnapOpen(false)}
-        onSave={(total, holdings) => {
-          void post({ type: "snapshot", total, holdings });
+        onSave={(total, holdings, returnPct) => {
+          void post({ type: "snapshot", total, holdings, returnPct });
           setSnapOpen(false);
         }}
       />
@@ -767,9 +771,10 @@ function SnapshotEditor({
 }: {
   open: boolean;
   onClose: () => void;
-  onSave: (total: number, holdings: { name: string; pct: number }[]) => void;
+  onSave: (total: number, holdings: { name: string; pct: number }[], returnPct?: number) => void;
 }) {
   const [total, setTotal] = useState("");
+  const [returnPct, setReturnPct] = useState("");
   const [holdings, setHoldings] = useState("");
   const [err, setErr] = useState("");
   return (
@@ -777,13 +782,20 @@ function SnapshotEditor({
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Update Lightyear value</DialogTitle>
-          <DialogDescription>
-            Every update is logged — decreases too. Holdings like “VWCE 70, MMF 25”.
-          </DialogDescription>
+          <DialogDescription>Every update is logged — decreases too.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">
-          <Input placeholder="Total value, e.g. 9450.20" value={total} onChange={(e) => setTotal(e.target.value)} autoFocus />
-          <Input placeholder="Holdings % (optional)" value={holdings} onChange={(e) => setHoldings(e.target.value)} />
+          <Input placeholder="Total value, e.g. 5917" value={total} onChange={(e) => setTotal(e.target.value)} autoFocus />
+          <Input
+            placeholder="Return % from Lightyear, e.g. 2.24 (optional)"
+            value={returnPct}
+            onChange={(e) => setReturnPct(e.target.value)}
+          />
+          <Input
+            placeholder="Allocations like “VWCE 70, MMF 25” (optional)"
+            value={holdings}
+            onChange={(e) => setHoldings(e.target.value)}
+          />
           {err && <p className="text-xs text-destructive">{err}</p>}
         </div>
         <DialogFooter>
@@ -794,12 +806,14 @@ function SnapshotEditor({
             onClick={() => {
               const t = Number(total.replace(",", "."));
               if (!(t >= 0)) return setErr("Enter the total value first");
+              const pct = returnPct.trim() === "" ? undefined : Number(returnPct.replace(",", ".").replace("%", ""));
+              if (pct !== undefined && !Number.isFinite(pct)) return setErr("Return % should be a number like 2.24");
               const parsed = holdings
                 .split(",")
                 .map((part) => part.trim().match(/^(.+?)\s+(\d+(?:\.\d+)?)$/))
                 .filter(Boolean)
                 .map((m) => ({ name: m![1], pct: Number(m![2]) }));
-              onSave(t, parsed);
+              onSave(t, parsed, pct);
             }}
           >
             Save snapshot

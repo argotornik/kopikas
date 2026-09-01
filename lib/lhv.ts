@@ -195,11 +195,16 @@ const DEBIT_MARKERS = new Set(["DBIT", "DEBIT", "D", "OUT", "OUTGOING", "DEB", "
 // "(..3696) 2026-08-30 17:39 SOLARISE TOIDUPOOD \ESTONIA PST 9 \TALLINN ..."
 // -> "SOLARISE TOIDUPOOD". The backslash starts the address; the prefix is
 // card suffix + timestamp.
-const CARD_DESC = /^\(\.\.\d{3,4}\)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+([^\\]+)/;
+// Some rows carry a labeled variant — "Sularaha välja: (..3696) 2026-08-22
+// 12:33 WLEC0501 Parnu mnt 238\..." — where the label ("Sularaha välja",
+// cash withdrawal) is the meaningful name and the post-timestamp segment is
+// just the ATM's id and address. Prefer the label when present.
+const CARD_DESC = /^(?:([^(\\]+?):\s*)?\(\.\.\d{3,4}\)\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+([^\\]+)/;
 
 export function merchantFromDescription(description: string): string | undefined {
   const m = description.match(CARD_DESC);
-  const name = m?.[1]?.trim();
+  if (!m) return undefined;
+  const name = (m[1] ?? m[2])?.trim();
   return name && name.length > 1 ? name : undefined;
 }
 

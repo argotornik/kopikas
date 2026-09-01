@@ -22,7 +22,7 @@ type Action =
   | { type: "settle"; amount: number; date: string; txId?: string; note?: string }
   | { type: "subscribe"; txId: string }
   | { type: "unsubscribe"; subId: string }
-  | { type: "snapshot"; total: number; holdings: { name: string; pct: number }[] }
+  | { type: "snapshot"; total: number; holdings: { name: string; pct: number }[]; returnPct?: number }
   | { type: "set-lhv-token"; refreshToken: string };
 
 export async function POST(req: Request) {
@@ -127,7 +127,8 @@ export async function POST(req: Request) {
       const total = Number(action.total);
       if (!(total >= 0)) return bad("total required");
       const holdings = (action.holdings ?? []).filter((h) => h.name?.trim() && h.pct > 0);
-      db.snapshots.push({ id: newId("snap"), total, holdings, at: now });
+      const returnPct = Number.isFinite(Number(action.returnPct)) ? Number(action.returnPct) : undefined;
+      db.snapshots.push({ id: newId("snap"), total, holdings, returnPct, at: now });
       await writeCollection("snapshots", db.snapshots);
       break;
     }

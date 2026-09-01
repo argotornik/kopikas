@@ -56,6 +56,7 @@ export interface Snapshot {
   id: string;
   total: number;
   holdings: { name: string; pct: number }[];
+  returnPct?: number; // overall return % as reported by Lightyear at snapshot time
   at: string; // ISO datetime
 }
 

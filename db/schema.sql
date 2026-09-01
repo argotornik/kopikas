@@ -55,10 +55,11 @@ create table if not exists subscriptions (
 );
 
 create table if not exists snapshots (
-  id       text primary key,
-  total    numeric(12, 2) not null,
-  holdings jsonb not null default '[]',
-  at       timestamptz not null
+  id         text primary key,
+  total      numeric(12, 2) not null,
+  holdings   jsonb not null default '[]',
+  return_pct numeric(6, 2),
+  at         timestamptz not null
 );
 
 -- Server-side favicon cache (replaces data/icons/ on serverless).

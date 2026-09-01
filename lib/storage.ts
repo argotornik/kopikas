@@ -78,6 +78,8 @@ function db() {
 
 async function pgReadDb(): Promise<Db> {
   const sql = db();
+  // Lazy migration for columns added after the original schema shipped.
+  await sql`alter table snapshots add column if not exists return_pct numeric(6,2)`;
   const [txs, rules, overrides, shares, settlements, subscriptions, snapshots] = await Promise.all([
     sql`select id, date::text as date, amount::float8 as amount, currency, counterparty, description, iban
         from transactions order by date, id`,
@@ -89,7 +91,7 @@ async function pgReadDb(): Promise<Db> {
     sql`select id, amount::float8 as amount, date::text as date, tx_id, note from settlements order by date, id`,
     sql`select id, name, match, expected_amount::float8 as expected_amount, cadence, active,
         created_at::text as created_at from subscriptions order by created_at, id`,
-    sql`select id, total::float8 as total, holdings, at::text as at from snapshots order by at, id`,
+    sql`select id, total::float8 as total, holdings, return_pct::float8 as return_pct, at::text as at from snapshots order by at, id`,
   ]);
 
   if (txs.length === 0) {
@@ -136,7 +138,13 @@ async function pgReadDb(): Promise<Db> {
       active: r.active,
       createdAt: r.created_at,
     })),
-    snapshots: snapshots.map((r) => ({ id: r.id, total: r.total, holdings: r.holdings, at: r.at })),
+    snapshots: snapshots.map((r) => ({
+      id: r.id,
+      total: r.total,
+      holdings: r.holdings,
+      returnPct: r.return_pct ?? undefined,
+      at: r.at,
+    })),
   } as Db;
 }
 
@@ -217,14 +225,13 @@ async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Pro
       return;
     }
     case "snapshots": {
+      await sql`alter table snapshots add column if not exists return_pct numeric(6,2)`;
       await sql`delete from snapshots`;
       for (const s of value as Db["snapshots"]) {
-        await sql.query(`insert into snapshots (id, total, holdings, at) values ($1, $2, $3::jsonb, $4)`, [
-          s.id,
-          s.total,
-          JSON.stringify(s.holdings),
-          s.at,
-        ]);
+        await sql.query(
+          `insert into snapshots (id, total, holdings, return_pct, at) values ($1, $2, $3::jsonb, $4, $5)`,
+          [s.id, s.total, JSON.stringify(s.holdings), s.returnPct ?? null, s.at]
+        );
       }
       return;
     }
