@@ -6,7 +6,11 @@ import { currentRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ cat?: string; month?: string; q?: string }>;
+}) {
   const role = await currentRole();
   if (role === "anni") redirect("/anni");
   if (role !== "argo") {
@@ -16,6 +20,6 @@ export default async function Home() {
       </div>
     );
   }
-  const [db, { accounts }] = await Promise.all([readDb(), getAccounts()]);
-  return <Board initial={buildBoard(db, new Date(), accounts)} />;
+  const [db, { accounts }, view] = await Promise.all([readDb(), getAccounts(), searchParams]);
+  return <Board initial={buildBoard(db, new Date(), accounts)} view={view} />;
 }

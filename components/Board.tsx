@@ -30,7 +30,7 @@ import {
   XIcon,
 } from "lucide-react";
 import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
-import { SAVINGS } from "@/lib/engine";
+import { CATEGORIES, SAVINGS } from "@/lib/engine";
 import { cn, shareLabel } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MerchantIcon } from "@/components/merchant-icon";
@@ -61,20 +61,42 @@ const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "sho
 
 type Prompt = { txId: string; merchant: string; category: string };
 
-export default function Board({ initial }: { initial: BoardData }) {
+// View state carried in the URL (?cat=&month=&q=) so filtered views deep-link.
+type ViewParams = { cat?: string; month?: string; q?: string };
+
+export default function Board({ initial, view }: { initial: BoardData; view?: ViewParams }) {
   const [board, setBoard] = useState(initial);
   const [activeTx, setActiveTx] = useState<BoardTx | null>(null);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [snapOpen, setSnapOpen] = useState(false);
   // Category filter: a category name, "Uncategorized", or null for the full feed.
-  const [filter, setFilter] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string | null>(() =>
+    view?.cat && (view.cat === "Uncategorized" || CATEGORIES.includes(view.cat)) ? view.cat : null
+  );
   // Free-text search over counterparty + description; combines with the filter.
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(view?.q ?? "");
   // Anni's fraction for the next drop on the Anni zone (the 1/2 · 1/3 · 1/4 toggle).
   const [anniShare, setAnniShare] = useState(0.5);
   // Month shown on the Categories card (and month-scoped filter figures).
   // Defaults to now; browsable back to the earliest synced month.
-  const [month, setMonth] = useState(initial.month);
+  const [month, setMonth] = useState(() =>
+    view?.month && /^\d{4}-(0[1-9]|1[0-2])$/.test(view.month) && view.month <= initial.month
+      ? view.month
+      : initial.month
+  );
+  // Reflect the view in the URL without navigating (no server round trip);
+  // debounced so fast typing in search doesn't hit replaceState rate limits.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const p = new URLSearchParams();
+      if (filter) p.set("cat", filter);
+      if (month !== board.month) p.set("month", month);
+      if (query.trim()) p.set("q", query.trim());
+      const qs = p.toString();
+      window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [filter, month, query, board.month]);
   // Rail cards collapse to a summary line, remembered per browser. A drag
   // needs every drop target visible, so collapsed cards reopen while one
   // is in flight (activeTx) and settle back after.
