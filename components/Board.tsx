@@ -499,22 +499,34 @@ export default function Board({ initial }: { initial: BoardData }) {
                     </EmptyHeader>
                   </Empty>
                 )}
-                <div className="divide-y">
-                  {board.subscriptions
-                    .filter((s) => s.sub.active)
-                    .map((s) => (
+                {(["monthly", "yearly"] as const)
+                  .map((cadence) => ({
+                    cadence,
+                    subs: board.subscriptions.filter((s) => s.sub.active && s.sub.cadence === cadence),
+                  }))
+                  .filter((g) => g.subs.length > 0)
+                  .map((g) => (
+                    <div key={g.cadence}>
+                      <div className="mt-2 flex items-baseline justify-between text-xs text-muted-foreground">
+                        <span className="font-medium capitalize">{g.cadence}</span>
+                        <span className="font-mono tabular-nums">
+                          {eur.format(g.subs.reduce((sum, s) => sum + (s.lastCharge?.amount ?? s.sub.expectedAmount), 0))}
+                          {g.cadence === "monthly" ? " / mo" : " / yr"}
+                        </span>
+                      </div>
+                      <div className="divide-y">
+                        {g.subs.map((s) => (
                       <div className="flex items-center gap-2 py-2" key={s.sub.id}>
                         <MerchantIcon name={s.sub.name} domain={s.domain} className="size-6" />
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-medium">{s.sub.name}</div>
                           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
                             <span>
-                              {s.sub.cadence}
                               {s.lastCharge && s.lastCharge.date.slice(0, 7) === board.month
-                                ? ` · paid ${shortDate.format(new Date(s.lastCharge.date))}`
+                                ? `paid ${shortDate.format(new Date(s.lastCharge.date))}`
                                 : s.nextDue
-                                  ? ` · due ${shortDate.format(new Date(s.nextDue))}`
-                                  : " · no charge matched yet"}
+                                  ? `due ${shortDate.format(new Date(s.nextDue))}`
+                                  : "no charge matched yet"}
                             </span>
                             {s.priceChanged && s.lastCharge && (
                               <Badge className="bg-attention/15 font-mono tabular-nums text-attention">
@@ -537,8 +549,10 @@ export default function Board({ initial }: { initial: BoardData }) {
                           ✕
                         </Button>
                       </div>
-                    ))}
-                </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 {board.subscriptions.some((s) => s.sub.active) && (
                   <div className="mt-2 text-xs text-muted-foreground">
                     Monthly burn:{" "}
