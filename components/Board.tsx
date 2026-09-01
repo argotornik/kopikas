@@ -129,6 +129,16 @@ export default function Board({ initial }: { initial: BoardData }) {
     return [...map.entries()];
   }, [board.txs, filter, query]);
 
+  // Feed position of each visible tile, for the exit cascade: when a rule
+  // files many tiles at once they leave top-to-bottom like cards into a
+  // drawer, not all in one blink. Capped so large sweeps stay snappy.
+  const visibleOrder = useMemo(() => {
+    const order = new Map<string, number>();
+    let i = 0;
+    for (const [, txs] of days) for (const t of txs) if (!t.micro) order.set(t.id, i++);
+    return order;
+  }, [days]);
+
   // Match count + outgoing total for the active search ("how much at X?").
   const searchStats = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -218,7 +228,7 @@ export default function Board({ initial }: { initial: BoardData }) {
       <MotionConfig reducedMotion="user">
       <div className="mx-auto max-w-6xl px-5 py-6 pb-20">
         <div className="mb-5 flex items-center justify-between">
-          <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+          <h1 className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight">
             <CoinMark />
             Kopikas
           </h1>
@@ -374,48 +384,75 @@ export default function Board({ initial }: { initial: BoardData }) {
                 </Empty>
               )
             ) : (
-              days.map(([date, txs]) => {
+              // ONE flat presence for headers, tiles and rollups alike: a
+              // nested presence deadlocks exits (found live), and a header
+              // outside the presence pops out instead of leaving with its
+              // tiles — which killed the cascade whenever a day emptied.
+              <AnimatePresence initial={false} mode="popLayout">
+                {days.flatMap(([date, txs], dayIndex) => {
+                  const visible = txs.filter((t) => !t.micro);
                   const micro = txs.filter((t) => t.micro);
                   const microOut = micro.filter((t) => t.amount < 0);
                   const microTotal = microOut.reduce((s, t) => s + Math.abs(t.amount), 0);
-                  return (
-                    <div key={date}>
-                      <div className="mb-1.5 mt-4 text-xs text-muted-foreground first:mt-0">
-                        {dayFmt.format(new Date(date))}
-                      </div>
-                      <AnimatePresence initial={false} mode="popLayout">
-                        {txs
-                          .filter((t) => !t.micro)
-                          .map((tx) => (
-                            <motion.div
-                              key={tx.id}
-                              layout="position"
-                              initial={{ opacity: 0, y: 6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, x: 32, transition: { duration: 0.15 } }}
-                              transition={{ duration: 0.18, ease: "easeOut" }}
-                            >
-                              <Tile tx={tx} onUnshare={(id) => void post({ type: "unshare", shareId: id })} />
-                            </motion.div>
-                          ))}
-                      </AnimatePresence>
-                      {micro.length > 0 && (
-                        <div className="mb-1.5 flex items-center gap-2 rounded-lg border border-dashed px-3 py-1.5 text-xs text-muted-foreground">
-                          <SproutIcon className="size-3.5 shrink-0" />
-                          <span className="min-w-0 flex-1 truncate">
-                            Mikroinvesteering · {microOut.length || micro.length} transfer
-                            {(microOut.length || micro.length) === 1 ? "" : "s"}
-                          </span>
-                          {microTotal > 0 && (
-                            <span className="font-mono tabular-nums">
-                              −{eur.format(microTotal)} → Savings
+                  const delayOf = (id: string) => Math.min((visibleOrder.get(id) ?? 0) * 0.03, 0.4);
+                  return [
+                    <motion.div
+                      key={`day-${date}`}
+                      layout="position"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{
+                        opacity: 0,
+                        transition: { duration: 0.12, delay: visible[0] ? delayOf(visible[0].id) : 0 },
+                      }}
+                      transition={{ duration: 0.18, ease: "easeOut" }}
+                      className={cn("mb-1.5 text-xs text-muted-foreground", dayIndex > 0 && "mt-4")}
+                    >
+                      {dayFmt.format(new Date(date))}
+                    </motion.div>,
+                    ...visible.map((tx) => (
+                      <motion.div
+                        key={tx.id}
+                        layout="position"
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{
+                          opacity: 0,
+                          x: 32,
+                          transition: { duration: 0.15, delay: delayOf(tx.id) },
+                        }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                      >
+                        <Tile tx={tx} onUnshare={(id) => void post({ type: "unshare", shareId: id })} />
+                      </motion.div>
+                    )),
+                    ...(micro.length > 0
+                      ? [
+                          <motion.div
+                            key={`micro-${date}`}
+                            layout="position"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                            transition={{ duration: 0.18, ease: "easeOut" }}
+                            className="mb-1.5 flex items-center gap-2 rounded-lg border border-dashed px-3 py-1.5 text-xs text-muted-foreground"
+                          >
+                            <SproutIcon className="size-3.5 shrink-0" />
+                            <span className="min-w-0 flex-1 truncate">
+                              Mikroinvesteering · {microOut.length || micro.length} transfer
+                              {(microOut.length || micro.length) === 1 ? "" : "s"}
                             </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
+                            {microTotal > 0 && (
+                              <span className="font-mono tabular-nums">
+                                −{eur.format(microTotal)} → Savings
+                              </span>
+                            )}
+                          </motion.div>,
+                        ]
+                      : []),
+                  ];
+                })}
+              </AnimatePresence>
             )}
           </div>
 

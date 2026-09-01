@@ -6,7 +6,7 @@
 
 @theme inline {
     --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-    --font-heading: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+    --font-heading: var(--font-heading-var), "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
     --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", monospace;
     --color-gain: var(--gain);
     --color-loss: var(--loss);
