@@ -1,21 +1,96 @@
 import { NextResponse } from "next/server";
+import type { Tx } from "@/lib/types";
+import {
+  cleanupMockData,
+  getLhvTokens,
+  readDb,
+  saveAccounts,
+  saveLhvTokens,
+  writeCollection,
+} from "@/lib/storage";
+import { fetchAccounts, fetchStatement, refreshAccessToken } from "@/lib/lhv";
+import { currentRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-// Vercel Cron target (vercel.json: daily 05:00 UTC) and the "sync now" button's
-// endpoint. The LHV sync lands here on the personal machine: refresh token ->
-// access token -> GET /accounts + statements since last sync -> dedupe ->
-// storage. Until then it reports itself honestly.
-//
-// Hosted hardening (checklist): require the CRON_SECRET bearer header Vercel
-// sends when the env var is set, so strangers can't trigger syncs.
-export async function GET(req: Request) {
+// The LHV sync. Runs as Vercel Cron (GET with CRON_SECRET bearer) and from the
+// settings page's "Sync now" button (POST as Argo). Window: from 7 days before
+// the newest LHV transaction (overlap re-fetch is safe — upsert dedupes by id)
+// or 90 days back on the first run. Diagnostics contain counts and key NAMES
+// only, never transaction values.
+
+async function isAuthorized(req: Request): Promise<boolean> {
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
-    return new NextResponse(null, { status: 401 });
+  if (secret && req.headers.get("authorization") === `Bearer ${secret}`) return true;
+  return (await currentRole()) === "argo";
+}
+
+function isoMinusDays(date: string, days: number): string {
+  return new Date(new Date(date + "T00:00:00Z").getTime() - days * 86400000).toISOString().slice(0, 10);
+}
+
+async function run(req: Request) {
+  if (!(await isAuthorized(req))) return new NextResponse(null, { status: 401 });
+
+  const tokens = await getLhvTokens();
+  if (!tokens) {
+    return NextResponse.json(
+      { ok: false, error: "No LHV token stored. Paste a refresh token in Settings (api.lhv.ai/api-access)." },
+      { status: 400 }
+    );
   }
-  return NextResponse.json(
-    { ok: false, error: "LHV sync not configured yet — see expense-board-plan.md build order" },
-    { status: 501 }
-  );
+
+  try {
+    const { accessToken, newRefreshToken } = await refreshAccessToken(tokens.refreshToken);
+    if (newRefreshToken) await saveLhvTokens(newRefreshToken);
+
+    const { accounts, unmapped: accountUnmapped } = await fetchAccounts(accessToken);
+    if (accounts.length > 0) await saveAccounts(accounts);
+
+    const db = await readDb();
+    const newestLhv = db.transactions
+      .filter((t) => t.id.startsWith("lhv-"))
+      .map((t) => t.date)
+      .sort()
+      .at(-1);
+    const to = new Date().toISOString().slice(0, 10);
+    const from = newestLhv ? isoMinusDays(newestLhv, 7) : isoMinusDays(to, 90);
+
+    let fetched = 0;
+    const txs: Tx[] = [];
+    const unmappedKeySamples: string[][] = accountUnmapped.slice(0, 3);
+    for (const account of accounts) {
+      const result = await fetchStatement(accessToken, account.iban, from, to);
+      fetched += result.fetched;
+      txs.push(...result.txs);
+      unmappedKeySamples.push(...result.unmapped.slice(0, 3));
+    }
+    if (txs.length > 0) await writeCollection("transactions", txs);
+
+    const mockCleaned = txs.length > 0 ? await cleanupMockData() : false;
+
+    return NextResponse.json({
+      ok: true,
+      accounts: accounts.length,
+      fetched,
+      mapped: txs.length,
+      mockCleaned,
+      rotatedRefreshToken: !!newRefreshToken,
+      window: { from, to },
+      unmappedKeySamples: unmappedKeySamples.slice(0, 5),
+    });
+  } catch (e) {
+    return NextResponse.json(
+      { ok: false, error: e instanceof Error ? e.message : String(e) },
+      { status: 502 }
+    );
+  }
+}
+
+export async function GET(req: Request) {
+  return run(req);
+}
+
+export async function POST(req: Request) {
+  return run(req);
 }

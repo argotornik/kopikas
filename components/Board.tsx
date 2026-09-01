@@ -15,7 +15,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
-import { CheckCircle2Icon, HandCoinsIcon, InboxIcon, RepeatIcon } from "lucide-react";
+import { CheckCircle2Icon, HandCoinsIcon, InboxIcon, RepeatIcon, SettingsIcon } from "lucide-react";
 import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -118,11 +118,23 @@ export default function Board({ initial }: { initial: BoardData }) {
               Shared with Anni →
             </a>
             <ThemeToggle />
+            <a
+              href="/settings"
+              title="Settings"
+              className="flex size-8 items-center justify-center text-muted-foreground hover:text-foreground"
+            >
+              <SettingsIcon className="size-4" />
+            </a>
             <UserMenu />
           </div>
         </div>
 
-        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+        <div
+          className={cn(
+            "mb-6 grid grid-cols-2 gap-3",
+            board.accounts.length >= 2 ? "md:grid-cols-5" : "md:grid-cols-4"
+          )}
+        >
           <Stat
             label={`Saved in ${monthName}`}
             value={eur.format(board.savedThisMonth)}
@@ -137,8 +149,15 @@ export default function Board({ initial }: { initial: BoardData }) {
             sub="your share of shared items"
             spark={board.sparks.spent}
           />
-          <Stat label="LHV · everyday" value={eur.format(board.balances.everyday)} spark={board.sparks.everyday} />
-          <Stat label="LHV · savings" value={eur.format(board.balances.savings)} spark={board.sparks.savings} />
+          {board.accounts.map((a) => (
+            <Stat
+              key={a.iban}
+              label={a.name}
+              value={eur.format(a.balance)}
+              sub={`···${a.iban.slice(-4)}`}
+              spark={a.spark}
+            />
+          ))}
           <button className="h-full text-left" onClick={() => setSnapOpen(true)}>
             <Stat
               label="Lightyear"

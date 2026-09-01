@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { newId, readDb, writeCollection } from "@/lib/storage";
+import { newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
 import { inferCadence } from "@/lib/engine";
 import { currentRole } from "@/lib/auth";
 
@@ -14,7 +14,8 @@ type Action =
   | { type: "settle"; amount: number; date: string; txId?: string; note?: string }
   | { type: "subscribe"; txId: string }
   | { type: "unsubscribe"; subId: string }
-  | { type: "snapshot"; total: number; holdings: { name: string; pct: number }[] };
+  | { type: "snapshot"; total: number; holdings: { name: string; pct: number }[] }
+  | { type: "set-lhv-token"; refreshToken: string };
 
 export async function POST(req: Request) {
   const action = (await req.json()) as Action;
@@ -119,6 +120,12 @@ export async function POST(req: Request) {
       const holdings = (action.holdings ?? []).filter((h) => h.name?.trim() && h.pct > 0);
       db.snapshots.push({ id: newId("snap"), total, holdings, at: now });
       await writeCollection("snapshots", db.snapshots);
+      break;
+    }
+    case "set-lhv-token": {
+      const token = action.refreshToken?.trim();
+      if (!token) return bad("refresh token required");
+      await saveLhvTokens(token);
       break;
     }
     default:

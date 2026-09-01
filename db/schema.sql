@@ -78,3 +78,13 @@ create table if not exists tokens (
 );
 
 create index if not exists transactions_date_idx on transactions (date desc);
+
+-- LHV account balances, refreshed by every sync (also created lazily by the
+-- app itself, so existing databases don't need this run by hand).
+create table if not exists accounts (
+  iban       text primary key,
+  name       text not null,
+  currency   text not null,
+  balance    numeric(14, 2) not null,
+  fetched_at timestamptz not null
+);

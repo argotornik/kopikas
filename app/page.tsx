@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Board from "@/components/Board";
-import { readDb } from "@/lib/storage";
+import { getAccounts, readDb } from "@/lib/storage";
 import { buildBoard } from "@/lib/board";
 import { currentRole } from "@/lib/auth";
 
@@ -16,6 +16,6 @@ export default async function Home() {
       </div>
     );
   }
-  const db = await readDb();
-  return <Board initial={buildBoard(db)} />;
+  const [db, { accounts }] = await Promise.all([readDb(), getAccounts()]);
+  return <Board initial={buildBoard(db, new Date(), accounts)} />;
 }

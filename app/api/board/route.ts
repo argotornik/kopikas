@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readDb } from "@/lib/storage";
+import { getAccounts, readDb } from "@/lib/storage";
 import { buildBoard } from "@/lib/board";
 import { currentRole } from "@/lib/auth";
 
@@ -9,6 +9,6 @@ export async function GET() {
   if ((await currentRole()) !== "argo") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-  const db = await readDb();
-  return NextResponse.json(buildBoard(db));
+  const [db, { accounts }] = await Promise.all([readDb(), getAccounts()]);
+  return NextResponse.json(buildBoard(db, new Date(), accounts));
 }

@@ -15,6 +15,8 @@ import {
 } from "./engine";
 import { MOCK_BALANCES } from "./seed";
 import { guessDomain } from "./icons";
+import type { LhvAccount } from "./lhv";
+import type { Tx } from "./types";
 
 export interface Spark {
   points: number[];
@@ -42,7 +44,19 @@ export interface BoardTx {
   shareId?: string;
 }
 
-export function buildBoard(db: Db, today = new Date()) {
+// Reconstruct a 30-day balance line for one account: today's known balance
+// minus everything on that IBAN dated after each day.
+function balanceSpark(txs: Tx[], iban: string, currentBalance: number, today: Date): Spark {
+  const points: number[] = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today.getTime() - i * DAY).toISOString().slice(0, 10);
+    const after = txs.filter((t) => t.iban === iban && t.date > d).reduce((s, t) => s + t.amount, 0);
+    points.push(Math.round((currentBalance - after) * 100) / 100);
+  }
+  return { points, tone: sparkTone(points[0], points[points.length - 1]) };
+}
+
+export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[] = []) {
   const month = today.toISOString().slice(0, 7);
   const shareByTx = new Map(db.shares.filter((s) => s.txId).map((s) => [s.txId!, s]));
 
@@ -87,13 +101,20 @@ export function buildBoard(db: Db, today = new Date()) {
   const todayStr = today.toISOString().slice(0, 10);
   const sharedTxIds = new Set(db.shares.filter((s) => s.txId).map((s) => s.txId));
 
-  // Everyday balance, last 30 days: today's known balance minus everything that happened after day d.
-  const everydayPoints: number[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(today.getTime() - i * DAY).toISOString().slice(0, 10);
-    const after = db.transactions.filter((t) => t.date > d).reduce((s, t) => s + t.amount, 0);
-    everydayPoints.push(Math.round((MOCK_BALANCES.everyday - after) * 100) / 100);
-  }
+  // Real LHV accounts when the sync has run; the two mock pseudo-accounts otherwise.
+  const accountRows: LhvAccount[] =
+    lhvAccounts.length > 0
+      ? lhvAccounts
+      : [
+          { iban: "EE00MOCK0000000001", name: "LHV · everyday", currency: "EUR", balance: MOCK_BALANCES.everyday },
+          { iban: "EE00MOCK0000000002", name: "LHV · savings", currency: "EUR", balance: MOCK_BALANCES.savings },
+        ];
+  const accounts = accountRows.slice(0, 2).map((a) => ({
+    name: lhvAccounts.length > 0 ? `LHV · ${a.name}` : a.name,
+    iban: a.iban,
+    balance: a.balance,
+    spark: balanceSpark(db.transactions, a.iban, a.balance, today),
+  }));
 
   const snapSorted = [...db.snapshots].sort((a, b) => a.at.localeCompare(b.at));
   const lightyearPoints = snapSorted.map((s) => s.total);
@@ -121,12 +142,7 @@ export function buildBoard(db: Db, today = new Date()) {
   const savedNow = savedInMonth(db, month);
   const savedPrev = savedInMonth(db, prevMonth(month));
 
-  const sparks: Record<"everyday" | "savings" | "lightyear" | "spent" | "saved", Spark> = {
-    everyday: {
-      points: everydayPoints,
-      tone: sparkTone(everydayPoints[0], everydayPoints[everydayPoints.length - 1]),
-    },
-    savings: { points: [MOCK_BALANCES.savings, MOCK_BALANCES.savings], tone: "neutral" },
+  const sparks: Record<"lightyear" | "spent" | "saved", Spark> = {
     lightyear: {
       points: lightyearPoints,
       tone:
@@ -148,7 +164,7 @@ export function buildBoard(db: Db, today = new Date()) {
     balance: balance(db.shares, db.settlements, db.transactions),
     sharedItems,
     settlements: db.settlements,
-    suggestions: settlementSuggestions(db).map((t) => ({
+    suggestions: settlementSuggestions(db, process.env.ANNI_MATCH || undefined).map((t) => ({
       txId: t.id,
       date: t.date,
       amount: t.amount,
@@ -161,7 +177,7 @@ export function buildBoard(db: Db, today = new Date()) {
     spentThisMonth: spentNow,
     savedThisMonth: savedNow,
     savedLastMonth: savedPrev,
-    balances: MOCK_BALANCES,
+    accounts,
   };
 }
 

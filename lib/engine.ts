@@ -145,7 +145,8 @@ export function monthlyBurn(statuses: SubStatus[]): number {
 // Transfers between the couple not yet recorded as settlements — incoming
 // (Anni repaying) and outgoing (Argo repaying her). The tx amount's sign
 // carries the direction: positive settles toward "Anni paid Argo".
-export function settlementSuggestions(db: Db): Tx[] {
+// `match` is configurable (ANNI_MATCH env in prod) so it can be her full name.
+export function settlementSuggestions(db: Db, match: string = ANNI_MATCH): Tx[] {
   const used = new Set(db.settlements.map((s) => s.txId).filter(Boolean));
-  return db.transactions.filter((t) => matches(t, ANNI_MATCH) && !used.has(t.id));
+  return db.transactions.filter((t) => matches(t, match) && !used.has(t.id));
 }

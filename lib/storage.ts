@@ -3,6 +3,8 @@ import path from "path";
 import { neon } from "@neondatabase/serverless";
 import type { Db } from "./types";
 import { seedDb } from "./seed";
+import { seal, unseal } from "./crypto";
+import type { LhvAccount, LhvTokens } from "./lhv";
 
 // The single storage module, two adapters behind one interface:
 //   - DATABASE_URL set (Vercel + Neon): Postgres, tables from db/schema.sql
@@ -224,4 +226,97 @@ async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Pro
       return;
     }
   }
+}
+
+/* ---------------- LHV tokens (encrypted at rest in prod) ---------------- */
+
+export async function getLhvTokens(): Promise<LhvTokens | null> {
+  if (process.env.DATABASE_URL) {
+    const sql = db();
+    await sql`create table if not exists tokens (id text primary key, encrypted text not null, updated_at timestamptz not null)`;
+    const rows = await sql`select encrypted, updated_at::text as updated_at from tokens where id = 'lhv'`;
+    if (rows.length === 0) return null;
+    return { refreshToken: unseal(rows[0].encrypted), updatedAt: rows[0].updated_at };
+  }
+  try {
+    const raw = await fs.readFile(path.join(DATA_DIR, "tokens.json"), "utf8");
+    return JSON.parse(raw) as LhvTokens;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveLhvTokens(refreshToken: string): Promise<void> {
+  const updatedAt = new Date().toISOString();
+  if (process.env.DATABASE_URL) {
+    const sql = db();
+    await sql`create table if not exists tokens (id text primary key, encrypted text not null, updated_at timestamptz not null)`;
+    await sql.query(
+      `insert into tokens (id, encrypted, updated_at) values ('lhv', $1, $2)
+       on conflict (id) do update set encrypted = $1, updated_at = $2`,
+      [seal(refreshToken), updatedAt]
+    );
+    return;
+  }
+  // Dev fallback: plaintext file in gitignored data/ — dev never holds real tokens.
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.writeFile(path.join(DATA_DIR, "tokens.json"), JSON.stringify({ refreshToken, updatedAt }, null, 2));
+}
+
+/* ---------------- LHV account balances ---------------- */
+
+export async function getAccounts(): Promise<{ accounts: LhvAccount[]; fetchedAt: string | null }> {
+  if (process.env.DATABASE_URL) {
+    const sql = db();
+    await sql`create table if not exists accounts (iban text primary key, name text not null, currency text not null, balance numeric(14,2) not null, fetched_at timestamptz not null)`;
+    const rows = await sql`select iban, name, currency, balance::float8 as balance, fetched_at::text as fetched_at from accounts order by balance desc`;
+    return {
+      accounts: rows.map((r) => ({ iban: r.iban, name: r.name, currency: r.currency, balance: r.balance })),
+      fetchedAt: rows[0]?.fetched_at ?? null,
+    };
+  }
+  try {
+    const raw = await fs.readFile(path.join(DATA_DIR, "accounts.json"), "utf8");
+    return JSON.parse(raw) as { accounts: LhvAccount[]; fetchedAt: string | null };
+  } catch {
+    return { accounts: [], fetchedAt: null };
+  }
+}
+
+export async function saveAccounts(accounts: LhvAccount[]): Promise<void> {
+  const fetchedAt = new Date().toISOString();
+  if (process.env.DATABASE_URL) {
+    const sql = db();
+    await sql`create table if not exists accounts (iban text primary key, name text not null, currency text not null, balance numeric(14,2) not null, fetched_at timestamptz not null)`;
+    for (const a of accounts) {
+      await sql.query(
+        `insert into accounts (iban, name, currency, balance, fetched_at) values ($1, $2, $3, $4, $5)
+         on conflict (iban) do update set name = $2, currency = $3, balance = $4, fetched_at = $5`,
+        [a.iban, a.name, a.currency, a.balance, fetchedAt]
+      );
+    }
+    return;
+  }
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.writeFile(path.join(DATA_DIR, "accounts.json"), JSON.stringify({ accounts, fetchedAt }, null, 2));
+}
+
+/* ---------------- one-time mock cleanup on first real sync ---------------- */
+
+// Removes the fictional seed once real transactions exist: mock transactions
+// (plus shares/overrides/settlements that referenced the demo world) and the
+// fictional Lightyear snapshots. KEEPS rules (the Estonian merchant rules are
+// genuinely useful) and subscriptions (their match patterns apply to real
+// charges too). Runs only against Postgres; returns whether anything was cut.
+export async function cleanupMockData(): Promise<boolean> {
+  if (!process.env.DATABASE_URL) return false;
+  const sql = db();
+  const mock = await sql`select count(*)::int as n from transactions where id like 'mock-%'`;
+  if (mock[0].n === 0) return false;
+  await sql`delete from overrides where tx_id like 'mock-%'`;
+  await sql`delete from shares`;
+  await sql`delete from settlements`;
+  await sql`delete from transactions where id like 'mock-%'`;
+  await sql`delete from snapshots where id in ('snap-0a', 'snap-0b', 'snap-0c', 'snap-1')`;
+  return true;
 }
