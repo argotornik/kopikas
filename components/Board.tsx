@@ -364,7 +364,10 @@ export default function Board({ initial }: { initial: BoardData }) {
                           <div className="truncate text-sm font-medium">{s.sub.name}</div>
                           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
                             <span>
-                              {s.sub.cadence} · due {s.nextDue ? shortDate.format(new Date(s.nextDue)) : "?"}
+                              {s.sub.cadence}
+                              {s.nextDue
+                                ? ` · due ${shortDate.format(new Date(s.nextDue))}`
+                                : " · no charge matched yet — ✕ and re-drag if this persists"}
                             </span>
                             {s.priceChanged && s.lastCharge && (
                               <Badge className="bg-attention/15 font-mono tabular-nums text-attention">
