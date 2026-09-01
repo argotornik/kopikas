@@ -63,7 +63,7 @@ export default function Board({ initial }: { initial: BoardData }) {
   const [filter, setFilter] = useState<string | null>(null);
   // Free-text search over counterparty + description; combines with the filter.
   const [query, setQuery] = useState("");
-  // Anni's fraction for the next drop on the Anni zone (the ½/⅓/¼ toggle).
+  // Anni's fraction for the next drop on the Anni zone (the 1/2 · 1/3 · 1/4 toggle).
   const [anniShare, setAnniShare] = useState(0.5);
   // Month shown on the Categories card (and month-scoped filter figures).
   // Defaults to now; browsable back to the earliest synced month.
@@ -589,7 +589,7 @@ export default function Board({ initial }: { initial: BoardData }) {
                       {s.description}{" "}
                       <span className="text-muted-foreground">
                         · {s.paidBy === "argo" ? "you paid" : "Anni paid"}
-                        {shareLabel(s.anniShare) !== "½" && ` · her ${shareLabel(s.anniShare)}`}
+                        {shareLabel(s.anniShare) !== "1/2" && ` · her ${shareLabel(s.anniShare)}`}
                       </span>
                     </span>
                     <span className="font-mono tabular-nums">{eur.format(s.total)}</span>
@@ -835,9 +835,9 @@ function SubsZone() {
 }
 
 const SPLIT_OPTIONS = [
-  { fraction: 0.5, label: "½" },
-  { fraction: 1 / 3, label: "⅓" },
-  { fraction: 0.25, label: "¼" },
+  { fraction: 0.5, label: "1/2" },
+  { fraction: 1 / 3, label: "1/3" },
+  { fraction: 0.25, label: "1/4" },
 ];
 
 function AnniZone({ share, onShareChange }: { share: number; onShareChange: (f: number) => void }) {
