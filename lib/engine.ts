@@ -5,6 +5,7 @@ export const CATEGORIES = [
   "Groceries",
   "Eating out",
   "Transport",
+  "Housing",
   "Utilities",
   "Subscriptions",
   "Health",
