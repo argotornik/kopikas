@@ -77,11 +77,15 @@ async function run(req: Request) {
     let fetched = 0;
     const txs: Tx[] = [];
     const unmappedKeySamples: string[][] = accountUnmapped.slice(0, 3);
+    const paymentDataKeySamples: string[][] = [];
+    const directionValues = new Set<string>();
     for (const account of accounts) {
       const result = await fetchStatement(accessToken, account.iban, from, to);
       fetched += result.fetched;
       txs.push(...result.txs);
       unmappedKeySamples.push(...result.unmapped.slice(0, 3));
+      paymentDataKeySamples.push(...result.paymentDataKeySamples);
+      result.directionValues.forEach((d) => directionValues.add(d));
     }
     if (txs.length > 0) await writeCollection("transactions", txs);
 
@@ -98,6 +102,8 @@ async function run(req: Request) {
       rotatedRefreshToken: !!newRefreshToken,
       window: { from, to },
       unmappedKeySamples: unmappedKeySamples.slice(0, 5),
+      paymentDataKeySamples: paymentDataKeySamples.slice(0, 3),
+      directionValues: [...directionValues],
     });
   } catch (e) {
     return NextResponse.json(

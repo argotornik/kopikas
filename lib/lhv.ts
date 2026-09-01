@@ -120,7 +120,13 @@ export async function fetchStatement(
   iban: string,
   dateFrom: string,
   dateTo: string
-): Promise<{ txs: Tx[]; fetched: number; unmapped: string[][] }> {
+): Promise<{
+  txs: Tx[];
+  fetched: number;
+  unmapped: string[][];
+  paymentDataKeySamples: string[][];
+  directionValues: string[];
+}> {
   const json = await lhvGet(
     accessToken,
     `/accounts/${encodeURIComponent(iban)}/statement?dateFrom=${dateFrom}&dateTo=${dateTo}`
@@ -128,38 +134,67 @@ export async function fetchStatement(
   const rows = asArray(json, ["transactions", "entries", "data", "items"]);
   const txs: Tx[] = [];
   const unmapped: string[][] = [];
+  const paymentDataKeySamples: string[][] = [];
+  const directionValues = new Set<string>();
   for (const r of rows) {
-    const tx = mapTransaction(r, iban);
+    const dir = str(r.creditDebitIndicator, r.direction, r.type);
+    if (dir && directionValues.size < 4) directionValues.add(dir);
+    const { tx, pdKeys } = mapTransaction(r, iban);
     if (tx) txs.push(tx);
     else unmapped.push(Object.keys(r));
+    if (pdKeys && paymentDataKeySamples.length < 3) paymentDataKeySamples.push(pdKeys);
   }
-  return { txs, fetched: rows.length, unmapped };
+  return { txs, fetched: rows.length, unmapped, paymentDataKeySamples, directionValues: [...directionValues] };
 }
 
-function mapTransaction(r: Record<string, unknown>, iban: string): Tx | null {
-  const id = str(r.id, r.transactionId, r.entryReference, r.reference);
-  const rawDate = str(r.date, r.bookingDate, r.valueDate, r.transactionDate);
-  let amount = num(r.amount);
-  if (id === undefined || rawDate === undefined || amount === undefined) return null;
+const DEBIT_MARKERS = new Set(["DBIT", "DEBIT", "D", "OUT", "OUTGOING", "DEB", "EXPENSE"]);
 
-  // Some PSD2-style APIs return positive amounts + a direction flag.
+function mapTransaction(r: Record<string, unknown>, iban: string): { tx: Tx | null; pdKeys: string[] | null } {
+  const pd = (r.paymentData ?? {}) as Record<string, unknown>;
+  const id = str(r.id, r.transactionId, r.entryReference, r.reference, r.bankReference);
+  const rawDate = str(r.date, r.bookingDate, r.valueDate, r.transactionDate, r.settlementDtime, r.bookingDtime);
+  let amount = num(r.amount);
+  if (id === undefined || rawDate === undefined || amount === undefined) return { tx: null, pdKeys: null };
+
+  // LHV returns positive amounts plus a direction flag.
   const dir = str(r.creditDebitIndicator, r.direction, r.type)?.toUpperCase();
-  if (amount > 0 && (dir === "DBIT" || dir === "DEBIT" || dir === "D" || dir === "OUT")) amount = -amount;
+  if (amount > 0 && dir && DEBIT_MARKERS.has(dir)) amount = -amount;
 
   const cp = r.counterparty as Record<string, unknown> | undefined;
   const merchant = r.merchant as Record<string, unknown> | undefined;
-  const counterparty =
-    str(cp?.name, r.counterpartyName, r.creditorName, r.debtorName, merchant?.name as unknown) ?? "";
+  const counterparty = str(
+    cp?.name,
+    r.counterpartyName,
+    r.creditorName,
+    r.debtorName,
+    merchant?.name as unknown,
+    pd.counterpartyName,
+    pd.counterPartyName,
+    pd.name,
+    pd.beneficiaryName,
+    pd.payerName,
+    pd.receiverName,
+    pd.senderName,
+    pd.creditorName,
+    pd.debtorName,
+    pd.merchantName,
+    pd.partnerName
+  );
   const description =
     str(r.description, r.remittanceInformation, r.remittanceInformationUnstructured, r.details, r.info) ?? "";
 
   return {
-    id: `lhv-${id}`,
-    date: rawDate.slice(0, 10),
-    amount: Math.round(amount * 100) / 100,
-    currency: (str(r.currency) ?? "EUR") as Tx["currency"],
-    counterparty: counterparty || description.slice(0, 60) || "Unknown",
-    description,
-    iban,
+    tx: {
+      id: `lhv-${id}`,
+      date: rawDate.slice(0, 10),
+      amount: Math.round(amount * 100) / 100,
+      currency: (str(r.currency) ?? "EUR") as Tx["currency"],
+      counterparty: counterparty ?? (description.slice(0, 60) || "Unknown"),
+      description,
+      iban,
+    },
+    // When no name field matched, report paymentData's key names so the next
+    // sync response teaches us its real shape — values never leave the server.
+    pdKeys: counterparty === undefined ? Object.keys(pd) : null,
   };
 }
