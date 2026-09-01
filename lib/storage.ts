@@ -80,6 +80,7 @@ async function pgReadDb(): Promise<Db> {
   const sql = db();
   // Lazy migration for columns added after the original schema shipped.
   await sql`alter table snapshots add column if not exists return_pct numeric(6,2)`;
+  await sql`alter table subscriptions add column if not exists match_amount boolean not null default false`;
   const [txs, rules, overrides, shares, settlements, subscriptions, snapshots] = await Promise.all([
     sql`select id, date::text as date, amount::float8 as amount, currency, counterparty, description, iban
         from transactions order by date, id`,
@@ -90,7 +91,7 @@ async function pgReadDb(): Promise<Db> {
         from shares order by created_at, id`,
     sql`select id, amount::float8 as amount, date::text as date, tx_id, note from settlements order by date, id`,
     sql`select id, name, match, expected_amount::float8 as expected_amount, cadence, active,
-        created_at::text as created_at from subscriptions order by created_at, id`,
+        match_amount, created_at::text as created_at from subscriptions order by created_at, id`,
     sql`select id, total::float8 as total, holdings, return_pct::float8 as return_pct, at::text as at from snapshots order by at, id`,
   ]);
 
@@ -136,6 +137,7 @@ async function pgReadDb(): Promise<Db> {
       expectedAmount: r.expected_amount,
       cadence: r.cadence,
       active: r.active,
+      matchAmount: r.match_amount ?? false,
       createdAt: r.created_at,
     })),
     snapshots: snapshots.map((r) => ({
@@ -214,12 +216,13 @@ async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Pro
       return;
     }
     case "subscriptions": {
+      await sql`alter table subscriptions add column if not exists match_amount boolean not null default false`;
       await sql`delete from subscriptions`;
       for (const s of value as Db["subscriptions"]) {
         await sql.query(
-          `insert into subscriptions (id, name, match, expected_amount, cadence, active, created_at)
-           values ($1, $2, $3, $4, $5, $6, $7)`,
-          [s.id, s.name, s.match, s.expectedAmount, s.cadence, s.active, s.createdAt]
+          `insert into subscriptions (id, name, match, expected_amount, cadence, active, match_amount, created_at)
+           values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [s.id, s.name, s.match, s.expectedAmount, s.cadence, s.active, s.matchAmount ?? false, s.createdAt]
         );
       }
       return;

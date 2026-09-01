@@ -51,6 +51,7 @@ create table if not exists subscriptions (
   expected_amount numeric(12, 2) not null,
   cadence         text not null check (cadence in ('monthly', 'yearly')),
   active          boolean not null default true,
+  match_amount    boolean not null default false,
   created_at      timestamptz not null
 );
 

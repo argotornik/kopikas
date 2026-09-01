@@ -117,7 +117,12 @@ export interface SubStatus {
 
 export function subscriptionStatus(sub: Subscription, txs: Tx[], today: Date): SubStatus {
   const charges = txs
-    .filter((t) => t.amount < 0 && matches(t, sub.match))
+    .filter(
+      (t) =>
+        t.amount < 0 &&
+        matches(t, sub.match) &&
+        (!sub.matchAmount || Math.abs(Math.abs(t.amount) - sub.expectedAmount) <= 0.01)
+    )
     .sort((a, b) => a.date.localeCompare(b.date));
   const last = charges[charges.length - 1];
   if (!last) return { sub, priceChanged: false, overdue: false };

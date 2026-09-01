@@ -49,6 +49,10 @@ export interface Subscription {
   cadence: "monthly" | "yearly";
   active: boolean;
   createdAt: string;
+  // Aggregator merchants (APPLE.COM/BILL) bill many subscriptions under one
+  // name; matchAmount requires the charge amount to equal expectedAmount so
+  // they stay distinguishable. Price changes then show as "gone quiet".
+  matchAmount?: boolean;
 }
 
 // Lightyear (or any manual) portfolio snapshot. Append-only.
