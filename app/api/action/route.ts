@@ -3,18 +3,13 @@ import { newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
 import { anniShareOf, inferCadence } from "@/lib/engine";
 import { merchantFromDescription } from "@/lib/lhv";
 import { currentRole } from "@/lib/auth";
+import { stripPeriod } from "@/lib/utils";
 
 // Rules and subscription patterns must never contain a raw card string —
 // "( ..3696) 2026-08-18 16:14 GR. TK. VIIMSI\..." has a timestamp in it and
 // matches exactly one transaction ever. Extract the merchant part if present.
 // Bank fees carry the billing period in the name itself ("Kaardi kuutasu
-// 07-2026") — same disease, so trailing month/date stamps get stripped too.
-const PERIOD_SUFFIX = /[\s·.,–—-]*\b(?:\d{2}[-/.]\d{4}|\d{4}[-/.]\d{2}(?:[-/.]\d{2})?)\s*$/;
-
-function stripPeriod(s: string): string {
-  return s.replace(PERIOD_SUFFIX, "").trim();
-}
-
+// 07-2026") — same disease, so trailing month/date stamps come off too.
 function cleanPattern(raw: string): string {
   return stripPeriod((merchantFromDescription(raw) ?? raw).trim().toLowerCase());
 }

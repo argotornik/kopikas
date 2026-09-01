@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Trailing billing-period stamps ("Kaardi kuutasu 07-2026") make taught
+// patterns that match exactly one charge ever — strip them wherever patterns
+// are taught or read back.
+const PERIOD_SUFFIX = /[\s·.,–—-]*\b(?:\d{2}[-/.]\d{4}|\d{4}[-/.]\d{2}(?:[-/.]\d{2})?)\s*$/
+
+export function stripPeriod(s: string): string {
+  return s.replace(PERIOD_SUFFIX, "").trim()
+}
+
 // Display label for Anni's fraction of a shared expense. Tolerant compare:
 // thirds are stored as rounded decimals. Plain ASCII fractions — precomposed
 // glyphs (½ vs ⅓) come from different fonts and render inconsistently.
