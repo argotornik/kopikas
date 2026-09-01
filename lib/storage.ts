@@ -29,7 +29,16 @@ export function newId(prefix: string): string {
 }
 
 export async function readDb(): Promise<Db> {
-  return process.env.DATABASE_URL ? pgReadDb() : jsonReadDb();
+  return normalizeCategories(await (process.env.DATABASE_URL ? pgReadDb() : jsonReadDb()));
+}
+
+// Category rename (Housing → Mortgage, Sep 2026): rows taught under the old
+// name keep working via read-time normalization, in both adapters; they
+// persist renamed on the next write of their collection.
+function normalizeCategories(db: Db): Db {
+  for (const r of db.rules) if (r.category === "Housing") r.category = "Mortgage";
+  for (const o of db.overrides) if (o.category === "Housing") o.category = "Mortgage";
+  return db;
 }
 
 export async function writeCollection<K extends keyof Db>(name: K, value: Db[K]): Promise<void> {

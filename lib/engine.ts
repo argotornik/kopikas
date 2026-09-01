@@ -5,7 +5,7 @@ export const CATEGORIES = [
   "Groceries",
   "Eating out",
   "Transport",
-  "Housing", // the mortgage (interest part; principal files under Savings)
+  "Mortgage", // interest part; principal files under Savings
   "Home", // household services, renovation, dry cleaning — the house, not the loan
   "Utilities",
   "Subscriptions",
