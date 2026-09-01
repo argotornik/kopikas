@@ -14,6 +14,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
 import { CheckCircle2Icon, HandCoinsIcon, InboxIcon, RepeatIcon, SettingsIcon, SproutIcon } from "lucide-react";
 import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
@@ -136,6 +137,7 @@ export default function Board({ initial }: { initial: BoardData }) {
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
+      <MotionConfig reducedMotion="user">
       <div className="mx-auto max-w-6xl px-5 py-6 pb-20">
         <div className="mb-5 flex items-center justify-between">
           <h1 className="text-lg font-semibold tracking-tight">Kopikas</h1>
@@ -204,7 +206,13 @@ export default function Board({ initial }: { initial: BoardData }) {
         <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
           <div className="min-w-0">
             {filter && (
-              <div className="mb-2 flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm">
+              <motion.div
+                key={filter}
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.15 }}
+                className="mb-2 flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm"
+              >
                 <span className="font-medium">{filter}</span>
                 <span className="font-mono tabular-nums text-muted-foreground">
                   {eur.format(filterMonthTotal)} in {monthName}
@@ -212,10 +220,11 @@ export default function Board({ initial }: { initial: BoardData }) {
                 <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => setFilter(null)}>
                   Show all
                 </Button>
-              </div>
+              </motion.div>
             )}
             {days.length === 0 ? (
               filter ? (
+                <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}>
                 <Empty className="p-6">
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
@@ -231,6 +240,7 @@ export default function Board({ initial }: { initial: BoardData }) {
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>
+                </motion.div>
               ) : (
                 <Empty>
                   <EmptyHeader>
@@ -244,36 +254,47 @@ export default function Board({ initial }: { initial: BoardData }) {
               )
             ) : (
               days.map(([date, txs]) => {
-                const micro = txs.filter((t) => t.micro);
-                const microOut = micro.filter((t) => t.amount < 0);
-                const microTotal = microOut.reduce((s, t) => s + Math.abs(t.amount), 0);
-                return (
-                  <div key={date}>
-                    <div className="mb-1.5 mt-4 text-xs text-muted-foreground first:mt-0">
-                      {dayFmt.format(new Date(date))}
-                    </div>
-                    {txs
-                      .filter((t) => !t.micro)
-                      .map((tx) => (
-                        <Tile key={tx.id} tx={tx} onUnshare={(id) => void post({ type: "unshare", shareId: id })} />
-                      ))}
-                    {micro.length > 0 && (
-                      <div className="mb-1.5 flex items-center gap-2 rounded-lg border border-dashed px-3 py-1.5 text-xs text-muted-foreground">
-                        <SproutIcon className="size-3.5 shrink-0" />
-                        <span className="min-w-0 flex-1 truncate">
-                          Mikroinvesteering · {microOut.length || micro.length} transfer
-                          {(microOut.length || micro.length) === 1 ? "" : "s"}
-                        </span>
-                        {microTotal > 0 && (
-                          <span className="font-mono tabular-nums">
-                            −{eur.format(microTotal)} → Savings
-                          </span>
-                        )}
+                  const micro = txs.filter((t) => t.micro);
+                  const microOut = micro.filter((t) => t.amount < 0);
+                  const microTotal = microOut.reduce((s, t) => s + Math.abs(t.amount), 0);
+                  return (
+                    <div key={date}>
+                      <div className="mb-1.5 mt-4 text-xs text-muted-foreground first:mt-0">
+                        {dayFmt.format(new Date(date))}
                       </div>
-                    )}
-                  </div>
-                );
-              })
+                      <AnimatePresence initial={false} mode="popLayout">
+                        {txs
+                          .filter((t) => !t.micro)
+                          .map((tx) => (
+                            <motion.div
+                              key={tx.id}
+                              layout="position"
+                              initial={{ opacity: 0, y: 6 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, x: 32, transition: { duration: 0.15 } }}
+                              transition={{ duration: 0.18, ease: "easeOut" }}
+                            >
+                              <Tile tx={tx} onUnshare={(id) => void post({ type: "unshare", shareId: id })} />
+                            </motion.div>
+                          ))}
+                      </AnimatePresence>
+                      {micro.length > 0 && (
+                        <div className="mb-1.5 flex items-center gap-2 rounded-lg border border-dashed px-3 py-1.5 text-xs text-muted-foreground">
+                          <SproutIcon className="size-3.5 shrink-0" />
+                          <span className="min-w-0 flex-1 truncate">
+                            Mikroinvesteering · {microOut.length || micro.length} transfer
+                            {(microOut.length || micro.length) === 1 ? "" : "s"}
+                          </span>
+                          {microTotal > 0 && (
+                            <span className="font-mono tabular-nums">
+                              −{eur.format(microTotal)} → Savings
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
             )}
           </div>
 
@@ -488,6 +509,7 @@ export default function Board({ initial }: { initial: BoardData }) {
           setSnapOpen(false);
         }}
       />
+      </MotionConfig>
     </DndContext>
   );
 }
