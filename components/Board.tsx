@@ -46,6 +46,8 @@ export default function Board({ initial }: { initial: BoardData }) {
   const [activeTx, setActiveTx] = useState<BoardTx | null>(null);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [snapOpen, setSnapOpen] = useState(false);
+  // Category filter: a category name, "Uncategorized", or null for the full feed.
+  const [filter, setFilter] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
     const res = await fetch("/api/board", { cache: "no-store" });
@@ -89,13 +91,37 @@ export default function Board({ initial }: { initial: BoardData }) {
   };
 
   const days = useMemo(() => {
+    const visible = filter
+      ? board.txs.filter((t) =>
+          filter === "Uncategorized" ? !t.category && t.amount < 0 && !t.micro : t.category === filter
+        )
+      : board.txs;
     const map = new Map<string, BoardTx[]>();
-    for (const tx of board.txs) {
+    for (const tx of visible) {
       if (!map.has(tx.date)) map.set(tx.date, []);
       map.get(tx.date)!.push(tx);
     }
     return [...map.entries()];
-  }, [board.txs]);
+  }, [board.txs, filter]);
+
+  // This month's outgoing total for the active filter (mirrors the rail's math).
+  const filterMonthTotal = useMemo(() => {
+    if (!filter) return 0;
+    return (
+      Math.round(
+        board.txs
+          .filter(
+            (t) =>
+              t.date.slice(0, 7) === board.month &&
+              t.amount < 0 &&
+              (filter === "Uncategorized" ? !t.category && !t.micro : t.category === filter)
+          )
+          .reduce((s, t) => s + Math.abs(t.amount), 0) * 100
+      ) / 100
+    );
+  }, [board.txs, board.month, filter]);
+
+  const toggleFilter = (name: string) => setFilter((f) => (f === name ? null : name));
 
   const bal = board.balance;
   const monthName = new Intl.DateTimeFormat("en-GB", { month: "long" }).format(
@@ -177,16 +203,45 @@ export default function Board({ initial }: { initial: BoardData }) {
 
         <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
           <div className="min-w-0">
+            {filter && (
+              <div className="mb-2 flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm">
+                <span className="font-medium">{filter}</span>
+                <span className="font-mono tabular-nums text-muted-foreground">
+                  {eur.format(filterMonthTotal)} in {monthName}
+                </span>
+                <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => setFilter(null)}>
+                  Show all
+                </Button>
+              </div>
+            )}
             {days.length === 0 ? (
-              <Empty>
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <InboxIcon />
-                  </EmptyMedia>
-                  <EmptyTitle>No transactions yet</EmptyTitle>
-                  <EmptyDescription>Once the LHV sync runs, your feed shows up here.</EmptyDescription>
-                </EmptyHeader>
-              </Empty>
+              filter ? (
+                <Empty className="p-6">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <CheckCircle2Icon />
+                    </EmptyMedia>
+                    <EmptyTitle className="text-sm">
+                      {filter === "Uncategorized" ? "Everything filed" : `No ${filter} transactions`}
+                    </EmptyTitle>
+                    <EmptyDescription>
+                      <Button variant="outline" size="sm" onClick={() => setFilter(null)}>
+                        Show all
+                      </Button>
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              ) : (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <InboxIcon />
+                    </EmptyMedia>
+                    <EmptyTitle>No transactions yet</EmptyTitle>
+                    <EmptyDescription>Once the LHV sync runs, your feed shows up here.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              )
             ) : (
               days.map(([date, txs]) => {
                 const micro = txs.filter((t) => t.micro);
@@ -231,10 +286,16 @@ export default function Board({ initial }: { initial: BoardData }) {
               </CardHeader>
               <CardContent className="flex flex-col gap-0.5 px-4">
                 {board.uncategorizedCount > 0 ? (
-                  <div className="flex justify-between rounded-md bg-attention/15 px-2.5 py-1.5 text-sm font-medium text-attention">
+                  <button
+                    className={cn(
+                      "flex w-full justify-between rounded-md bg-attention/15 px-2.5 py-1.5 text-left text-sm font-medium text-attention",
+                      filter === "Uncategorized" && "ring-2 ring-attention"
+                    )}
+                    onClick={() => toggleFilter("Uncategorized")}
+                  >
                     <span>Uncategorized</span>
                     <span>{board.uncategorizedCount} tiles — drag them</span>
-                  </div>
+                  </button>
                 ) : (
                   <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-muted-foreground">
                     <CheckCircle2Icon className="size-4 text-gain" />
@@ -242,7 +303,13 @@ export default function Board({ initial }: { initial: BoardData }) {
                   </div>
                 )}
                 {board.categories.map((c) => (
-                  <CategoryRow key={c.name} name={c.name} total={c.total} />
+                  <CategoryRow
+                    key={c.name}
+                    name={c.name}
+                    total={c.total}
+                    active={filter === c.name}
+                    onSelect={() => toggleFilter(c.name)}
+                  />
                 ))}
               </CardContent>
             </Card>
@@ -539,14 +606,29 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
   );
 }
 
-function CategoryRow({ name, total }: { name: string; total: number }) {
+function CategoryRow({
+  name,
+  total,
+  active,
+  onSelect,
+}: {
+  name: string;
+  total: number;
+  active: boolean;
+  onSelect: () => void;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: `cat:${name}` });
   return (
     <div
       ref={setNodeRef}
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => e.key === "Enter" && onSelect()}
       className={cn(
-        "flex justify-between rounded-md border border-dashed border-transparent px-2.5 py-1.5 text-sm",
-        isOver && "border-primary bg-accent"
+        "flex cursor-pointer justify-between rounded-md border border-dashed border-transparent px-2.5 py-1.5 text-sm hover:bg-accent/50",
+        isOver && "border-primary bg-accent",
+        active && "bg-accent font-medium"
       )}
     >
       <span>{name}</span>
