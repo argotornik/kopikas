@@ -79,6 +79,7 @@ async function run(req: Request) {
     const unmappedKeySamples: string[][] = accountUnmapped.slice(0, 3);
     const paymentDataKeySamples: string[][] = [];
     const directionValues = new Set<string>();
+    let unmappedTypeSample: Record<string, string> | null = null;
     for (const account of accounts) {
       const result = await fetchStatement(accessToken, account.iban, from, to);
       fetched += result.fetched;
@@ -86,6 +87,7 @@ async function run(req: Request) {
       unmappedKeySamples.push(...result.unmapped.slice(0, 3));
       paymentDataKeySamples.push(...result.paymentDataKeySamples);
       result.directionValues.forEach((d) => directionValues.add(d));
+      unmappedTypeSample = unmappedTypeSample ?? result.unmappedTypeSample;
     }
     if (txs.length > 0) await writeCollection("transactions", txs);
 
@@ -104,6 +106,7 @@ async function run(req: Request) {
       unmappedKeySamples: unmappedKeySamples.slice(0, 5),
       paymentDataKeySamples: paymentDataKeySamples.slice(0, 3),
       directionValues: [...directionValues],
+      unmappedTypeSample: unmappedTypeSample ?? undefined,
     });
   } catch (e) {
     return NextResponse.json(

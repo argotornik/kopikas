@@ -77,8 +77,12 @@ function asArray(json: unknown, keys: string[]): Record<string, unknown>[] {
 }
 
 function num(v: unknown): number | undefined {
-  if (typeof v === "number") return v;
-  if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) return Number(v);
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim() !== "") {
+    // Tolerate "1 234,56" style formatting.
+    const n = Number(v.replace(/\s/g, "").replace(",", "."));
+    if (!Number.isNaN(n)) return n;
+  }
   if (v && typeof v === "object") {
     const o = v as Record<string, unknown>;
     return num(o.amount ?? o.value);
@@ -88,6 +92,26 @@ function num(v: unknown): number | undefined {
 
 function str(...vals: unknown[]): string | undefined {
   for (const v of vals) if (typeof v === "string" && v.trim() !== "") return v;
+  return undefined;
+}
+
+// Identifiers may arrive as numbers — stringify them.
+function idStr(...vals: unknown[]): string | undefined {
+  for (const v of vals) {
+    if (typeof v === "string" && v.trim() !== "") return v;
+    if (typeof v === "number" && Number.isFinite(v)) return String(v);
+  }
+  return undefined;
+}
+
+// Dates may arrive as strings or epoch numbers (seconds or millis).
+function dateStr(...vals: unknown[]): string | undefined {
+  for (const v of vals) {
+    if (typeof v === "string" && v.trim() !== "") return v;
+    if (typeof v === "number" && Number.isFinite(v) && v > 1e9) {
+      return new Date(v > 1e12 ? v : v * 1000).toISOString();
+    }
+  }
   return undefined;
 }
 
@@ -126,6 +150,7 @@ export async function fetchStatement(
   unmapped: string[][];
   paymentDataKeySamples: string[][];
   directionValues: string[];
+  unmappedTypeSample: Record<string, string> | null;
 }> {
   const json = await lhvGet(
     accessToken,
@@ -136,23 +161,40 @@ export async function fetchStatement(
   const unmapped: string[][] = [];
   const paymentDataKeySamples: string[][] = [];
   const directionValues = new Set<string>();
+  let unmappedTypeSample: Record<string, string> | null = null;
   for (const r of rows) {
     const dir = str(r.creditDebitIndicator, r.direction, r.type);
     if (dir && directionValues.size < 4) directionValues.add(dir);
     const { tx, pdKeys } = mapTransaction(r, iban);
     if (tx) txs.push(tx);
-    else unmapped.push(Object.keys(r));
+    else {
+      unmapped.push(Object.keys(r));
+      if (!unmappedTypeSample) {
+        // Types only, never values — enough to see exactly which required
+        // field the mapper is rejecting.
+        unmappedTypeSample = Object.fromEntries(
+          Object.entries(r).map(([k, v]) => [k, Array.isArray(v) ? "array" : v === null ? "null" : typeof v])
+        );
+      }
+    }
     if (pdKeys && paymentDataKeySamples.length < 3) paymentDataKeySamples.push(pdKeys);
   }
-  return { txs, fetched: rows.length, unmapped, paymentDataKeySamples, directionValues: [...directionValues] };
+  return {
+    txs,
+    fetched: rows.length,
+    unmapped,
+    paymentDataKeySamples,
+    directionValues: [...directionValues],
+    unmappedTypeSample,
+  };
 }
 
 const DEBIT_MARKERS = new Set(["DBIT", "DEBIT", "D", "OUT", "OUTGOING", "DEB", "EXPENSE"]);
 
 function mapTransaction(r: Record<string, unknown>, iban: string): { tx: Tx | null; pdKeys: string[] | null } {
   const pd = (r.paymentData ?? {}) as Record<string, unknown>;
-  const id = str(r.id, r.transactionId, r.entryReference, r.reference, r.bankReference);
-  const rawDate = str(r.date, r.bookingDate, r.valueDate, r.transactionDate, r.settlementDtime, r.bookingDtime);
+  const id = idStr(r.id, r.transactionId, r.entryReference, r.reference, r.bankReference);
+  const rawDate = dateStr(r.date, r.bookingDate, r.valueDate, r.transactionDate, r.settlementDtime, r.bookingDtime);
   let amount = num(r.amount);
   if (id === undefined || rawDate === undefined || amount === undefined) return { tx: null, pdKeys: null };
 
