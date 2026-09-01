@@ -71,7 +71,9 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
   const [snapOpen, setSnapOpen] = useState(false);
   // Category filter: a category name, "Uncategorized", or null for the full feed.
   const [filter, setFilter] = useState<string | null>(() =>
-    view?.cat && (view.cat === "Uncategorized" || CATEGORIES.includes(view.cat)) ? view.cat : null
+    view?.cat && (view.cat === "Uncategorized" || view.cat === "Incoming" || CATEGORIES.includes(view.cat))
+      ? view.cat
+      : null
   );
   // Free-text search over counterparty + description; combines with the filter.
   const [query, setQuery] = useState(view?.q ?? "");
@@ -163,7 +165,11 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
     const q = query.trim().toLowerCase();
     let visible = filter
       ? board.txs.filter((t) =>
-          filter === "Uncategorized" ? !t.category && t.amount < 0 && !t.micro : t.category === filter
+          filter === "Incoming"
+            ? t.amount > 0 && !t.micro
+            : filter === "Uncategorized"
+              ? !t.category && t.amount < 0 && !t.micro
+              : t.category === filter
         )
       : board.txs;
     if (q) {
@@ -203,9 +209,10 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
   // Totals for the active filter: everything visible, plus the viewed month's slice.
   const filterStats = useMemo(() => {
     if (!filter) return { total: 0, count: 0, monthTotal: 0 };
-    const matching = board.txs.filter(
-      (t) =>
-        t.amount < 0 && (filter === "Uncategorized" ? !t.category && !t.micro : t.category === filter)
+    const matching = board.txs.filter((t) =>
+      filter === "Incoming"
+        ? t.amount > 0 && !t.micro
+        : t.amount < 0 && (filter === "Uncategorized" ? !t.category && !t.micro : t.category === filter)
     );
     const sum = (rows: typeof matching) =>
       Math.round(rows.reduce((s, t) => s + Math.abs(t.amount), 0) * 100) / 100;
@@ -230,6 +237,15 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
     return totals;
   }, [board.txs, month]);
 
+  // Scale for the category bars: the month's biggest spending category is
+  // full width. Savings is a transfer, not spending — it would dwarf the
+  // rest, so it neither sets the scale nor gets a bar.
+  const maxCategoryTotal = useMemo(() => {
+    let max = 0;
+    for (const c of CATEGORIES) if (c !== SAVINGS) max = Math.max(max, monthCategoryTotals.get(c) ?? 0);
+    return max;
+  }, [monthCategoryTotals]);
+
   // Full household outgo for the viewed month — everything except Savings
   // and micro-investing (money moved, not spent). Unlike the "Spent" stat
   // tile, shared expenses count in full here.
@@ -239,6 +255,17 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
       if (t.amount >= 0 || t.micro || t.date.slice(0, 7) !== month) continue;
       if (t.category === SAVINGS) continue;
       sum += Math.abs(t.amount);
+    }
+    return Math.round(sum * 100) / 100;
+  }, [board.txs, month]);
+
+  // Money in for the viewed month — salary, repayments, refunds. The other
+  // side of the statement; not a category.
+  const monthReceivedTotal = useMemo(() => {
+    let sum = 0;
+    for (const t of board.txs) {
+      if (t.amount <= 0 || t.micro || t.date.slice(0, 7) !== month) continue;
+      sum += t.amount;
     }
     return Math.round(sum * 100) / 100;
   }, [board.txs, month]);
@@ -406,7 +433,9 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                         ? `No matches for “${query.trim()}”`
                         : filter === "Uncategorized"
                           ? "Everything filed"
-                          : `No ${filter} transactions`}
+                          : filter === "Incoming"
+                            ? "Nothing received yet"
+                            : `No ${filter} transactions`}
                     </EmptyTitle>
                     <EmptyDescription>
                       <Button
@@ -583,6 +612,11 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                         key={c.name}
                         name={c.name}
                         total={Math.round((monthCategoryTotals.get(c.name) ?? 0) * 100) / 100}
+                        share={
+                          c.name === SAVINGS || maxCategoryTotal === 0
+                            ? 0
+                            : (monthCategoryTotals.get(c.name) ?? 0) / maxCategoryTotal
+                        }
                         active={filter === c.name}
                         onSelect={() => toggleFilter(c.name)}
                       />
@@ -594,6 +628,18 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       <span>Spent</span>
                       <span className="font-mono tabular-nums">{eur.format(monthSpentTotal)}</span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleFilter("Incoming")}
+                      title="Money that came in this month — click to see who sent it"
+                      className={cn(
+                        "flex w-full cursor-pointer justify-between rounded-md px-2.5 py-1 text-left text-sm hover:bg-accent/50",
+                        filter === "Incoming" && "bg-accent font-medium"
+                      )}
+                    >
+                      <span>Received</span>
+                      <span className="font-mono tabular-nums text-gain">+{eur.format(monthReceivedTotal)}</span>
+                    </button>
                   </>
                 )}
               </CardContent>
@@ -1031,14 +1077,19 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
   );
 }
 
+// The bar is the row's background: a quiet copper fill growing from the left
+// to this category's share of the month's biggest — proportion without adding
+// an element, and the row stays one line.
 function CategoryRow({
   name,
   total,
+  share,
   active,
   onSelect,
 }: {
   name: string;
   total: number;
+  share: number; // 0..1 of the month's largest spending category
   active: boolean;
   onSelect: () => void;
 }) {
@@ -1049,13 +1100,20 @@ function CategoryRow({
       ref={setNodeRef}
       onClick={onSelect}
       className={cn(
-        "flex w-full cursor-pointer justify-between rounded-md border border-dashed border-transparent px-2.5 py-1.5 text-left text-sm hover:bg-accent/50",
+        "relative flex w-full cursor-pointer justify-between overflow-hidden rounded-md border border-dashed border-transparent px-2.5 py-1.5 text-left text-sm hover:bg-accent/50",
         isOver && "border-primary bg-accent",
         active && "bg-accent font-medium"
       )}
     >
-      <span>{name}</span>
-      <span className={cn("text-muted-foreground", !isOver && "font-mono tabular-nums")}>
+      {share > 0 && (
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-0 left-0 rounded-md bg-primary/10 transition-[width] duration-300 motion-reduce:transition-none"
+          style={{ width: `${Math.round(share * 1000) / 10}%` }}
+        />
+      )}
+      <span className="relative">{name}</span>
+      <span className={cn("relative text-muted-foreground", !isOver && "font-mono tabular-nums")}>
         {isOver ? "drop here" : total > 0 ? eur.format(total) : ""}
       </span>
     </button>

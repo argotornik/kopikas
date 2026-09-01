@@ -6,6 +6,7 @@ import {
   balance,
   categoryOf,
   categoryTotals,
+  matches,
   monthKey,
   monthlyBurn,
   monthlySpend,
@@ -70,6 +71,10 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     .map((tx) => {
       const override = db.overrides.find((o) => o.txId === tx.id);
       const cat = categoryOf(tx, db.rules, db.overrides);
+      // "override" only when the hand-filing disagrees with the rules: an
+      // "Always" drag files its own tile by override too, so a bare override
+      // check would mark every teaching tile as an exception.
+      const ruleCategory = db.rules.findLast((r) => matches(tx, r.match))?.category ?? null;
       const share = shareByTx.get(tx.id);
       return {
         id: tx.id,
@@ -80,7 +85,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
         domain: guessDomain(tx.counterparty),
         micro: (tx.counterparty + " " + tx.description).toLowerCase().includes("mikroinvesteering"),
         category: cat,
-        categorySource: override ? "override" : cat ? "rule" : null,
+        categorySource: override && override.category !== ruleCategory ? "override" : cat ? "rule" : null,
         shared: !!share,
         shareId: share?.id,
         anniShare: share ? anniShareOf(share) : undefined,
