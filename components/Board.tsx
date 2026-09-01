@@ -29,6 +29,7 @@ import {
   XIcon,
 } from "lucide-react";
 import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
+import { SAVINGS } from "@/lib/engine";
 import { cn, shareLabel } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { MerchantIcon } from "@/components/merchant-icon";
@@ -169,6 +170,19 @@ export default function Board({ initial }: { initial: BoardData }) {
       totals.set(key, (totals.get(key) ?? 0) + Math.abs(t.amount));
     }
     return totals;
+  }, [board.txs, month]);
+
+  // Full household outgo for the viewed month — everything except Savings
+  // and micro-investing (money moved, not spent). Unlike the "Spent" stat
+  // tile, shared expenses count in full here.
+  const monthSpentTotal = useMemo(() => {
+    let sum = 0;
+    for (const t of board.txs) {
+      if (t.amount >= 0 || t.micro || t.date.slice(0, 7) !== month) continue;
+      if (t.category === SAVINGS) continue;
+      sum += Math.abs(t.amount);
+    }
+    return Math.round(sum * 100) / 100;
   }, [board.txs, month]);
 
   const earliestMonth = useMemo(
@@ -456,6 +470,13 @@ export default function Board({ initial }: { initial: BoardData }) {
                     onSelect={() => toggleFilter(c.name)}
                   />
                 ))}
+                <div
+                  className="mt-1 flex justify-between border-t px-2.5 pt-2 text-sm font-medium"
+                  title="Everything going out except Savings and micro-investing; shared expenses at full price"
+                >
+                  <span>Spent</span>
+                  <span className="font-mono tabular-nums">{eur.format(monthSpentTotal)}</span>
+                </div>
               </CardContent>
             </Card>
 
