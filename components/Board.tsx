@@ -453,7 +453,11 @@ export default function Board({ initial }: { initial: BoardData }) {
                     onClick={() => toggleFilter("Uncategorized")}
                   >
                     <span>Uncategorized</span>
-                    <span>{board.uncategorizedCount} tiles — drag them</span>
+                    <span>
+                      {board.uncategorizedCount === 1
+                        ? "1 tile — drag it"
+                        : `${board.uncategorizedCount} tiles — drag them`}
+                    </span>
                   </button>
                 ) : (
                   <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm text-muted-foreground">
