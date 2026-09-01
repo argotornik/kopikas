@@ -435,10 +435,13 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                 </Empty>
               )
             ) : (
-              // ONE flat presence for headers, tiles and rollups alike: a
-              // nested presence deadlocks exits (found live), and a header
-              // outside the presence pops out instead of leaving with its
-              // tiles — which killed the cascade whenever a day emptied.
+              // The ledger: one sheet, rows ruled by hairlines, day headers as
+              // section rules. ONE flat presence for headers, rows and rollups
+              // alike: a nested presence deadlocks exits (found live), and a
+              // header outside the presence pops out instead of leaving with
+              // its rows. relative + overflow-hidden keep popped-out exits
+              // inside the sheet, sliding off its edge.
+              <div className="relative overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
               <AnimatePresence initial={false} mode="popLayout">
                 {days.flatMap(([date, txs], dayIndex) => {
                   const visible = txs.filter((t) => !t.micro);
@@ -457,11 +460,14 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                         transition: { duration: 0.12, delay: visible[0] ? delayOf(visible[0].id) : 0 },
                       }}
                       transition={{ duration: 0.18, ease: "easeOut" }}
-                      className={cn("mb-1.5 text-xs text-muted-foreground", dayIndex > 0 && "mt-4")}
+                      className={cn(
+                        "px-3 pb-1 pt-3 text-xs text-muted-foreground",
+                        dayIndex > 0 && "border-t border-border/70"
+                      )}
                     >
                       {dayFmt.format(new Date(date))}
                     </motion.div>,
-                    ...visible.map((tx) => (
+                    ...visible.map((tx, i) => (
                       <motion.div
                         key={tx.id}
                         layout="position"
@@ -473,6 +479,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                           transition: { duration: 0.15, delay: delayOf(tx.id) },
                         }}
                         transition={{ duration: 0.18, ease: "easeOut" }}
+                        className={cn(i > 0 && "border-t border-border/70")}
                       >
                         <Tile tx={tx} onUnshare={(id) => void post({ type: "unshare", shareId: id })} />
                       </motion.div>
@@ -486,7 +493,10 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0, transition: { duration: 0.12 } }}
                             transition={{ duration: 0.18, ease: "easeOut" }}
-                            className="mb-1.5 flex items-center gap-2 rounded-lg border border-dashed px-3 py-1.5 text-xs text-muted-foreground"
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground",
+                              visible.length > 0 && "border-t border-border/70"
+                            )}
                           >
                             <SproutIcon className="size-3.5 shrink-0" />
                             <span className="min-w-0 flex-1 truncate">
@@ -504,6 +514,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                   ];
                 })}
               </AnimatePresence>
+              </div>
             )}
           </div>
 
@@ -954,52 +965,65 @@ function Stat({
   );
 }
 
+// A ledger row: icon · merchant/meta · category · amount, in fixed columns so
+// categories and amounts align down the whole statement. Color is reserved
+// for meaning — uncategorized (attention), incoming (gain), Anni's share.
 function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => void }) {
   const draggable = tx.amount < 0;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: tx.id,
     disabled: !draggable,
   });
+  const category =
+    tx.amount >= 0 ? null : tx.category ? (
+      <span
+        className={cn(
+          "truncate text-xs text-muted-foreground",
+          tx.categorySource === "override" && "underline decoration-dotted underline-offset-2"
+        )}
+        title={tx.categorySource === "override" ? "Filed by hand" : undefined}
+      >
+        {tx.category}
+      </span>
+    ) : (
+      <span className="text-xs font-medium text-attention">uncategorized</span>
+    );
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "mb-1.5 flex touch-none select-none items-center gap-2.5 rounded-lg border bg-card px-3 py-2",
-        // Offscreen tiles skip render work — the full feed is ~1,000 rows.
-        "[contain-intrinsic-size:auto_56px] [content-visibility:auto]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        draggable && "cursor-grab",
+        "grid touch-none select-none grid-cols-[1.75rem_minmax(0,1fr)_5.5rem] items-center gap-x-3 px-3 py-2 sm:grid-cols-[1.75rem_minmax(0,1fr)_7rem_5.5rem]",
+        // Offscreen rows skip render work — the full feed is ~1,000 rows.
+        "[contain-intrinsic-size:auto_52px] [content-visibility:auto]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+        draggable && "cursor-grab hover:bg-accent/40",
         isDragging && "opacity-40"
       )}
       {...listeners}
       {...attributes}
     >
       <MerchantIcon name={tx.counterparty} domain={tx.domain} />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0">
         <div className="truncate text-sm font-medium">{tx.counterparty}</div>
-        <div className="truncate text-xs text-muted-foreground">{tx.description}</div>
+        <div className="flex min-w-0 items-baseline gap-1.5 text-xs text-muted-foreground">
+          {tx.shared && tx.shareId && (
+            <button
+              type="button"
+              className="shrink-0 font-medium text-shared hover:underline"
+              title={`Shared with Anni — she pays ${shareLabel(tx.anniShare)}. Click to unshare`}
+              aria-label={`Unshare — Anni pays ${shareLabel(tx.anniShare)} of this`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => onUnshare(tx.shareId!)}
+            >
+              {shareLabel(tx.anniShare)} Anni ·
+            </button>
+          )}
+          <span className="truncate">{tx.description}</span>
+          {category && <span className="flex shrink-0 gap-1.5 sm:hidden">· {category}</span>}
+        </div>
       </div>
-      {tx.shared && tx.shareId && (
-        <Badge
-          render={<button type="button" />}
-          className="cursor-pointer bg-shared/15 text-shared hover:bg-shared/25"
-          title={`Shared with Anni — she pays ${shareLabel(tx.anniShare)}. Click to unshare`}
-          aria-label={`Unshare — Anni pays ${shareLabel(tx.anniShare)} of this`}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => onUnshare(tx.shareId!)}
-        >
-          {shareLabel(tx.anniShare)} Anni
-        </Badge>
-      )}
-      {tx.amount < 0 &&
-        (tx.category ? (
-          <Badge variant="secondary" className={cn(tx.categorySource === "override" && "border border-dashed border-border")}>
-            {tx.category}
-          </Badge>
-        ) : (
-          <Badge className="bg-attention/15 font-semibold text-attention">uncategorized</Badge>
-        ))}
-      <span className={cn("font-mono text-sm font-semibold tabular-nums", tx.amount > 0 && "text-gain")}>
+      <div className="hidden min-w-0 sm:block">{category}</div>
+      <span className={cn("text-right font-mono text-sm font-semibold tabular-nums", tx.amount > 0 && "text-gain")}>
         {tx.amount > 0 ? "+" : "−"}
         {eur.format(Math.abs(tx.amount))}
       </span>
