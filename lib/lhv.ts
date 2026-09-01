@@ -42,7 +42,11 @@ export async function refreshAccessToken(
     body,
   });
   if (!res.ok) {
-    throw new Error(`LHV token refresh failed: HTTP ${res.status} — token expired or revoked; get a new one at api.lhv.ai/api-access`);
+    const body = (await res.text().catch(() => "")).slice(0, 300);
+    throw new Error(
+      `LHV token refresh failed: HTTP ${res.status}${body ? ` — ${body}` : ""}. ` +
+        `invalid_client → set LHV_CLIENT_ID env; invalid_grant → paste a fresh refresh token from api.lhv.ai/api-access.`
+    );
   }
   const json = (await res.json()) as { access_token?: string; refresh_token?: string };
   if (!json.access_token) throw new Error("LHV token refresh: response had no access_token");

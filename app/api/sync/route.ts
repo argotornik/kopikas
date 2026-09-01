@@ -41,7 +41,23 @@ async function run(req: Request) {
   }
 
   try {
-    const { accessToken, newRefreshToken } = await refreshAccessToken(tokens.refreshToken);
+    // Design intent: the stored token is a refresh token. Reality check: if
+    // the refresh grant fails, try the stored token directly as a bearer —
+    // the portal may have handed out an access token or a static API key.
+    // tokenMode in the response says which path worked.
+    let accessToken: string;
+    let newRefreshToken: string | undefined;
+    let tokenMode = "refresh";
+    try {
+      const refreshed = await refreshAccessToken(tokens.refreshToken);
+      accessToken = refreshed.accessToken;
+      newRefreshToken = refreshed.newRefreshToken;
+    } catch (refreshError) {
+      accessToken = tokens.refreshToken;
+      tokenMode = `direct — stored token used as bearer (refresh grant failed: ${
+        refreshError instanceof Error ? refreshError.message : String(refreshError)
+      })`;
+    }
     if (newRefreshToken) await saveLhvTokens(newRefreshToken);
 
     const { accounts, unmapped: accountUnmapped } = await fetchAccounts(accessToken);
@@ -71,6 +87,7 @@ async function run(req: Request) {
 
     return NextResponse.json({
       ok: true,
+      tokenMode,
       accounts: accounts.length,
       fetched,
       mapped: txs.length,
