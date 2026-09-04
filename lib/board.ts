@@ -108,6 +108,14 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
         s.manual?.description ?? db.transactions.find((t) => t.id === s.txId)?.counterparty ?? "",
       total: shareAmount(s, db.transactions),
       anniShare: anniShareOf(s),
+      // What the couple spent it on: the transaction's category when bank-linked,
+      // the optional pick on a quick-add otherwise.
+      category: s.manual
+        ? s.manual.category ?? null
+        : (() => {
+            const tx = db.transactions.find((t) => t.id === s.txId);
+            return tx ? categoryOf(tx, db.rules, db.overrides) : null;
+          })(),
     }))
     .sort((a, b) => b.date.localeCompare(a.date));
 

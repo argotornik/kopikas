@@ -32,6 +32,7 @@ create table if not exists shares (
   manual_date        date,
   manual_description text,
   manual_amount      numeric(12, 2),
+  manual_category    text,          -- quick-adds only; bank-linked shares inherit the tx category
   anni_share         numeric(6, 5), -- Anni's fraction of the expense; null = 0.5
   created_at         timestamptz not null,
   check (tx_id is not null or manual_amount is not null)

@@ -28,7 +28,9 @@ export interface Share {
   id: string;
   paidBy: Person;
   txId?: string;
-  manual?: { date: string; description: string; amount: number }; // amount positive
+  // amount positive; category optional — bank-linked shares inherit their
+  // transaction's category instead.
+  manual?: { date: string; description: string; amount: number; category?: string };
   // Fraction of the expense that is Anni's responsibility. Absent = 0.5,
   // so shares from before split options keep meaning 50/50.
   anniShare?: number;

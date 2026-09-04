@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { XIcon } from "lucide-react";
+import { CATEGORIES } from "@/lib/engine";
 import { cn, shareLabel } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,7 +27,15 @@ type Person = "argo" | "anni";
 interface SharedView {
   role: Person;
   balance: number; // positive = Anni owes Argo
-  sharedItems: { id: string; paidBy: Person; date: string; description: string; total: number; anniShare?: number }[];
+  sharedItems: {
+    id: string;
+    paidBy: Person;
+    date: string;
+    description: string;
+    total: number;
+    anniShare?: number;
+    category: string | null;
+  }[];
   settlements: { id: string; amount: number; date: string; note?: string }[];
   suggestions: { txId: string; date: string; amount: number; counterparty: string }[];
 }
@@ -49,6 +58,7 @@ export function Pooleks({ role }: { role: Person }) {
   const [desc, setDesc] = useState("");
   const [amount, setAmount] = useState("");
   const [share, setShare] = useState(0.5);
+  const [category, setCategory] = useState("");
   const [err, setErr] = useState("");
   const [settleOpen, setSettleOpen] = useState(false);
   const [settleAmount, setSettleAmount] = useState("");
@@ -98,6 +108,13 @@ export function Pooleks({ role }: { role: Person }) {
       entries: list,
       argoPaid: list.reduce((s, e) => s + (e.kind === "share" && e.item.paidBy === "argo" ? e.item.total : 0), 0),
       anniPaid: list.reduce((s, e) => s + (e.kind === "share" && e.item.paidBy === "anni" ? e.item.total : 0), 0),
+      // What the month cost the couple, by kind — full totals, not shares.
+      byCategory: [...list.reduce((m, e) => {
+        if (e.kind !== "share") return m;
+        const key = e.item.category ?? "unsorted";
+        return m.set(key, (m.get(key) ?? 0) + e.item.total);
+      }, new Map<string, number>())]
+        .sort((a, b) => b[1] - a[1]),
     }));
   }, [view]);
 
@@ -114,9 +131,19 @@ export function Pooleks({ role }: { role: Person }) {
       return;
     }
     setErr("");
-    if (await post({ type: "quickadd", description: desc, amount: a, date: today, anniShare: share })) {
+    if (
+      await post({
+        type: "quickadd",
+        description: desc,
+        amount: a,
+        date: today,
+        anniShare: share,
+        category: category || undefined,
+      })
+    ) {
       setDesc("");
       setAmount("");
+      setCategory("");
     }
   };
 
@@ -214,6 +241,15 @@ export function Pooleks({ role }: { role: Person }) {
                   {eur.format(m.argoPaid)} · {eur.format(m.anniPaid)}
                 </span>
               </div>
+              {m.byCategory.length > 0 && (
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 px-1 pb-1 text-xs text-muted-foreground">
+                  {m.byCategory.map(([name, total]) => (
+                    <span key={name}>
+                      {name} <span className="font-mono tabular-nums text-foreground">{eur.format(total)}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
               {m.entries.map((e) =>
                 e.kind === "settle" ? (
                   <div key={e.settlement.id} className="flex items-center gap-3 py-1 text-xs text-muted-foreground">
@@ -248,8 +284,11 @@ export function Pooleks({ role }: { role: Person }) {
                         </span>
                       </div>
                       <div className="flex justify-between gap-2 text-xs text-muted-foreground">
-                        <span>{shortDate.format(new Date(e.date))}</span>
-                        <span className="font-mono tabular-nums">
+                        <span className="truncate">
+                          {shortDate.format(new Date(e.date))}
+                          {e.item.category && ` · ${e.item.category}`}
+                        </span>
+                        <span className="shrink-0 font-mono tabular-nums">
                           {e.item.paidBy === "argo"
                             ? `${names.anni} ${owes(names.anni)} ${eur.format(e.item.total * (e.item.anniShare ?? 0.5))}`
                             : `${names.argo} ${owes(names.argo)} ${eur.format(e.item.total * (1 - (e.item.anniShare ?? 0.5)))}`}
@@ -288,6 +327,20 @@ export function Pooleks({ role }: { role: Person }) {
             />
             <Button onClick={() => void add()}>Add</Button>
           </div>
+          <select
+            aria-label="Category"
+            name="category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+          >
+            <option value="">Category (optional)</option>
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{role === "argo" ? "Anni pays" : "You pay"}</span>
             <div className="flex gap-1">

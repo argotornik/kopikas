@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
-import { anniShareOf, inferCadence, subscriptionStatus } from "@/lib/engine";
+import { CATEGORIES, anniShareOf, inferCadence, subscriptionStatus } from "@/lib/engine";
 import { merchantFromDescription } from "@/lib/lhv";
 import { currentRole } from "@/lib/auth";
 import { stripPeriod } from "@/lib/utils";
@@ -22,7 +22,7 @@ type Action =
   | { type: "unrule"; ruleId: string }
   | { type: "share"; txId: string; anniShare?: number }
   | { type: "unshare"; shareId: string }
-  | { type: "quickadd"; description: string; amount: number; date: string; anniShare?: number }
+  | { type: "quickadd"; description: string; amount: number; date: string; anniShare?: number; category?: string }
   | { type: "settle"; amount: number; date: string; txId?: string; note?: string }
   | { type: "subscribe"; txId: string }
   | { type: "unsubscribe"; subId: string }
@@ -97,11 +97,12 @@ export async function POST(req: Request) {
       if (!action.description?.trim() || !(amount > 0)) return bad("description and positive amount required");
       const fraction = Number(action.anniShare ?? 0.5);
       if (!(fraction > 0 && fraction < 1)) return bad("anniShare must be between 0 and 1");
+      const category = action.category && CATEGORIES.includes(action.category) ? action.category : undefined;
       db.shares.push({
         id: newId("share"),
         // Whoever is adding paid for it — Anni's card, Argo's cash.
         paidBy: role === "anni" ? "anni" : "argo",
-        manual: { date: action.date, description: action.description.trim(), amount },
+        manual: { date: action.date, description: action.description.trim(), amount, category },
         anniShare: fraction,
         createdAt: now,
       });
