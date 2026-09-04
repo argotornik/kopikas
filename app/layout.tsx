@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "next-themes";
 import { cn } from "@/lib/utils";
 import { authEnabled } from "@/lib/auth";
+import { ClerkThemed } from "@/components/clerk-themed";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono-var" });
@@ -17,9 +17,10 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // ThemeProvider outside so Clerk's components can follow the resolved theme.
   const content = (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-      {children}
+      {authEnabled ? <ClerkThemed>{children}</ClerkThemed> : children}
     </ThemeProvider>
   );
   return (
@@ -28,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
       className={cn("font-sans", geist.variable, geistMono.variable, bricolage.variable)}
     >
-      <body>{authEnabled ? <ClerkProvider>{content}</ClerkProvider> : content}</body>
+      <body>{content}</body>
     </html>
   );
 }
