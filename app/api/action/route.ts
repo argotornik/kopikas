@@ -22,7 +22,7 @@ type Action =
   | { type: "unrule"; ruleId: string }
   | { type: "share"; txId: string; anniShare?: number }
   | { type: "unshare"; shareId: string }
-  | { type: "quickadd"; description: string; amount: number; date: string }
+  | { type: "quickadd"; description: string; amount: number; date: string; anniShare?: number }
   | { type: "settle"; amount: number; date: string; txId?: string; note?: string }
   | { type: "subscribe"; txId: string }
   | { type: "unsubscribe"; subId: string }
@@ -95,10 +95,14 @@ export async function POST(req: Request) {
     case "quickadd": {
       const amount = Number(action.amount);
       if (!action.description?.trim() || !(amount > 0)) return bad("description and positive amount required");
+      const fraction = Number(action.anniShare ?? 0.5);
+      if (!(fraction > 0 && fraction < 1)) return bad("anniShare must be between 0 and 1");
       db.shares.push({
         id: newId("share"),
-        paidBy: "anni",
+        // Whoever is adding paid for it — Anni's card, Argo's cash.
+        paidBy: role === "anni" ? "anni" : "argo",
         manual: { date: action.date, description: action.description.trim(), amount },
+        anniShare: fraction,
         createdAt: now,
       });
       await writeCollection("shares", db.shares);

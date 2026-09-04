@@ -21,7 +21,6 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  HandCoinsIcon,
   InboxIcon,
   RepeatIcon,
   SearchIcon,
@@ -33,6 +32,7 @@ import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
 import { CATEGORIES, SAVINGS } from "@/lib/engine";
 import { cn, shareLabel } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CoinMark } from "@/components/coin-mark";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { UserMenu } from "@/components/user-menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -308,8 +308,8 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
             Kopikas
           </h1>
           <div className="flex items-center gap-1.5">
-            <a href="/anni" className="text-sm text-muted-foreground hover:text-foreground">
-              Shared with Anni →
+            <a href="/pooleks" className="text-sm text-muted-foreground hover:text-foreground">
+              Pooleks →
             </a>
             <ThemeToggle />
             <a
@@ -753,24 +753,17 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
 
             <Card className="shrink-0 gap-3 py-4">
               <CardHeader className="px-4">
-                <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Split with Anni</CardTitle>
+                <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Pooleks · with Anni</CardTitle>
               </CardHeader>
               <CardContent className="px-4">
                 <AnniZone share={anniShare} onShareChange={setAnniShare} />
-                {board.sharedItems.length === 0 && (
-                  <Empty className="p-4">
-                    <EmptyHeader>
-                      <EmptyMedia variant="icon">
-                        <HandCoinsIcon />
-                      </EmptyMedia>
-                      <EmptyTitle className="text-sm">Nothing shared yet</EmptyTitle>
-                      <EmptyDescription>Drop an expense on the zone above to split it 50/50 with Anni.</EmptyDescription>
-                    </EmptyHeader>
-                  </Empty>
-                )}
-                {board.sharedItems.length > 0 && (
-                  <div className={cn("mb-2 text-base font-semibold", bal >= 0 ? "text-gain" : "text-loss")}>
-                    {bal === 0 ? (
+                {/* The full shared ledger lives on /pooleks; here: the zone,
+                    the live balance, and the way there. */}
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className={cn("text-base font-semibold", bal >= 0 ? "text-gain" : "text-loss")}>
+                    {board.sharedItems.length === 0 ? (
+                      <span className="text-sm font-normal text-muted-foreground">Nothing shared yet</span>
+                    ) : bal === 0 ? (
                       "All square"
                     ) : (
                       <>
@@ -779,37 +772,15 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       </>
                     )}
                   </div>
+                  <a href="/pooleks" className="shrink-0 text-xs text-muted-foreground hover:text-foreground">
+                    Open Pooleks →
+                  </a>
+                </div>
+                {board.suggestions.length > 0 && (
+                  <a href="/pooleks" className="mt-2 block rounded-md bg-gain/10 p-2.5 text-xs hover:bg-gain/15">
+                    {board.suggestions.length} repayment{board.suggestions.length === 1 ? "" : "s"} to record →
+                  </a>
                 )}
-                {board.sharedItems.slice(0, 6).map((s) => (
-                  <div className="flex justify-between gap-2 py-1 text-xs text-muted-foreground" key={s.id}>
-                    <span className="text-foreground">
-                      {s.description}{" "}
-                      <span className="text-muted-foreground">
-                        · {s.paidBy === "argo" ? "you paid" : "Anni paid"}
-                        {shareLabel(s.anniShare) !== "1/2" && ` · her ${shareLabel(s.anniShare)}`}
-                      </span>
-                    </span>
-                    <span className="font-mono tabular-nums">{eur.format(s.total)}</span>
-                  </div>
-                ))}
-                {board.suggestions.map((sg) => (
-                  <div
-                    className="mt-2 flex items-center justify-between gap-2 rounded-md bg-gain/10 p-2.5 text-xs"
-                    key={sg.txId}
-                  >
-                    <span>
-                      <span className="font-mono tabular-nums">{eur.format(Math.abs(sg.amount))}</span>{" "}
-                      {sg.amount > 0 ? `from ${sg.counterparty}` : `to ${sg.counterparty}`} on{" "}
-                      {shortDate.format(new Date(sg.date))}
-                    </span>
-                    <Button
-                      size="sm"
-                      onClick={() => void post({ type: "settle", amount: sg.amount, date: sg.date, txId: sg.txId })}
-                    >
-                      Record repayment
-                    </Button>
-                  </div>
-                ))}
               </CardContent>
             </Card>
 
@@ -918,25 +889,6 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
       />
       </MotionConfig>
     </DndContext>
-  );
-}
-
-// The kopikas coin: copper disc with a reeded inner ring.
-function CoinMark() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-5 shrink-0" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" className="fill-primary" />
-      <circle
-        cx="12"
-        cy="12"
-        r="7"
-        fill="none"
-        stroke="var(--primary-foreground)"
-        strokeOpacity="0.55"
-        strokeWidth="1.2"
-        strokeDasharray="1.6 2.3"
-      />
-    </svg>
   );
 }
 
