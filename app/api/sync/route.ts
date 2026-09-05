@@ -12,6 +12,8 @@ import { fetchAccounts, fetchStatement, refreshAccessToken } from "@/lib/lhv";
 import { currentRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+// A year-long backfill is several statement calls per account; Hobby allows 60s.
+export const maxDuration = 60;
 
 // The LHV sync. Runs as Vercel Cron (GET with CRON_SECRET bearer) and from the
 // settings page's "Sync now" button (POST as Argo). Window: from 7 days before
@@ -72,10 +74,23 @@ async function run(req: Request) {
       .sort()
       .at(-1);
     const to = new Date().toISOString().slice(0, 10);
+    const params = new URL(req.url).searchParams;
     // ?full=1 forces the whole 90-day window — useful after mapper
     // improvements, since upserts refresh names on re-fetched rows.
-    const full = new URL(req.url).searchParams.get("full") === "1";
-    const from = !full && newestLhv ? isoMinusDays(newestLhv, 7) : isoMinusDays(to, 90);
+    // ?since=YYYY-MM-DD backfills history from that date (one-off pulls).
+    const full = params.get("full") === "1";
+    const since = params.get("since");
+    const sinceValid = since && /^\d{4}-\d{2}-\d{2}$/.test(since) && since <= to ? since : null;
+    const from = sinceValid ?? (!full && newestLhv ? isoMinusDays(newestLhv, 7) : isoMinusDays(to, 90));
+    // Fetch in <=90-day slices so long backfills stay within whatever range
+    // the statement API tolerates; upserts make overlaps harmless.
+    const windows: { from: string; to: string }[] = [];
+    for (let start = from; start <= to; ) {
+      const candidate = isoMinusDays(start, -89);
+      const end = candidate < to ? candidate : to;
+      windows.push({ from: start, to: end });
+      start = isoMinusDays(end, -1);
+    }
 
     let fetched = 0;
     const txs: Tx[] = [];
@@ -84,13 +99,15 @@ async function run(req: Request) {
     const directionValues = new Set<string>();
     let unmappedTypeSample: Record<string, string> | null = null;
     for (const account of accounts) {
-      const result = await fetchStatement(accessToken, account.iban, from, to);
-      fetched += result.fetched;
-      txs.push(...result.txs);
-      unmappedKeySamples.push(...result.unmapped.slice(0, 3));
-      paymentDataKeySamples.push(...result.paymentDataKeySamples);
-      result.directionValues.forEach((d) => directionValues.add(d));
-      unmappedTypeSample = unmappedTypeSample ?? result.unmappedTypeSample;
+      for (const w of windows) {
+        const result = await fetchStatement(accessToken, account.iban, w.from, w.to);
+        fetched += result.fetched;
+        txs.push(...result.txs);
+        unmappedKeySamples.push(...result.unmapped.slice(0, 3));
+        paymentDataKeySamples.push(...result.paymentDataKeySamples);
+        result.directionValues.forEach((d) => directionValues.add(d));
+        unmappedTypeSample = unmappedTypeSample ?? result.unmappedTypeSample;
+      }
     }
     if (txs.length > 0) await writeCollection("transactions", txs);
 
@@ -105,7 +122,7 @@ async function run(req: Request) {
       mapped: txs.length,
       mockCleaned,
       rotatedRefreshToken: !!newRefreshToken,
-      window: { from, to },
+      window: { from, to, slices: windows.length },
       unmappedKeySamples: unmappedKeySamples.slice(0, 5),
       paymentDataKeySamples: paymentDataKeySamples.slice(0, 3),
       directionValues: [...directionValues],
