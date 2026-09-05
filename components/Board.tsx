@@ -994,6 +994,9 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
         // Offscreen rows skip render work — the full feed is ~1,000 rows.
         "[contain-intrinsic-size:auto_52px] [content-visibility:auto]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+        // Rows in Pooleks wear a faint wash of the shared color — scannable
+        // as a rhythm while scrolling, without reading the label.
+        tx.shared && "bg-shared/[0.06] dark:bg-shared/[0.12]",
         draggable && "cursor-grab hover:bg-accent/40",
         isDragging && "opacity-40"
       )}
