@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { XIcon } from "lucide-react";
+import { EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
 import { CATEGORIES } from "@/lib/engine";
 import { cn, shareLabel } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -54,7 +54,10 @@ const SPLIT_OPTIONS = [
   { fraction: 0.25, label: "1/4" },
 ];
 
-const GRID =
+// Clean by default: date · what · what moved the tab. Details adds the full
+// amount and share plus the running balance — the auditor's view, on demand.
+const GRID_CLEAN = "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1fr)_5.5rem_1.25rem] sm:grid-cols-[3.25rem_minmax(0,1fr)_5.5rem_1.25rem]";
+const GRID_FULL =
   "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1fr)_5.5rem_5.5rem_1.25rem] sm:grid-cols-[3.25rem_minmax(0,1fr)_8rem_5.5rem_5.5rem_1.25rem]";
 
 // Pooleks ("in half"): the couple's tab as a statement. Same page for both
@@ -67,6 +70,21 @@ export function Pooleks({ role }: { role: Person }) {
   const [category, setCategory] = useState("");
   const [err, setErr] = useState("");
   const [settleOpen, setSettleOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [details, setDetails] = useState(false);
+  useEffect(() => {
+    try {
+      setDetails(localStorage.getItem("kopikas-pooleks-details") === "1");
+    } catch {}
+  }, []);
+  const toggleDetails = () =>
+    setDetails((d) => {
+      try {
+        localStorage.setItem("kopikas-pooleks-details", d ? "0" : "1");
+      } catch {}
+      return !d;
+    });
+  const GRID = details ? GRID_FULL : GRID_CLEAN;
   const [settleAmount, setSettleAmount] = useState("");
   const [settleNote, setSettleNote] = useState("");
 
@@ -165,6 +183,7 @@ export function Pooleks({ role }: { role: Person }) {
       setDesc("");
       setAmount("");
       setCategory("");
+      setAddOpen(false);
     }
   };
 
@@ -210,19 +229,22 @@ export function Pooleks({ role }: { role: Person }) {
               {view.settlements.length === 1 ? "" : "s"}
             </div>
           </div>
-          {role === "argo" && (
-            <Button
-              variant="outline"
-              disabled={bal === 0}
-              onClick={() => {
-                setSettleAmount(Math.abs(bal).toFixed(2));
-                setSettleNote("");
-                setSettleOpen(true);
-              }}
-            >
-              Settle up
-            </Button>
-          )}
+          <div className="flex gap-2">
+            <Button onClick={() => setAddOpen(true)}>Add expense</Button>
+            {role === "argo" && (
+              <Button
+                variant="outline"
+                disabled={bal === 0}
+                onClick={() => {
+                  setSettleAmount(Math.abs(bal).toFixed(2));
+                  setSettleNote("");
+                  setSettleOpen(true);
+                }}
+              >
+                Settle up
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -233,34 +255,52 @@ export function Pooleks({ role }: { role: Person }) {
       ) : (
         // The statement: one sheet, ruled rows, month headers as section rules.
         <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
-          <div className={cn(GRID, "pb-1 pt-3 text-[10px] uppercase tracking-wide text-muted-foreground")}>
-            <span />
-            <span />
-            <span className="hidden text-right sm:block">amount · share</span>
-            <span className="text-right">change</span>
-            <span className="text-right">{tabHeader}</span>
-            <span />
+          <div className="flex items-center justify-end px-3 pt-2">
+            <button
+              type="button"
+              onClick={toggleDetails}
+              aria-pressed={details}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+              title={details ? "Hide amounts and running balance" : "Show amounts and running balance"}
+            >
+              {details ? <EyeOffIcon className="size-3.5" /> : <EyeIcon className="size-3.5" />}
+              {details ? "Hide details" : "Details"}
+            </button>
           </div>
+          {details && (
+            <div className={cn(GRID, "pb-1 text-[10px] uppercase tracking-wide text-muted-foreground")}>
+              <span />
+              <span />
+              <span className="hidden text-right sm:block">amount · share</span>
+              <span className="text-right">change</span>
+              <span className="text-right">{tabHeader}</span>
+              <span />
+            </div>
+          )}
           {months.map((m, mi) => (
             <div key={m.month}>
               <div className={cn(GRID, "pb-1 pt-3", mi > 0 && "border-t border-border/70")}>
                 <span className="col-span-2 font-heading text-xs uppercase tracking-wide text-muted-foreground">
                   {monthLabel(m.month)}
                 </span>
-                <span
-                  className="hidden text-right font-mono text-xs tabular-nums text-muted-foreground sm:block"
-                  title="Spent together this month, full amounts"
-                >
-                  {eur.format(m.spentTogether)}
-                </span>
-                <span className="text-right font-mono text-xs tabular-nums text-muted-foreground sm:hidden">
-                  {eur.format(m.spentTogether)}
-                </span>
-                <span className="hidden sm:block" />
-                <span />
+                {details && (
+                  <>
+                    <span
+                      className="hidden text-right font-mono text-xs tabular-nums text-muted-foreground sm:block"
+                      title="Spent together this month, full amounts"
+                    >
+                      {eur.format(m.spentTogether)}
+                    </span>
+                    <span className="text-right font-mono text-xs tabular-nums text-muted-foreground sm:hidden">
+                      {eur.format(m.spentTogether)}
+                    </span>
+                    <span className="hidden sm:block" />
+                    <span />
+                  </>
+                )}
                 <span />
               </div>
-              {m.byCategory.length > 1 && (
+              {details && m.byCategory.length > 1 && (
                 <div className={cn(GRID, "pb-1.5")}>
                   <span />
                   <span className="col-span-2 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
@@ -283,9 +323,11 @@ export function Pooleks({ role }: { role: Person }) {
                       {r.settlement.amount > 0 ? `${names.anni} paid back` : `${names.argo} paid back`}
                       {r.settlement.note && ` · ${r.settlement.note}`}
                     </span>
-                    <span className="hidden sm:block" />
+                    {details && <span className="hidden sm:block" />}
                     <span className="text-right font-mono text-sm tabular-nums text-foreground">{signed(r.movement)}</span>
-                    <span className="text-right font-mono text-sm tabular-nums text-foreground">{eur.format(r.running)}</span>
+                    {details && (
+                      <span className="text-right font-mono text-sm tabular-nums text-foreground">{eur.format(r.running)}</span>
+                    )}
                     <span />
                   </div>
                 ) : (
@@ -303,17 +345,18 @@ export function Pooleks({ role }: { role: Person }) {
                       <div className="truncate text-xs text-muted-foreground sm:hidden">
                         {r.item.category ?? "unsorted"}
                         {r.item.paidBy === "anni" && ` · ${names.anni} paid`}
-                        {" · "}
-                        {eur.format(r.item.total)} · {shareLabel(r.item.anniShare)}
+                        {details && ` · ${eur.format(r.item.total)} · ${shareLabel(r.item.anniShare)}`}
                       </div>
                     </div>
-                    <span className="hidden text-right font-mono text-xs tabular-nums text-muted-foreground sm:block">
-                      {eur.format(r.item.total)} · {shareLabel(r.item.anniShare)}
-                    </span>
+                    {details && (
+                      <span className="hidden text-right font-mono text-xs tabular-nums text-muted-foreground sm:block">
+                        {eur.format(r.item.total)} · {shareLabel(r.item.anniShare)}
+                      </span>
+                    )}
                     <span className="text-right font-mono text-sm font-medium tabular-nums text-shared">
                       {signed(r.movement)}
                     </span>
-                    <span className="text-right font-mono text-sm tabular-nums">{eur.format(r.running)}</span>
+                    {details && <span className="text-right font-mono text-sm tabular-nums">{eur.format(r.running)}</span>}
                     {role === "argo" ? (
                       <button
                         type="button"
@@ -335,11 +378,13 @@ export function Pooleks({ role }: { role: Person }) {
         </div>
       )}
 
-      <Card className="gap-3 py-4">
-        <CardHeader className="px-4">
-          <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">I paid for something shared</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 px-4">
+      <Dialog open={addOpen} onOpenChange={(o) => !o && setAddOpen(false)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>I paid for something shared</DialogTitle>
+            <DialogDescription>Added at full price — the split takes care of the shares.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
           <Input
             placeholder="What was it, e.g. Dinner at Kivi Paber Käärid"
             aria-label="What was it"
@@ -395,8 +440,9 @@ export function Pooleks({ role }: { role: Person }) {
           <p className="min-h-4 text-xs text-destructive" aria-live="polite">
             {err}
           </p>
-        </CardContent>
-      </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={settleOpen} onOpenChange={(o) => !o && setSettleOpen(false)}>
         <DialogContent className="sm:max-w-sm">
