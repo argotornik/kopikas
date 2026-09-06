@@ -181,7 +181,7 @@ export function Pooleks({ role }: { role: Person }) {
   const tabHeader = role === "argo" ? "Anni owes" : "You owe";
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4 px-5 py-6 pb-24">
+    <div className="mx-auto flex max-w-3xl flex-col gap-4 px-5 py-6 pb-24">
       <div className="flex items-center justify-between">
         <h1 className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight">
           <CoinMark />
@@ -243,25 +243,33 @@ export function Pooleks({ role }: { role: Person }) {
           </div>
           {months.map((m, mi) => (
             <div key={m.month}>
-              <div
-                className={cn(
-                  "flex items-baseline justify-between px-3 pb-1 pt-3",
-                  mi > 0 && "border-t border-border/70"
-                )}
-              >
-                <span className="font-heading text-sm font-semibold">{monthLabel(m.month)}</span>
-                <span className="text-xs text-muted-foreground">
-                  spent together{" "}
-                  <span className="font-mono tabular-nums text-foreground">{eur.format(m.spentTogether)}</span>
+              <div className={cn(GRID, "pb-1 pt-3", mi > 0 && "border-t border-border/70")}>
+                <span className="col-span-2 font-heading text-xs uppercase tracking-wide text-muted-foreground">
+                  {monthLabel(m.month)}
                 </span>
+                <span
+                  className="hidden text-right font-mono text-xs tabular-nums text-muted-foreground sm:block"
+                  title="Spent together this month, full amounts"
+                >
+                  {eur.format(m.spentTogether)}
+                </span>
+                <span className="text-right font-mono text-xs tabular-nums text-muted-foreground sm:hidden">
+                  {eur.format(m.spentTogether)}
+                </span>
+                <span className="hidden sm:block" />
+                <span />
+                <span />
               </div>
               {m.byCategory.length > 1 && (
-                <div className="flex flex-wrap gap-x-3 gap-y-0.5 px-3 pb-1.5 text-xs text-muted-foreground">
-                  {m.byCategory.map(([name, total]) => (
-                    <span key={name}>
-                      {name} <span className="font-mono tabular-nums text-foreground">{eur.format(total)}</span>
-                    </span>
-                  ))}
+                <div className={cn(GRID, "pb-1.5")}>
+                  <span />
+                  <span className="col-span-2 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                    {m.byCategory.map(([name, total]) => (
+                      <span key={name}>
+                        {name} <span className="font-mono tabular-nums">{eur.format(total)}</span>
+                      </span>
+                    ))}
+                  </span>
                 </div>
               )}
               {m.rows.map((r, i) =>
@@ -277,36 +285,39 @@ export function Pooleks({ role }: { role: Person }) {
                     </span>
                     <span className="hidden sm:block" />
                     <span className="text-right font-mono text-sm tabular-nums text-foreground">{signed(r.movement)}</span>
-                    <span className="text-right font-mono tabular-nums">{eur.format(r.running)}</span>
+                    <span className="text-right font-mono text-sm tabular-nums text-foreground">{eur.format(r.running)}</span>
                     <span />
                   </div>
                 ) : (
-                  <div key={r.item.id} className={cn(GRID, "py-2", i > 0 && "border-t border-border/70")}>
+                  <div key={r.item.id} className={cn(GRID, "group py-1.5", i > 0 && "border-t border-border/70")}>
                     <span className="text-xs text-muted-foreground">{shortDate.format(new Date(r.date))}</span>
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{r.item.description}</div>
-                      <div className="truncate text-xs text-muted-foreground">
+                      <div className="truncate text-sm">
+                        <span className="font-medium">{r.item.description}</span>
+                        <span className="hidden text-muted-foreground sm:inline">
+                          {" · "}
+                          {r.item.category ?? "unsorted"}
+                          {r.item.paidBy === "anni" && ` · ${names.anni} paid`}
+                        </span>
+                      </div>
+                      <div className="truncate text-xs text-muted-foreground sm:hidden">
                         {r.item.category ?? "unsorted"}
                         {r.item.paidBy === "anni" && ` · ${names.anni} paid`}
-                        <span className="sm:hidden">
-                          {" · "}
-                          {eur.format(r.item.total)} · {shareLabel(r.item.anniShare)}
-                        </span>
+                        {" · "}
+                        {eur.format(r.item.total)} · {shareLabel(r.item.anniShare)}
                       </div>
                     </div>
                     <span className="hidden text-right font-mono text-xs tabular-nums text-muted-foreground sm:block">
                       {eur.format(r.item.total)} · {shareLabel(r.item.anniShare)}
                     </span>
-                    <span className="text-right font-mono text-sm font-semibold tabular-nums text-shared">
+                    <span className="text-right font-mono text-sm font-medium tabular-nums text-shared">
                       {signed(r.movement)}
                     </span>
-                    <span className="text-right font-mono text-xs tabular-nums text-muted-foreground">
-                      {eur.format(r.running)}
-                    </span>
+                    <span className="text-right font-mono text-sm tabular-nums">{eur.format(r.running)}</span>
                     {role === "argo" ? (
                       <button
                         type="button"
-                        className="flex size-5 items-center justify-center justify-self-end rounded text-muted-foreground hover:text-foreground"
+                        className="flex size-5 items-center justify-center justify-self-end rounded text-muted-foreground hover:text-foreground [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
                         title="Remove from Pooleks"
                         aria-label={`Remove ${r.item.description} from Pooleks`}
                         onClick={() => void post({ type: "unshare", shareId: r.item.id })}
