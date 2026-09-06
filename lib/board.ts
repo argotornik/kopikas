@@ -122,9 +122,12 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
   const todayStr = today.toISOString().slice(0, 10);
 
   // Real LHV accounts when the sync has run; the two mock pseudo-accounts otherwise.
+  // Kasvukonto (LHV's growth account) is the micro-investing pot: round-ups
+  // land there and are invested straight out, so its balance says nothing —
+  // it stays off the stat row. Its transactions still sync.
   const accountRows: LhvAccount[] =
     lhvAccounts.length > 0
-      ? lhvAccounts
+      ? lhvAccounts.filter((a) => !/kasvukonto/i.test(a.name))
       : [
           { iban: "EE00MOCK0000000001", name: "LHV · everyday", currency: "EUR", balance: MOCK_BALANCES.everyday },
           { iban: "EE00MOCK0000000002", name: "LHV · savings", currency: "EUR", balance: MOCK_BALANCES.savings },
