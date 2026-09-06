@@ -37,7 +37,6 @@ interface SharedView {
     category: string | null;
   }[];
   settlements: { id: string; amount: number; date: string; note?: string }[];
-  suggestions: { txId: string; date: string; amount: number; counterparty: string }[];
 }
 
 type Entry =
@@ -202,25 +201,6 @@ export function Pooleks({ role }: { role: Person }) {
             </Button>
           )}
         </CardContent>
-        {view.suggestions.length > 0 && (
-          <CardContent className="flex flex-col gap-2 px-4">
-            {view.suggestions.map((sg) => (
-              <div className="flex items-center justify-between gap-2 rounded-md bg-gain/10 p-2.5 text-xs" key={sg.txId}>
-                <span>
-                  <span className="font-mono tabular-nums">{eur.format(Math.abs(sg.amount))}</span>{" "}
-                  {sg.amount > 0 ? `from ${sg.counterparty}` : `to ${sg.counterparty}`} on{" "}
-                  {shortDate.format(new Date(sg.date))}
-                </span>
-                <Button
-                  size="sm"
-                  onClick={() => void post({ type: "settle", amount: sg.amount, date: sg.date, txId: sg.txId })}
-                >
-                  Record repayment
-                </Button>
-              </div>
-            ))}
-          </CardContent>
-        )}
       </Card>
 
       {months.length === 0 ? (

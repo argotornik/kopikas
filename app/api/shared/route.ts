@@ -6,8 +6,7 @@ import { currentRole } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 // Pooleks data for both of them: the balance, every shared item, every
-// settlement — never the full feed. Bank-transfer repayment suggestions come
-// from Argo's statement, so only his view gets them.
+// settlement — never the full feed.
 export async function GET() {
   const role = await currentRole();
   if (!role) return NextResponse.json({ error: "forbidden" }, { status: 403 });
@@ -18,6 +17,5 @@ export async function GET() {
     balance: board.balance,
     sharedItems: board.sharedItems,
     settlements: board.settlements,
-    suggestions: role === "argo" ? board.suggestions : [],
   });
 }

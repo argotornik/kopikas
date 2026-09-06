@@ -776,11 +776,6 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                     Open Pooleks →
                   </a>
                 </div>
-                {board.suggestions.length > 0 && (
-                  <a href="/pooleks" className="mt-2 block rounded-md bg-gain/10 p-2.5 text-xs hover:bg-gain/15">
-                    {board.suggestions.length} repayment{board.suggestions.length === 1 ? "" : "s"} to record →
-                  </a>
-                )}
               </CardContent>
             </Card>
 

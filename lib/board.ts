@@ -11,7 +11,6 @@ import {
   monthlyBurn,
   monthlySpend,
   savedInMonth,
-  settlementSuggestions,
   shareAmount,
   subscriptionStatus,
 } from "./engine";
@@ -189,20 +188,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     saved: { points: savedPoints, tone: savedNow > 0 ? "green" : "neutral" },
   };
 
-  // Repayment suggestions only while something is actually owed, and only
-  // transfers in the direction that would settle it — anything else is noise.
   const bal = balance(db.shares, db.settlements, db.transactions);
-  const suggestions =
-    bal === 0
-      ? []
-      : settlementSuggestions(db, process.env.ANNI_MATCH || undefined)
-          .filter((t) => (bal > 0 ? t.amount > 0 : t.amount < 0))
-          .map((t) => ({
-            txId: t.id,
-            date: t.date,
-            amount: t.amount,
-            counterparty: t.counterparty,
-          }));
 
   return {
     month,
@@ -213,7 +199,6 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     balance: bal,
     sharedItems,
     settlements: db.settlements,
-    suggestions,
     subscriptions: subStatuses,
     monthlyBurn: monthlyBurn(subStatuses),
     subsPaidThisMonth:
