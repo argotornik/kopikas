@@ -21,6 +21,7 @@ import { UserMenu } from "@/components/user-menu";
 
 const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+const signed = (n: number) => `${n >= 0 ? "+" : "−"}${eur.format(Math.abs(n))}`;
 
 type Person = "argo" | "anni";
 
@@ -39,9 +40,13 @@ interface SharedView {
   settlements: { id: string; amount: number; date: string; note?: string }[];
 }
 
-type Entry =
-  | { kind: "share"; date: string; item: SharedView["sharedItems"][number] }
-  | { kind: "settle"; date: string; settlement: SharedView["settlements"][number] };
+// One statement row. `movement` is how the tab changed (positive = Anni owes
+// more), `running` the tab after it — read top-down, the column walks from
+// the headline back to zero.
+type Row = { movement: number; running: number; date: string } & (
+  | { kind: "share"; item: SharedView["sharedItems"][number] }
+  | { kind: "settle"; settlement: SharedView["settlements"][number] }
+);
 
 const SPLIT_OPTIONS = [
   { fraction: 0.5, label: "1/2" },
@@ -49,9 +54,11 @@ const SPLIT_OPTIONS = [
   { fraction: 0.25, label: "1/4" },
 ];
 
-// Pooleks ("in half"): the shared ledger as a two-person timeline — what Argo
-// paid on the left, what Anni paid on the right, settlements as markers
-// between. Same page for both; only the labels flip.
+const GRID =
+  "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1fr)_5.5rem_5.5rem_1.25rem] sm:grid-cols-[3.25rem_minmax(0,1fr)_8rem_5.5rem_5.5rem_1.25rem]";
+
+// Pooleks ("in half"): the couple's tab as a statement. Same page for both
+// of them; only the labels flip.
 export function Pooleks({ role }: { role: Person }) {
   const [view, setView] = useState<SharedView | null>(null);
   const [desc, setDesc] = useState("");
@@ -90,31 +97,46 @@ export function Pooleks({ role }: { role: Person }) {
   const owes = (who: string) => (who === "You" ? "owe" : "owes");
   const today = new Date().toISOString().slice(0, 10);
 
+  // Oldest → newest to accumulate the running tab, then newest first to show.
   const months = useMemo(() => {
     if (!view) return [];
-    const entries: Entry[] = [
+    const chronological = [
       ...view.sharedItems.map((item) => ({ kind: "share" as const, date: item.date, item })),
       ...view.settlements.map((settlement) => ({ kind: "settle" as const, date: settlement.date, settlement })),
-    ].sort((a, b) => b.date.localeCompare(a.date));
-    const groups = new Map<string, Entry[]>();
-    for (const e of entries) {
-      const key = e.date.slice(0, 7);
+    ].sort((a, b) => a.date.localeCompare(b.date));
+    let running = 0;
+    const rows: Row[] = chronological.map((e) => {
+      const movement =
+        e.kind === "share"
+          ? e.item.paidBy === "argo"
+            ? e.item.total * (e.item.anniShare ?? 0.5)
+            : -(e.item.total * (1 - (e.item.anniShare ?? 0.5)))
+          : -e.settlement.amount;
+      running += movement;
+      return { ...e, movement, running };
+    });
+    rows.reverse();
+    const groups = new Map<string, Row[]>();
+    for (const r of rows) {
+      const key = r.date.slice(0, 7);
       if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(e);
+      groups.get(key)!.push(r);
     }
-    return [...groups.entries()].map(([month, list]) => ({
-      month,
-      entries: list,
-      argoPaid: list.reduce((s, e) => s + (e.kind === "share" && e.item.paidBy === "argo" ? e.item.total : 0), 0),
-      anniPaid: list.reduce((s, e) => s + (e.kind === "share" && e.item.paidBy === "anni" ? e.item.total : 0), 0),
-      // What the month cost the couple, by kind — full totals, not shares.
-      byCategory: [...list.reduce((m, e) => {
-        if (e.kind !== "share") return m;
-        const key = e.item.category ?? "unsorted";
-        return m.set(key, (m.get(key) ?? 0) + e.item.total);
-      }, new Map<string, number>())]
-        .sort((a, b) => b[1] - a[1]),
-    }));
+    return [...groups.entries()].map(([month, list]) => {
+      const shares = list.filter((r) => r.kind === "share");
+      const byCategory = new Map<string, number>();
+      for (const r of shares) {
+        if (r.kind !== "share") continue;
+        const key = r.item.category ?? "unsorted";
+        byCategory.set(key, (byCategory.get(key) ?? 0) + r.item.total);
+      }
+      return {
+        month,
+        rows: list,
+        spentTogether: shares.reduce((s, r) => s + (r.kind === "share" ? r.item.total : 0), 0),
+        byCategory: [...byCategory].sort((a, b) => b[1] - a[1]),
+      };
+    });
   }, [view]);
 
   const monthLabel = (m: string) =>
@@ -155,8 +177,8 @@ export function Pooleks({ role }: { role: Person }) {
       : bal > 0
         ? `${names.anni} ${owes(names.anni)} ${names.argo === "You" ? "you" : names.argo}`
         : `${names.argo} ${owes(names.argo)} ${names.anni === "You" ? "you" : names.anni}`;
-  // Good news for the viewer when the other person owes them.
   const balanceGood = bal === 0 || (role === "argo" ? bal > 0 : bal < 0);
+  const tabHeader = role === "argo" ? "Anni owes" : "You owe";
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4 px-5 py-6 pb-24">
@@ -184,7 +206,8 @@ export function Pooleks({ role }: { role: Person }) {
               {bal !== 0 && <span className="ml-2 font-mono tabular-nums">{eur.format(Math.abs(bal))}</span>}
             </div>
             <div className="text-xs text-muted-foreground">
-              {view.sharedItems.length} shared · {view.settlements.length} settled up
+              {view.sharedItems.length} shared · {view.settlements.length} repayment
+              {view.settlements.length === 1 ? "" : "s"}
             </div>
           </div>
           {role === "argo" && (
@@ -208,21 +231,32 @@ export function Pooleks({ role }: { role: Person }) {
           Nothing shared yet. On the board, drop an expense on the Pooleks zone — or add something you paid for below.
         </p>
       ) : (
-        <div className="flex flex-col gap-1">
-          <div className="flex justify-between px-1 text-xs uppercase tracking-wide text-muted-foreground">
-            <span>{names.argo} paid</span>
-            <span>{names.anni} paid</span>
+        // The statement: one sheet, ruled rows, month headers as section rules.
+        <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
+          <div className={cn(GRID, "pb-1 pt-3 text-[10px] uppercase tracking-wide text-muted-foreground")}>
+            <span />
+            <span />
+            <span className="hidden text-right sm:block">amount · share</span>
+            <span className="text-right">change</span>
+            <span className="text-right">{tabHeader}</span>
+            <span />
           </div>
-          {months.map((m) => (
-            <div key={m.month} className="flex flex-col gap-1.5">
-              <div className="flex items-baseline justify-between px-1 pb-1 pt-4">
+          {months.map((m, mi) => (
+            <div key={m.month}>
+              <div
+                className={cn(
+                  "flex items-baseline justify-between px-3 pb-1 pt-3",
+                  mi > 0 && "border-t border-border/70"
+                )}
+              >
                 <span className="font-heading text-sm font-semibold">{monthLabel(m.month)}</span>
-                <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                  {eur.format(m.argoPaid)} · {eur.format(m.anniPaid)}
+                <span className="text-xs text-muted-foreground">
+                  spent together{" "}
+                  <span className="font-mono tabular-nums text-foreground">{eur.format(m.spentTogether)}</span>
                 </span>
               </div>
-              {m.byCategory.length > 0 && (
-                <div className="flex flex-wrap gap-x-3 gap-y-0.5 px-1 pb-1 text-xs text-muted-foreground">
+              {m.byCategory.length > 1 && (
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 px-3 pb-1.5 text-xs text-muted-foreground">
                   {m.byCategory.map(([name, total]) => (
                     <span key={name}>
                       {name} <span className="font-mono tabular-nums text-foreground">{eur.format(total)}</span>
@@ -230,52 +264,58 @@ export function Pooleks({ role }: { role: Person }) {
                   ))}
                 </div>
               )}
-              {m.entries.map((e) =>
-                e.kind === "settle" ? (
-                  <div key={e.settlement.id} className="flex items-center gap-3 py-1 text-xs text-muted-foreground">
-                    <span className="h-px flex-1 bg-border" />
-                    <span>
-                      {e.settlement.amount > 0 ? names.anni : names.argo} paid back{" "}
-                      <span className="font-mono tabular-nums text-foreground">
-                        {eur.format(Math.abs(e.settlement.amount))}
-                      </span>{" "}
-                      · {shortDate.format(new Date(e.date))}
+              {m.rows.map((r, i) =>
+                r.kind === "settle" ? (
+                  <div
+                    key={r.settlement.id}
+                    className={cn(GRID, "py-2 text-xs text-muted-foreground", i > 0 && "border-t border-border/70")}
+                  >
+                    <span>{shortDate.format(new Date(r.date))}</span>
+                    <span className="truncate italic">
+                      {r.settlement.amount > 0 ? `${names.anni} paid back` : `${names.argo} paid back`}
+                      {r.settlement.note && ` · ${r.settlement.note}`}
                     </span>
-                    <span className="h-px flex-1 bg-border" />
+                    <span className="hidden sm:block" />
+                    <span className="text-right font-mono text-sm tabular-nums text-foreground">{signed(r.movement)}</span>
+                    <span className="text-right font-mono tabular-nums">{eur.format(r.running)}</span>
+                    <span />
                   </div>
                 ) : (
-                  <div key={e.item.id} className={cn("flex", e.item.paidBy === "argo" ? "justify-start" : "justify-end")}>
-                    <div className="w-[88%] rounded-lg bg-card px-3 py-2 ring-1 ring-foreground/10 sm:w-[48%]">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <span className="truncate text-sm font-medium">{e.item.description}</span>
-                        <span className="flex shrink-0 items-center gap-1">
-                          <span className="font-mono text-sm font-semibold tabular-nums">{eur.format(e.item.total)}</span>
-                          {role === "argo" && (
-                            <button
-                              type="button"
-                              className="-mr-1 flex size-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-                              title="Remove from Pooleks"
-                              aria-label={`Remove ${e.item.description} from Pooleks`}
-                              onClick={() => void post({ type: "unshare", shareId: e.item.id })}
-                            >
-                              <XIcon className="size-3" />
-                            </button>
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex justify-between gap-2 text-xs text-muted-foreground">
-                        <span className="truncate">
-                          {shortDate.format(new Date(e.date))}
-                          {e.item.category && ` · ${e.item.category}`}
-                        </span>
-                        <span className="shrink-0 font-mono tabular-nums">
-                          {e.item.paidBy === "argo"
-                            ? `${names.anni} ${owes(names.anni)} ${eur.format(e.item.total * (e.item.anniShare ?? 0.5))}`
-                            : `${names.argo} ${owes(names.argo)} ${eur.format(e.item.total * (1 - (e.item.anniShare ?? 0.5)))}`}
-                          {shareLabel(e.item.anniShare) !== "1/2" && ` (${shareLabel(e.item.anniShare)})`}
+                  <div key={r.item.id} className={cn(GRID, "py-2", i > 0 && "border-t border-border/70")}>
+                    <span className="text-xs text-muted-foreground">{shortDate.format(new Date(r.date))}</span>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">{r.item.description}</div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {r.item.category ?? "unsorted"}
+                        {r.item.paidBy === "anni" && ` · ${names.anni} paid`}
+                        <span className="sm:hidden">
+                          {" · "}
+                          {eur.format(r.item.total)} · {shareLabel(r.item.anniShare)}
                         </span>
                       </div>
                     </div>
+                    <span className="hidden text-right font-mono text-xs tabular-nums text-muted-foreground sm:block">
+                      {eur.format(r.item.total)} · {shareLabel(r.item.anniShare)}
+                    </span>
+                    <span className="text-right font-mono text-sm font-semibold tabular-nums text-shared">
+                      {signed(r.movement)}
+                    </span>
+                    <span className="text-right font-mono text-xs tabular-nums text-muted-foreground">
+                      {eur.format(r.running)}
+                    </span>
+                    {role === "argo" ? (
+                      <button
+                        type="button"
+                        className="flex size-5 items-center justify-center justify-self-end rounded text-muted-foreground hover:text-foreground"
+                        title="Remove from Pooleks"
+                        aria-label={`Remove ${r.item.description} from Pooleks`}
+                        onClick={() => void post({ type: "unshare", shareId: r.item.id })}
+                      >
+                        <XIcon className="size-3" />
+                      </button>
+                    ) : (
+                      <span />
+                    )}
                   </div>
                 )
               )}
@@ -352,7 +392,7 @@ export function Pooleks({ role }: { role: Person }) {
           <DialogHeader>
             <DialogTitle>Settle up</DialogTitle>
             <DialogDescription>
-              {bal > 0 ? "Anni → you" : "You → Anni"} · records a repayment and moves the balance toward zero.
+              {bal > 0 ? "Anni → you" : "You → Anni"} · records a repayment and moves the tab toward zero.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
