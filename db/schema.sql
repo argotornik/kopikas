@@ -62,6 +62,7 @@ create table if not exists snapshots (
   total      numeric(12, 2) not null,
   holdings   jsonb not null default '[]',
   return_pct numeric(6, 2),
+  source     text,            -- lightyear (null = lightyear) | lhv
   at         timestamptz not null
 );
 

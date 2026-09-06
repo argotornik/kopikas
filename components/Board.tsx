@@ -327,22 +327,16 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
         <div
           className={cn(
             "mb-6 grid grid-cols-2 gap-3",
-            board.accounts.length >= 2 ? "md:grid-cols-5" : "md:grid-cols-4"
+            board.accounts.length >= 2 ? "md:grid-cols-4" : "md:grid-cols-3"
           )}
         >
           <Stat
-            label={`Saved in ${monthName}`}
-            value={eur.format(board.savedThisMonth)}
-            sub={`last month ${eur.format(board.savedLastMonth)}`}
-            spark={board.sparks.saved}
-            hero
-            className="col-span-2 md:col-span-1"
-          />
-          <Stat
             label={`Spent in ${monthName}`}
             value={eur.format(board.spentThisMonth)}
-            sub="your share of shared items"
+            sub={`your share · last month ${eur.format(board.spentLastMonth)}`}
             spark={board.sparks.spent}
+            hero
+            className="col-span-2 md:col-span-1"
           />
           {board.accounts.map((a) => (
             <Stat
@@ -353,23 +347,22 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
               spark={a.spark}
             />
           ))}
-          <button className="h-full text-left" onClick={() => setSnapOpen(true)}>
+          <button className="h-full text-left" onClick={() => setSnapOpen(true)} title="Update a snapshot">
             <Stat
-              label="Lightyear"
-              value={board.snapshot ? eur.format(board.snapshot.total) : "—"}
+              label="Investments"
+              value={board.investments.total != null ? eur.format(board.investments.total) : "—"}
               sub={
-                board.snapshot
-                  ? `as of ${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(
-                      new Date(board.snapshot.at)
-                    )}${
-                      board.snapshot.returnPct != null
-                        ? ` · ${board.snapshot.returnPct > 0 ? "+" : ""}${board.snapshot.returnPct}%`
-                        : ""
-                    } · update`
-                  : "click to add"
+                board.investments.total != null
+                  ? [
+                      board.investments.latest.lightyear && `Lightyear ${eur.format(board.investments.latest.lightyear.total)}`,
+                      board.investments.latest.lhv && `LHV ${eur.format(board.investments.latest.lhv.total)}`,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : "click to add a snapshot"
               }
               interactive
-              spark={board.sparks.lightyear}
+              spark={board.sparks.investments}
             />
           </button>
         </div>
@@ -782,14 +775,18 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
             <Card className="shrink-0 gap-3 py-4">
               <CardHeader className="px-4">
                 <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Savings over time
+                  Investments over time
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4">
-                {board.snapshotHistory.length >= 2 ? (
-                  <ChartContainer config={SAVINGS_CHART} className="aspect-[2/1] w-full">
+                {board.investments.series.length >= 2 ? (
+                  <ChartContainer config={INVESTMENTS_CHART} className="aspect-[2/1] w-full">
                     <AreaChart
-                      data={board.snapshotHistory.map((s) => ({ date: s.at.slice(0, 10), total: s.total }))}
+                      data={board.investments.series.map((p) => ({
+                        date: p.at.slice(0, 10),
+                        lightyear: p.lightyear ?? 0,
+                        lhv: p.lhv ?? 0,
+                      }))}
                       margin={{ top: 6, right: 4, bottom: 0, left: 4 }}
                     >
                       <XAxis
@@ -804,7 +801,6 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       <ChartTooltip
                         content={
                           <ChartTooltipContent
-                            hideIndicator
                             labelFormatter={(d) => shortDate.format(new Date(String(d)))}
                             formatter={(value) => (
                               <span className="font-mono tabular-nums">{eur.format(Number(value))}</span>
@@ -813,12 +809,24 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                         }
                       />
                       <Area
-                        dataKey="total"
+                        dataKey="lightyear"
+                        stackId="pots"
                         type="monotone"
-                        stroke="var(--color-total)"
+                        stroke="var(--color-lightyear)"
                         strokeWidth={1.5}
-                        fill="var(--color-total)"
+                        fill="var(--color-lightyear)"
                         fillOpacity={0.12}
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                      <Area
+                        dataKey="lhv"
+                        stackId="pots"
+                        type="monotone"
+                        stroke="var(--color-lhv)"
+                        strokeWidth={1.5}
+                        fill="var(--color-lhv)"
+                        fillOpacity={0.18}
                         dot={false}
                         isAnimationActive={false}
                       />
@@ -826,7 +834,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                   </ChartContainer>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Log a Lightyear update now and then — two snapshots make a line.
+                    Update the Investments tile now and then — two snapshots make a line.
                   </p>
                 )}
               </CardContent>
@@ -876,9 +884,10 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
 
       <SnapshotEditor
         open={snapOpen}
+        latest={board.investments.latest}
         onClose={() => setSnapOpen(false)}
-        onSave={(total, holdings, returnPct) => {
-          void post({ type: "snapshot", total, holdings, returnPct });
+        onSave={(source, total, holdings, returnPct) => {
+          void post({ type: "snapshot", source, total, holdings, returnPct });
           setSnapOpen(false);
         }}
       />
@@ -889,10 +898,11 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
 
 const SPARK_COLORS = { green: "var(--gain)", red: "var(--loss)", neutral: "var(--muted-foreground)" };
 
-// The savings chart plots Lightyear snapshots — same green the Lightyear
-// tile's sparkline speaks.
-const SAVINGS_CHART = {
-  total: { label: "Lightyear", color: "var(--gain)" },
+// Investments over time: the two snapshotted pots stacked — Lightyear in the
+// gain green the tile's sparkline speaks, the LHV pot in Kopikas copper.
+const INVESTMENTS_CHART = {
+  lightyear: { label: "Lightyear", color: "var(--gain)" },
+  lhv: { label: "LHV", color: "var(--primary)" },
 } satisfies ChartConfig;
 
 function Sparkline({ spark }: { spark: Spark }) {
@@ -1127,51 +1137,85 @@ function AnniZone({ share, onShareChange }: { share: number; onShareChange: (f: 
   );
 }
 
+type PotLatest = { total: number; returnPct?: number; at: string } | null;
+
 function SnapshotEditor({
   open,
+  latest,
   onClose,
   onSave,
 }: {
   open: boolean;
+  latest: { lightyear: PotLatest; lhv: PotLatest };
   onClose: () => void;
-  onSave: (total: number, holdings: { name: string; pct: number }[], returnPct?: number) => void;
+  onSave: (source: "lightyear" | "lhv", total: number, holdings: { name: string; pct: number }[], returnPct?: number) => void;
 }) {
+  const [source, setSource] = useState<"lightyear" | "lhv">("lightyear");
   const [total, setTotal] = useState("");
   const [returnPct, setReturnPct] = useState("");
   const [holdings, setHoldings] = useState("");
   const [err, setErr] = useState("");
+  const current = latest[source];
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Update Lightyear value</DialogTitle>
+          <DialogTitle>Update investments</DialogTitle>
           <DialogDescription>Every update is logged — decreases too.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">
+          <div className="flex gap-1" role="radiogroup" aria-label="Which pot">
+            {(["lightyear", "lhv"] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                role="radio"
+                aria-checked={source === p}
+                onClick={() => setSource(p)}
+                className={cn(
+                  "rounded-md border px-2.5 py-1 text-sm",
+                  source === p
+                    ? "border-primary/40 bg-primary/10 font-medium text-foreground"
+                    : "border-transparent text-muted-foreground hover:bg-accent hover:text-foreground"
+                )}
+              >
+                {p === "lightyear" ? "Lightyear" : "LHV"}
+              </button>
+            ))}
+          </div>
+          <p className="min-h-4 text-xs text-muted-foreground">
+            {current
+              ? `Last: ${eur.format(current.total)}${
+                  current.returnPct != null ? ` · ${current.returnPct > 0 ? "+" : ""}${current.returnPct}%` : ""
+                } · ${shortDate.format(new Date(current.at))}`
+              : "No snapshot yet for this pot."}
+          </p>
           <Input
             placeholder="Total value, e.g. 5917"
             aria-label="Total value in euros"
-            name="lightyear-total"
+            name="snapshot-total"
             inputMode="decimal"
             value={total}
             onChange={(e) => setTotal(e.target.value)}
             autoFocus
           />
           <Input
-            placeholder="Return % from Lightyear, e.g. 2.24 (optional)"
+            placeholder="Return %, e.g. 2.24 (optional)"
             aria-label="Return percent"
-            name="lightyear-return"
+            name="snapshot-return"
             inputMode="decimal"
             value={returnPct}
             onChange={(e) => setReturnPct(e.target.value)}
           />
-          <Input
-            placeholder="Allocations like “VWCE 70, MMF 25” (optional)"
-            aria-label="Allocations"
-            name="lightyear-holdings"
-            value={holdings}
-            onChange={(e) => setHoldings(e.target.value)}
-          />
+          {source === "lightyear" && (
+            <Input
+              placeholder="Allocations like “VWCE 70, MMF 25” (optional)"
+              aria-label="Allocations"
+              name="snapshot-holdings"
+              value={holdings}
+              onChange={(e) => setHoldings(e.target.value)}
+            />
+          )}
           {err && <p className="text-xs text-destructive">{err}</p>}
         </div>
         <DialogFooter>
@@ -1189,7 +1233,11 @@ function SnapshotEditor({
                 .map((part) => part.trim().match(/^(.+?)\s+(\d+(?:\.\d+)?)$/))
                 .filter(Boolean)
                 .map((m) => ({ name: m![1], pct: Number(m![2]) }));
-              onSave(t, parsed, pct);
+              onSave(source, t, source === "lightyear" ? parsed : [], pct);
+              setTotal("");
+              setReturnPct("");
+              setHoldings("");
+              setErr("");
             }}
           >
             Save snapshot

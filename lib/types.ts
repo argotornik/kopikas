@@ -60,9 +60,13 @@ export interface Subscription {
   matchAmount?: boolean;
 }
 
-// Lightyear (or any manual) portfolio snapshot. Append-only.
+// A manual portfolio snapshot. Append-only. `source` names the pot — Lightyear
+// (default, so older rows keep meaning what they meant) or the LHV
+// investment account, whose holdings the LHV API cannot see.
+export type SnapshotSource = "lightyear" | "lhv";
 export interface Snapshot {
   id: string;
+  source?: SnapshotSource;
   total: number;
   holdings: { name: string; pct: number }[];
   returnPct?: number; // overall return % as reported by Lightyear at snapshot time

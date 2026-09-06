@@ -10,7 +10,6 @@ import {
   monthKey,
   monthlyBurn,
   monthlySpend,
-  savedInMonth,
   shareAmount,
   subscriptionStatus,
 } from "./engine";
@@ -96,7 +95,6 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     ...subscriptionStatus(s, db.transactions, today),
     domain: guessDomain(s.name),
   }));
-  const latestSnap = [...db.snapshots].sort((a, b) => a.at.localeCompare(b.at)).at(-1) ?? null;
 
   const sharedItems = [...db.shares]
     .map((s) => ({
@@ -138,23 +136,38 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     spark: balanceSpark(db.transactions, a.iban, a.balance, today),
   }));
 
+  // Investments: two manually snapshotted pots. The series carries each pot's
+  // latest known value forward, so the combined total is defined at every
+  // snapshot time even when only one pot was updated.
   const snapSorted = [...db.snapshots].sort((a, b) => a.at.localeCompare(b.at));
-  const lightyearPoints = snapSorted.map((s) => s.total);
+  const sourceOf = (s: { source?: string }) => (s.source === "lhv" ? "lhv" : "lightyear");
+  const latestBySource = {
+    lightyear: snapSorted.filter((s) => sourceOf(s) === "lightyear").at(-1) ?? null,
+    lhv: snapSorted.filter((s) => sourceOf(s) === "lhv").at(-1) ?? null,
+  };
+  const investmentSeries: { at: string; lightyear: number | null; lhv: number | null; total: number }[] = [];
+  let carryLy: number | null = null;
+  let carryLhv: number | null = null;
+  for (const s of snapSorted) {
+    if (sourceOf(s) === "lhv") carryLhv = s.total;
+    else carryLy = s.total;
+    investmentSeries.push({
+      at: s.at,
+      lightyear: carryLy,
+      lhv: carryLhv,
+      total: Math.round(((carryLy ?? 0) + (carryLhv ?? 0)) * 100) / 100,
+    });
+  }
+  const investmentPoints = investmentSeries.map((p) => p.total);
 
-  // Cumulative spend (Argo's share, savings excluded) and cumulative savings
-  // per day of the current month.
+  // Cumulative spend (Argo's share, savings excluded) per day of the month.
   const spentPoints: number[] = [];
-  const savedPoints: number[] = [];
   for (let d = new Date(month + "-01T00:00:00Z"); d.toISOString().slice(0, 10) <= todayStr; d = new Date(d.getTime() + DAY)) {
     const day = d.toISOString().slice(0, 10);
     let total = 0;
-    let saved = 0;
     for (const tx of db.transactions) {
       if (monthKey(tx.date) !== month || tx.date > day || tx.amount >= 0) continue;
-      if (categoryOf(tx, db.rules, db.overrides) === SAVINGS) {
-        saved += Math.abs(tx.amount);
-        continue;
-      }
+      if (categoryOf(tx, db.rules, db.overrides) === SAVINGS) continue;
       const share = shareByTx.get(tx.id);
       total += Math.abs(tx.amount) * (share ? 1 - anniShareOf(share) : 1);
     }
@@ -164,28 +177,21 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
       }
     }
     spentPoints.push(Math.round(total * 100) / 100);
-    savedPoints.push(Math.round(saved * 100) / 100);
   }
 
   const spentNow = monthlySpend(db, month);
   const spentPrev = monthlySpend(db, prevMonth(month));
-  const savedNow = savedInMonth(db, month);
-  const savedPrev = savedInMonth(db, prevMonth(month));
 
-  const sparks: Record<"lightyear" | "spent" | "saved", Spark> = {
-    lightyear: {
-      points: lightyearPoints,
+  const sparks: Record<"investments" | "spent", Spark> = {
+    investments: {
+      points: investmentPoints,
       tone:
-        lightyearPoints.length > 1
-          ? sparkTone(lightyearPoints[lightyearPoints.length - 2], lightyearPoints[lightyearPoints.length - 1])
+        investmentPoints.length > 1
+          ? sparkTone(investmentPoints[investmentPoints.length - 2], investmentPoints[investmentPoints.length - 1])
           : "neutral",
     },
     // Spending up vs last month is the bad direction.
     spent: { points: spentPoints, tone: sparkTone(spentPrev, spentNow, false) },
-    // The hero shows this month's trajectory, not last-month-vs-now: a young
-    // month always loses that comparison and rendered as a red cliff. Savings
-    // only accumulate, so the tone is never red.
-    saved: { points: savedPoints, tone: savedNow > 0 ? "green" : "neutral" },
   };
 
   const bal = balance(db.shares, db.settlements, db.transactions);
@@ -207,11 +213,13 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
           .filter((s) => s.sub.active && s.lastCharge && s.lastCharge.date.slice(0, 7) === month)
           .reduce((sum, s) => sum + (s.lastCharge?.amount ?? 0), 0) * 100
       ) / 100,
-    snapshot: latestSnap,
-    snapshotHistory: [...db.snapshots].sort((a, b) => a.at.localeCompare(b.at)),
+    investments: {
+      total: investmentSeries.at(-1)?.total ?? null,
+      latest: latestBySource,
+      series: investmentSeries,
+    },
     spentThisMonth: spentNow,
-    savedThisMonth: savedNow,
-    savedLastMonth: savedPrev,
+    spentLastMonth: spentPrev,
     accounts,
   };
 }

@@ -27,7 +27,7 @@ type Action =
   | { type: "subscribe"; txId: string }
   | { type: "unsubscribe"; subId: string }
   | { type: "accept-price"; subId: string }
-  | { type: "snapshot"; total: number; holdings: { name: string; pct: number }[]; returnPct?: number }
+  | { type: "snapshot"; total: number; holdings: { name: string; pct: number }[]; returnPct?: number; source?: string }
   | { type: "set-lhv-token"; refreshToken: string };
 
 export async function POST(req: Request) {
@@ -181,7 +181,8 @@ export async function POST(req: Request) {
       if (!(total >= 0)) return bad("total required");
       const holdings = (action.holdings ?? []).filter((h) => h.name?.trim() && h.pct > 0);
       const returnPct = Number.isFinite(Number(action.returnPct)) ? Number(action.returnPct) : undefined;
-      db.snapshots.push({ id: newId("snap"), total, holdings, returnPct, at: now });
+      const source = action.source === "lhv" ? "lhv" : "lightyear";
+      db.snapshots.push({ id: newId("snap"), source, total, holdings, returnPct, at: now });
       await writeCollection("snapshots", db.snapshots);
       break;
     }
