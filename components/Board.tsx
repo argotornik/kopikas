@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -289,6 +289,10 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
     new Date(board.month + "-01T00:00:00Z")
   );
 
+
+  // Like-for-like: this month so far against the same days of last month.
+  const spentDiff = Math.round((board.spentThisMonth - board.spentLastMonthToDate) * 100) / 100;
+
   return (
     <DndContext
       id="board"
@@ -324,47 +328,51 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
           </div>
         </div>
 
-        <div
-          className={cn(
-            "mb-6 grid grid-cols-2 gap-3",
-            board.accounts.length >= 2 ? "md:grid-cols-4" : "md:grid-cols-3"
-          )}
-        >
+        <div className="mb-6 grid gap-3 md:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
           <Stat
             label={`Spent in ${monthName}`}
             value={eur.format(board.spentThisMonth)}
-            sub={`your share · last month ${eur.format(board.spentLastMonth)}`}
+            sub={
+              <>
+                your share ·{" "}
+                <span className={cn(spentDiff < 0 && "text-gain", spentDiff > 0 && "text-loss")}>
+                  {spentDiff === 0
+                    ? "level with this time last month"
+                    : `${eur.format(Math.abs(spentDiff))} ${spentDiff < 0 ? "less" : "more"} than this time last month`}
+                </span>
+              </>
+            }
             spark={board.sparks.spent}
-            hero
-            className="col-span-2 md:col-span-1"
           />
-          {board.accounts.map((a) => (
-            <Stat
-              key={a.iban}
-              label={a.name}
-              value={eur.format(a.balance)}
-              sub={`···${a.iban.slice(-4)}`}
-              spark={a.spark}
-            />
-          ))}
-          <button className="h-full text-left" onClick={() => setSnapOpen(true)} title="Update a snapshot">
-            <Stat
-              label="Investments"
-              value={board.investments.total != null ? eur.format(board.investments.total) : "—"}
-              sub={
-                board.investments.total != null
-                  ? [
-                      board.investments.latest.lightyear && `Lightyear ${eur.format(board.investments.latest.lightyear.total)}`,
-                      board.investments.latest.lhv && `LHV ${eur.format(board.investments.latest.lhv.total)}`,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")
-                  : "click to add a snapshot"
-              }
-              interactive
-              spark={board.sparks.investments}
-            />
-          </button>
+          <Card className="gap-0 rounded-xl py-1.5">
+            <CardContent className="flex h-full flex-col justify-center px-4">
+              {board.accounts.map((a) => (
+                <BalanceRow
+                  key={a.iban}
+                  label={a.name}
+                  sub={`···${a.iban.slice(-4)}`}
+                  value={eur.format(a.balance)}
+                  spark={a.spark}
+                />
+              ))}
+              <BalanceRow
+                label="Investments"
+                sub={
+                  board.investments.total != null
+                    ? [
+                        board.investments.latest.lightyear && `Lightyear ${eur.format(board.investments.latest.lightyear.total)}`,
+                        board.investments.latest.lhv && `LHV ${eur.format(board.investments.latest.lhv.total)}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : "click to add a snapshot"
+                }
+                value={board.investments.total != null ? eur.format(board.investments.total) : "—"}
+                spark={board.sparks.investments}
+                onClick={() => setSnapOpen(true)}
+              />
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
@@ -896,7 +904,6 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
   );
 }
 
-const SPARK_COLORS = { green: "var(--gain)", red: "var(--loss)", neutral: "var(--muted-foreground)" };
 
 // Investments over time: the two snapshotted pots stacked — Lightyear in the
 // gain green the tile's sparkline speaks, the LHV pot in Kopikas copper.
@@ -905,22 +912,21 @@ const INVESTMENTS_CHART = {
   lhv: { label: "LHV", color: "var(--primary)" },
 } satisfies ChartConfig;
 
-function Sparkline({ spark }: { spark: Spark }) {
+function Sparkline({ spark, className, fill }: { spark: Spark; className?: string; fill?: boolean }) {
   if (spark.points.length < 2) return null;
-  const color = SPARK_COLORS[spark.tone];
   const data = spark.points.map((v, i) => ({ i, v }));
   return (
-    <div className="mt-auto h-8 w-full pt-1.5">
+    <div className={cn("w-full", className)}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
           <YAxis hide domain={["dataMin", "dataMax"]} />
           <Area
             type="monotone"
             dataKey="v"
-            stroke={color}
+            stroke="currentColor"
             strokeWidth={1.5}
-            fill={color}
-            fillOpacity={0.12}
+            fill="currentColor"
+            fillOpacity={fill ? 0.1 : 0}
             isAnimationActive={false}
             dot={false}
           />
@@ -930,41 +936,54 @@ function Sparkline({ spark }: { spark: Spark }) {
   );
 }
 
-function Stat({
-  label,
-  value,
-  sub,
-  interactive,
-  spark,
-  hero,
-  className,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  interactive?: boolean;
-  spark?: Spark;
-  hero?: boolean;
-  className?: string;
-}) {
+// The one number the board is for: this month's spend. The only stat with a
+// card of its own, and the only spark drawn in copper.
+function Stat({ label, value, sub, spark }: { label: string; value: string; sub?: ReactNode; spark?: Spark }) {
   return (
-    <Card
-      className={cn(
-        "h-full gap-0.5 rounded-xl py-3.5",
-        interactive && "transition-colors hover:border-primary",
-        hero && "border-primary/50",
-        className
-      )}
-    >
-      <CardContent className="flex h-full flex-col gap-0.5 px-4">
-        <div className={cn("truncate text-xs", hero ? "font-medium text-primary" : "text-muted-foreground")}>
-          {label}
-        </div>
-        <div className="font-mono text-lg font-semibold tabular-nums tracking-tight">{value}</div>
+    <Card className="h-full gap-0.5 rounded-xl py-4 ring-primary/40">
+      <CardContent className="flex h-full flex-col gap-0.5 px-5">
+        <div className="truncate text-xs font-medium text-primary">{label}</div>
+        <div className="font-mono text-3xl font-semibold tabular-nums tracking-tight">{value}</div>
         <div className="min-h-4 truncate text-xs leading-4 text-muted-foreground">{sub}</div>
-        {spark && <Sparkline spark={spark} />}
+        {spark && <Sparkline spark={spark} className="mt-3 min-h-14 flex-1 text-primary" fill />}
       </CardContent>
     </Card>
+  );
+}
+
+// Balances read as statement lines: name and account tail, a graphite spark,
+// the amount on the rail. No colour — copper stays with the hero.
+function BalanceRow({
+  label,
+  sub,
+  value,
+  spark,
+  onClick,
+}: {
+  label: string;
+  sub?: string;
+  value: string;
+  spark?: Spark;
+  onClick?: () => void;
+}) {
+  const inner = (
+    <>
+      <div className="min-w-0">
+        <div className="truncate text-sm">{label}</div>
+        {sub && <div className="truncate text-xs text-muted-foreground">{sub}</div>}
+      </div>
+      {spark ? <Sparkline spark={spark} className="h-6 w-16 text-foreground/45" /> : <div />}
+      <div className="font-mono text-sm font-semibold tabular-nums tracking-tight">{value}</div>
+    </>
+  );
+  const cls =
+    "grid w-full grid-cols-[minmax(0,1fr)_4rem_auto] items-center gap-3 border-b border-foreground/10 py-2 text-left last:border-0";
+  return onClick ? (
+    <button type="button" className={cn(cls, "transition-colors hover:text-primary")} onClick={onClick} title="Update a snapshot">
+      {inner}
+    </button>
+  ) : (
+    <div className={cls}>{inner}</div>
   );
 }
 

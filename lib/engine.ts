@@ -65,17 +65,21 @@ export function monthKey(date: string): string {
 
 // Spend for a month = Argo's consumption: his outgoing non-savings expenses,
 // shared ones counted at his portion, plus his portion of Anni-paid shared expenses.
-export function monthlySpend(db: Db, month: string): number {
+// `untilDay` caps at a day of the month, so a month in progress compares
+// like-for-like with the last one ("this time last month").
+export function monthlySpend(db: Db, month: string, untilDay?: number): number {
+  const inRange = (date: string) =>
+    monthKey(date) === month && (untilDay == null || Number(date.slice(8, 10)) <= untilDay);
   const shareByTx = new Map(db.shares.filter((s) => s.txId).map((s) => [s.txId!, s]));
   let total = 0;
   for (const tx of db.transactions) {
-    if (monthKey(tx.date) !== month || tx.amount >= 0) continue;
+    if (!inRange(tx.date) || tx.amount >= 0) continue;
     if (categoryOf(tx, db.rules, db.overrides) === SAVINGS) continue;
     const share = shareByTx.get(tx.id);
     total += Math.abs(tx.amount) * (share ? 1 - anniShareOf(share) : 1);
   }
   for (const s of db.shares) {
-    if (s.manual && s.paidBy === "anni" && monthKey(s.manual.date) === month) {
+    if (s.manual && s.paidBy === "anni" && inRange(s.manual.date)) {
       total += s.manual.amount * (1 - anniShareOf(s));
     }
   }
