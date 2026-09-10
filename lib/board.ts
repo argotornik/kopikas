@@ -14,7 +14,7 @@ import {
   subscriptionStatus,
 } from "./engine";
 import { MOCK_BALANCES } from "./seed";
-import { displayName, guessDomain, identifyMerchant } from "./icons";
+import { displayName, guessDomain, identifyMerchant, subscriptionLabel } from "./icons";
 import { merchantFromDescription, type LhvAccount } from "./lhv";
 import type { Tx } from "./types";
 
@@ -109,7 +109,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
   const subStatuses = db.subscriptions.map((s) => ({
     ...subscriptionStatus(s, db.transactions, today),
     domain: guessDomain(s.name),
-    label: displayName(s.name),
+    label: subscriptionLabel(s.name),
   }));
 
   const sharedItems = [...db.shares]

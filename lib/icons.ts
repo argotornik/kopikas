@@ -8,6 +8,18 @@ const MERCHANTS: [pattern: string, domain: string, name: string][] = [
   ["netflix", "netflix.com", "Netflix"],
   ["nordvpn", "nordvpn.com", "NordVPN"],
   ["patreon", "patreon.com", "Patreon"],
+  ["google one", "one.google.com", "Google One"],
+  ["google", "google.com", "Google"],
+  ["icloud", "icloud.com", "iCloud"],
+  ["infuse", "firecore.com", "Infuse"],
+  ["instagram", "instagram.com", "Instagram"],
+  ["rni pro", "rnifilms.com", "RNI Films"],
+  ["rni films", "rnifilms.com", "RNI Films"],
+  ["r o o n", "roon.app", "Roon"],
+  ["roonlabs", "roon.app", "Roon"],
+  ["bend", "bendapp.com", "Bend"],
+  ["headspace", "headspace.com", "Headspace"],
+  ["kaardi", "lhv.ee", "Kaardi kuutasu"],
   ["apple", "apple.com", "Apple"],
   ["wolt", "wolt.com", "Wolt"],
   ["bolt", "bolt.eu", "Bolt"],
@@ -48,6 +60,7 @@ function known(s: string) {
 function tidy(raw: string): string {
   let s = stripPeriod(raw.trim()) || raw.trim();
   s = s.replace(/^PAYPAL\s*\*\s*/i, "").replace(/\s*\([^()]*\d[^()]*\)\s*$/, "") || s;
+  s = s.replace(/\s*\(\.\.\d{3,4}\)\s*/, " ").trim(); // card tail: "Kaardi (..3696) kuutasu"
   if (/\p{Ll}/u.test(s)) return s;
   return s
     .replace(/\p{Lu}{2,}/gu, (w) => w.charAt(0) + w.slice(1).toLowerCase())
@@ -70,4 +83,11 @@ export function guessDomain(counterparty: string): string | null {
 
 export function displayName(counterparty: string, description = ""): string {
   return identifyMerchant(counterparty, description).name;
+}
+
+// Subscriptions carry a name someone already chose ("Instagram Meta Verified",
+// "Infuse Pro"): keep it, minus card tails and billing periods. Only a raw
+// bank string — no lower-case at all — gets the full merchant treatment.
+export function subscriptionLabel(name: string): string {
+  return /\p{Ll}/u.test(name) ? tidy(name) : displayName(name);
 }
