@@ -43,10 +43,11 @@ function known(s: string) {
 
 // Bank strings shout: "VIIMSI DELICE ISETEENI", "PAYPAL *PATREON INC M".
 // Title-case them only when they have no lower-case at all, so mixed-case
-// names ("MON*Natty") stay as the merchant wrote them.
+// names ("MON*Natty") stay as the merchant wrote them. A trailing reference
+// in parentheses — "(laenuleping nr EAL-2025…)" — is bookkeeping, not name.
 function tidy(raw: string): string {
   let s = stripPeriod(raw.trim()) || raw.trim();
-  s = s.replace(/^PAYPAL\s*\*\s*/i, "");
+  s = s.replace(/^PAYPAL\s*\*\s*/i, "").replace(/\s*\([^()]*\d[^()]*\)\s*$/, "") || s;
   if (/\p{Ll}/u.test(s)) return s;
   return s
     .replace(/\p{Lu}{2,}/gu, (w) => w.charAt(0) + w.slice(1).toLowerCase())

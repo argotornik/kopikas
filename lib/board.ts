@@ -81,6 +81,12 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
       const share = shareByTx.get(tx.id);
       const merchant = identifyMerchant(tx.counterparty, tx.description);
       const isCardString = !!merchantFromDescription(tx.description);
+      // A note that only repeats the name (bank transfers often carry the
+      // counterparty text again, give or take a reference) says nothing.
+      const squash = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+      const d = squash(tx.description);
+      const redundant =
+        !d || d.startsWith(squash(tx.counterparty)) || squash(tx.counterparty).startsWith(d) || d.startsWith(squash(merchant.name));
       return {
         id: tx.id,
         date: tx.date,
@@ -88,7 +94,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
         counterparty: tx.counterparty,
         name: merchant.name,
         description: tx.description,
-        note: isCardString || tx.description.trim() === tx.counterparty.trim() ? "" : tx.description.trim(),
+        note: isCardString || redundant ? "" : tx.description.trim(),
         domain: merchant.domain,
         micro: (tx.counterparty + " " + tx.description).toLowerCase().includes("mikroinvesteering"),
         category: cat,
