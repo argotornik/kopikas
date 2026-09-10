@@ -181,7 +181,6 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
 
   const spentNow = monthlySpend(db, month);
   const spentPrev = monthlySpend(db, prevMonth(month));
-  const spentPrevToDate = monthlySpend(db, prevMonth(month), Number(todayStr.slice(8, 10)));
 
   const sparks: Record<"investments" | "spent", Spark> = {
     investments: {
@@ -192,7 +191,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
           : "neutral",
     },
     // Spending up vs last month is the bad direction.
-    spent: { points: spentPoints, tone: sparkTone(spentPrevToDate, spentNow, false) },
+    spent: { points: spentPoints, tone: sparkTone(spentPrev, spentNow, false) },
   };
 
   const bal = balance(db.shares, db.settlements, db.transactions);
@@ -221,7 +220,6 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     },
     spentThisMonth: spentNow,
     spentLastMonth: spentPrev,
-    spentLastMonthToDate: spentPrevToDate,
     accounts,
   };
 }
