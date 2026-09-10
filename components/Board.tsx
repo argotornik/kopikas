@@ -686,9 +686,9 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       <div className="divide-y">
                         {g.subs.map((s) => (
                       <div className="flex items-center gap-2 py-2" key={s.sub.id}>
-                        <MerchantIcon name={s.sub.name} domain={s.domain} className="size-6" />
+                        <MerchantIcon name={s.label} domain={s.domain} className="size-6" />
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-medium">{s.sub.name}</div>
+                          <div className="truncate text-sm font-medium">{s.label}</div>
                           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
                             <span>
                               {s.lastCharge && s.lastCharge.date.slice(0, 7) === board.month
@@ -845,7 +845,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
       <DragOverlay>
         {activeTx && (
           <div className="cursor-grabbing rounded-lg border border-primary bg-card px-3 py-2 text-sm font-medium shadow-lg">
-            {activeTx.counterparty} · <span className="font-mono tabular-nums">{eur.format(Math.abs(activeTx.amount))}</span>
+            {activeTx.name} · <span className="font-mono tabular-nums">{eur.format(Math.abs(activeTx.amount))}</span>
           </div>
         )}
       </DragOverlay>
@@ -1008,9 +1008,9 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
       {...listeners}
       {...attributes}
     >
-      <MerchantIcon name={tx.counterparty} domain={tx.domain} />
+      <MerchantIcon name={tx.name} domain={tx.domain} />
       <div className="min-w-0">
-        <div className="truncate text-sm font-medium">{tx.counterparty}</div>
+        <div className="truncate text-sm font-medium">{tx.name}</div>
         <div className="flex min-w-0 items-baseline gap-1.5 text-xs text-muted-foreground">
           {tx.shared && tx.shareId && (
             <button
@@ -1021,11 +1021,16 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => onUnshare(tx.shareId!)}
             >
-              {shareLabel(tx.anniShare)} Anni ·
+              {shareLabel(tx.anniShare)} Anni{tx.note && " ·"}
             </button>
           )}
-          <span className="truncate">{tx.description}</span>
-          {category && <span className="flex shrink-0 gap-1.5 sm:hidden">· {category}</span>}
+          {tx.note && <span className="truncate">{tx.note}</span>}
+          {category && (
+            <span className="flex shrink-0 gap-1.5 sm:hidden">
+              {(tx.shared || tx.note) && "· "}
+              {category}
+            </span>
+          )}
         </div>
       </div>
       <div className="hidden min-w-0 sm:block">{category}</div>

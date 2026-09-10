@@ -14,8 +14,8 @@ import {
   subscriptionStatus,
 } from "./engine";
 import { MOCK_BALANCES } from "./seed";
-import { guessDomain } from "./icons";
-import type { LhvAccount } from "./lhv";
+import { displayName, guessDomain, identifyMerchant } from "./icons";
+import { merchantFromDescription, type LhvAccount } from "./lhv";
 import type { Tx } from "./types";
 
 export interface Spark {
@@ -35,8 +35,13 @@ export interface BoardTx {
   id: string;
   date: string;
   amount: number;
-  counterparty: string;
+  counterparty: string; // raw bank string: rules match on it
+  name: string; // statement-legible merchant name
   description: string;
+  // What the second line says. Card payments carry the raw statement string
+  // the merchant name was cut from (card tail, timestamp, address) — noise
+  // once the name is shown, so it is dropped. Transfers keep their note.
+  note: string;
   domain: string | null;
   category: string | null;
   categorySource: "rule" | "override" | null;
@@ -74,13 +79,17 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
       // check would mark every teaching tile as an exception.
       const ruleCategory = db.rules.findLast((r) => matches(tx, r.match))?.category ?? null;
       const share = shareByTx.get(tx.id);
+      const merchant = identifyMerchant(tx.counterparty, tx.description);
+      const isCardString = !!merchantFromDescription(tx.description);
       return {
         id: tx.id,
         date: tx.date,
         amount: tx.amount,
         counterparty: tx.counterparty,
+        name: merchant.name,
         description: tx.description,
-        domain: guessDomain(tx.counterparty),
+        note: isCardString || tx.description.trim() === tx.counterparty.trim() ? "" : tx.description.trim(),
+        domain: merchant.domain,
         micro: (tx.counterparty + " " + tx.description).toLowerCase().includes("mikroinvesteering"),
         category: cat,
         categorySource: override && override.category !== ruleCategory ? "override" : cat ? "rule" : null,
@@ -94,6 +103,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
   const subStatuses = db.subscriptions.map((s) => ({
     ...subscriptionStatus(s, db.transactions, today),
     domain: guessDomain(s.name),
+    label: displayName(s.name),
   }));
 
   const sharedItems = [...db.shares]
@@ -102,7 +112,11 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
       paidBy: s.paidBy,
       date: s.manual?.date ?? db.transactions.find((t) => t.id === s.txId)?.date ?? "",
       description:
-        s.manual?.description ?? db.transactions.find((t) => t.id === s.txId)?.counterparty ?? "",
+        s.manual?.description ??
+        (() => {
+          const tx = db.transactions.find((t) => t.id === s.txId);
+          return tx ? displayName(tx.counterparty, tx.description) : "";
+        })(),
       total: shareAmount(s, db.transactions),
       anniShare: anniShareOf(s),
       // What the couple spent it on: the transaction's category when bank-linked,
