@@ -103,12 +103,16 @@ export function categoryTotals(db: Db, month: string): Record<string, number> {
 
 const DAY = 86400000;
 
+// One charge is not a rhythm, so with fewer than two the statement text
+// decides: "Domain + hosting yearly", "aastamaks", "annual plan" → yearly.
+const YEARLY_HINT = /\b(yearly|annual(?:ly)?|per year|12 months|aasta(?:ne|maks|s)?|12 kuud)\b|\/\s*(?:yr|year|a)\b/i;
+
 export function inferCadence(txs: Tx[], pattern: string): "monthly" | "yearly" {
-  const dates = txs
-    .filter((t) => t.amount < 0 && matches(t, pattern))
-    .map((t) => new Date(t.date).getTime())
-    .sort((a, b) => a - b);
-  if (dates.length < 2) return "monthly";
+  const charges = txs.filter((t) => t.amount < 0 && matches(t, pattern));
+  const dates = charges.map((t) => new Date(t.date).getTime()).sort((a, b) => a - b);
+  if (dates.length < 2) {
+    return charges.some((t) => YEARLY_HINT.test(t.counterparty + " " + t.description)) ? "yearly" : "monthly";
+  }
   const gaps: number[] = [];
   for (let i = 1; i < dates.length; i++) gaps.push((dates[i] - dates[i - 1]) / DAY);
   gaps.sort((a, b) => a - b);

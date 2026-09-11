@@ -347,7 +347,13 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
               spark={a.spark}
             />
           ))}
-          <button className="h-full text-left" onClick={() => setSnapOpen(true)} title="Update a snapshot">
+          <button
+            // On phones the tiles pair up; with an even number of accounts this
+            // one would sit alone in a half-width column, so it takes the row.
+            className={cn("h-full text-left", board.accounts.length % 2 === 0 && "col-span-2 md:col-span-1")}
+            onClick={() => setSnapOpen(true)}
+            title="Update a snapshot"
+          >
             <Stat
               label="Investments"
               value={board.investments.total != null ? eur.format(board.investments.total) : "—"}
@@ -685,7 +691,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       </div>
                       <div className="divide-y">
                         {g.subs.map((s) => (
-                      <div className="flex items-center gap-2 py-2" key={s.sub.id}>
+                      <div className="group flex items-center gap-2 py-2" key={s.sub.id}>
                         <MerchantIcon name={s.label} domain={s.domain} className="size-6" />
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-medium">{s.label}</div>
@@ -714,6 +720,24 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                         <span className="shrink-0 font-mono text-sm font-medium tabular-nums">
                           {eur.format(s.lastCharge?.amount ?? s.sub.expectedAmount)}
                         </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          // Fix a wrong cadence guess. Revealed on hover where there
+                          // is a pointer; always there on touch, like the ✕.
+                          className="size-6 shrink-0 text-muted-foreground [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
+                          title={`Make ${s.sub.cadence === "monthly" ? "yearly" : "monthly"}`}
+                          aria-label={`Make ${s.label} ${s.sub.cadence === "monthly" ? "yearly" : "monthly"}`}
+                          onClick={() =>
+                            void post({
+                              type: "cadence",
+                              subId: s.sub.id,
+                              cadence: s.sub.cadence === "monthly" ? "yearly" : "monthly",
+                            })
+                          }
+                        >
+                          <RepeatIcon className="size-3.5" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"

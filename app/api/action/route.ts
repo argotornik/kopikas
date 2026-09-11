@@ -27,6 +27,7 @@ type Action =
   | { type: "subscribe"; txId: string }
   | { type: "unsubscribe"; subId: string }
   | { type: "accept-price"; subId: string }
+  | { type: "cadence"; subId: string; cadence: "monthly" | "yearly" }
   | { type: "snapshot"; total: number; holdings: { name: string; pct: number }[]; returnPct?: number; source?: string }
   | { type: "set-lhv-token"; refreshToken: string };
 
@@ -165,6 +166,15 @@ export async function POST(req: Request) {
       const status = subscriptionStatus(sub, db.transactions, new Date());
       if (!status.lastCharge) return bad("no charge to accept");
       sub.expectedAmount = status.lastCharge.amount;
+      await writeCollection("subscriptions", db.subscriptions);
+      break;
+    }
+    case "cadence": {
+      // The guess from one charge can be wrong; the owner says which it is.
+      const sub = db.subscriptions.find((s) => s.id === action.subId);
+      if (!sub) return bad("unknown subscription");
+      if (action.cadence !== "monthly" && action.cadence !== "yearly") return bad("cadence must be monthly or yearly");
+      sub.cadence = action.cadence;
       await writeCollection("subscriptions", db.subscriptions);
       break;
     }
