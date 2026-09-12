@@ -21,7 +21,7 @@ The rail on the right holds three cards.
 
 Categories are a fixed list in `lib/engine.ts`. Each row shows this month's total with a copper bar for its share of the largest, and each row is a drop target. A drop asks whether to file just this one or *always*; *always* writes a rule, which is a lowercase substring matched against the counterparty and description. Rules are listed and deleted on the Settings page. Money coming in is not a category, it is the Received line under Spent, and clicking it shows who sent what.
 
-![Dragging an uncategorised charge onto the Home row; the row says drop here](docs/drag.png)
+![Dragging an uncategorised charge onto the Home row, choosing Always, and watching the merchant's other charges file themselves](docs/drag.gif)
 
 <img src="docs/file-under.png" width="620" alt="The prompt after the drop: file every charge from this merchant here, or only this one">
 
