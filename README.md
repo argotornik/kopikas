@@ -2,7 +2,10 @@
 
 A personal money board fed by LHV bank data. Transactions arrive as one ruled statement, and you file them by dragging. Named after the humble coin: *iga kopikas loeb*, every penny counts.
 
-![The board, running on mock data](docs/board.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/board-dark.png">
+  <img alt="The board on mock data: stat tiles, the ledger, categories and subscriptions" src="docs/board-light.png">
+</picture>
 
 ## Why
 
@@ -18,9 +21,20 @@ The rail on the right holds three cards.
 
 Categories are a fixed list in `lib/engine.ts`. Each row shows this month's total with a copper bar for its share of the largest, and each row is a drop target. A drop asks whether to file just this one or *always*; *always* writes a rule, which is a lowercase substring matched against the counterparty and description. Rules are listed and deleted on the Settings page. Money coming in is not a category, it is the Received line under Spent, and clicking it shows who sent what.
 
+![Dragging an uncategorised charge onto the Home row; the row says drop here](docs/drag.png)
+
+<img src="docs/file-under.png" width="620" alt="The prompt after the drop: file every charge from this merchant here, or only this one">
+
 Subscriptions watches recurring charges. Drop one on the zone and the board records the merchant pattern and expected amount, then tracks the last charge, the next due date, and whether the price moved. A price change shows as a badge you click to accept the new price. A charge that stops arriving shows as gone quiet. Rows group into monthly and yearly, with the monthly burn at the bottom; the guess between the two reads the statement text when there is only one charge to go on, and a control on each row corrects it.
 
-Pooleks (Estonian for *in half*) is the shared ledger. Drop a charge on the zone with a 1/2, 1/3 or 1/4 split and it becomes a line on a running statement of who owes whom. The partner signs in and sees the same statement with the labels flipped, plus a dialog to add what they paid for. Settle up records a repayment. The Splitwise replacement, straight from bank rows, with nothing typed twice.
+<p>
+  <img src="docs/subscriptions-dark.png" width="380" alt="The Subscriptions card: monthly and yearly groups, a price-change badge, the monthly burn">
+  <img src="docs/mobile-dark.png" width="290" alt="The board on a phone">
+</p>
+
+Pooleks (Estonian for *in half*) is the shared ledger. Drop a charge on the zone with a 1/2, 1/3 or 1/4 split and it becomes a line on a running statement of who owes whom. The partner signs in and sees the same statement with the labels flipped, plus a dialog to add what they paid for. Either of you records a repayment with Settle up. The Splitwise replacement, straight from bank rows, with nothing typed twice.
+
+![Pooleks: the shared statement, one figure per row, a Details toggle for the working](docs/pooleks-dark.png)
 
 The stat row across the top shows this month's spend against last month, the account balances with a 30-day line each, and an Investments tile. LHV's API only gained investment endpoints in September 2026, so the two pots (a Lightyear account and the LHV investment account) are still tracked by manual snapshot and charted over time. Wiring the new endpoints is next.
 

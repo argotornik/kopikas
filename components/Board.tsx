@@ -60,7 +60,7 @@ const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" 
 const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
-type Prompt = { txId: string; name: string; pattern: string; category: string };
+type Prompt = { txId: string; name: string; pattern: string; category: string; amount: number; date: string };
 
 // View state carried in the URL (?cat=&month=&q=) so filtered views deep-link.
 type ViewParams = { cat?: string; month?: string; q?: string };
@@ -158,7 +158,8 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
       void post({ type: "subscribe", txId: tx.id });
     } else if (over.startsWith("cat:")) {
       const category = over.slice(4);
-      if (category !== tx.category) setPrompt({ txId: tx.id, name: tx.name, pattern: tx.rulePattern, category });
+      if (category !== tx.category)
+        setPrompt({ txId: tx.id, name: tx.name, pattern: tx.rulePattern, category, amount: tx.amount, date: tx.date });
     }
   };
 
@@ -867,7 +868,9 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
           </div>
         </div>
       </div>
-      <DragOverlay>
+      {/* dnd-kit sizes the overlay to the dragged row; a pill should be as wide as
+          its words, or it runs off the screen when the drop zone is in the rail. */}
+      <DragOverlay style={{ width: "auto", height: "auto" }}>
         {activeTx && (
           <div className="cursor-grabbing rounded-lg border border-primary bg-card px-3 py-2 text-sm font-medium shadow-lg">
             {activeTx.name} · <span className="font-mono tabular-nums">{eur.format(Math.abs(activeTx.amount))}</span>
@@ -875,24 +878,22 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
         )}
       </DragOverlay>
 
+      {/* The title asks, the description says what and what "always" would
+          match, the two buttons decide. Nothing is said twice. */}
       <Dialog open={!!prompt} onOpenChange={(o) => !o && setPrompt(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>File under {prompt?.category}?</DialogTitle>
-            <DialogDescription>{prompt?.name}</DialogDescription>
+            <DialogDescription>
+              {prompt?.name} · <span className="font-mono tabular-nums">{prompt && eur.format(Math.abs(prompt.amount))}</span> ·{" "}
+              {prompt && shortDate.format(new Date(prompt.date))}
+            </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-2">
-            <Button
-              onClick={() => {
-                if (!prompt) return;
-                void post({ type: "rule", txId: prompt.txId, category: prompt.category }).then(() =>
-                  post({ type: "override", txId: prompt.txId, category: prompt.category })
-                );
-                setPrompt(null);
-              }}
-            >
-              Always — file every “{prompt?.pattern}” charge here
-            </Button>
+          <p className="text-xs text-muted-foreground">
+            Always also files every past and future charge matching{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">{prompt?.pattern}</code>.
+          </p>
+          <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
@@ -903,7 +904,18 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
             >
               Only this one
             </Button>
-          </div>
+            <Button
+              onClick={() => {
+                if (!prompt) return;
+                void post({ type: "rule", txId: prompt.txId, category: prompt.category }).then(() =>
+                  post({ type: "override", txId: prompt.txId, category: prompt.category })
+                );
+                setPrompt(null);
+              }}
+            >
+              Always
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
