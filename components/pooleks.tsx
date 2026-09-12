@@ -55,11 +55,15 @@ const SPLIT_OPTIONS = [
   { fraction: 0.25, label: "1/4" },
 ];
 
-// Clean by default: date · what · what moved the tab. Details adds the full
-// amount and share plus the running balance — the auditor's view, on demand.
+// Clean by default: date · what · what moved the tab. Details adds the running
+// balance, and folds the bill and the share into the row's text — a statement
+// shows what moved and where it leaves you; the working is there to read, not
+// to scan.
 const GRID_CLEAN = "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1fr)_5.5rem_1.25rem] sm:grid-cols-[3.25rem_minmax(0,1fr)_5.5rem_1.25rem]";
+// On phones the running balance stacks under the movement (one figure column),
+// so the description keeps its width.
 const GRID_FULL =
-  "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1fr)_5.5rem_5.5rem_1.25rem] sm:grid-cols-[3.25rem_minmax(0,1fr)_8rem_5.5rem_5.5rem_1.25rem]";
+  "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1fr)_5.5rem_1.25rem] sm:grid-cols-[3.25rem_minmax(0,1fr)_5.5rem_5.5rem_1.25rem]";
 
 // Pooleks ("in half"): the couple's tab as a statement. Same page for both
 // of them; only the labels flip.
@@ -272,9 +276,8 @@ export function Pooleks({ role }: { role: Person }) {
                 {details ? "Hide details" : "Details"}
               </button>
             </div>
-            {details && <span className="hidden text-right sm:block">amount · share</span>}
             <span className="text-right">{shareHeader}</span>
-            {details && <span className="text-right">{tabHeader}</span>}
+            {details && <span className="hidden text-right sm:block">{tabHeader}</span>}
             <span />
           </div>
           {months.map((m, mi) => (
@@ -286,29 +289,30 @@ export function Pooleks({ role }: { role: Person }) {
                 {details && (
                   <>
                     <span
-                      className="hidden text-right font-mono text-xs tabular-nums text-muted-foreground sm:block"
-                      title="Spent together this month, full amounts"
+                      className="text-right font-mono text-xs tabular-nums text-muted-foreground"
+                      title="How this month moved the tab"
                     >
-                      {eur.format(m.spentTogether)}
-                    </span>
-                    <span className="text-right font-mono text-xs tabular-nums text-muted-foreground sm:hidden">
-                      {eur.format(m.spentTogether)}
+                      {signed(m.rows.reduce((sum, r) => sum + r.movement, 0))}
                     </span>
                     <span className="hidden sm:block" />
-                    <span />
                   </>
                 )}
                 <span />
               </div>
-              {details && m.byCategory.length > 1 && (
+              {details && (
+                // What the two of you spent together this month, full bills, and on what.
                 <div className={cn(GRID, "pb-1.5")}>
                   <span />
-                  <span className="col-span-2 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                    {m.byCategory.map(([name, total]) => (
-                      <span key={name}>
-                        {name} <span className="font-mono tabular-nums">{eur.format(total)}</span>
-                      </span>
-                    ))}
+                  <span className="col-span-3 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                    <span title="Spent together this month, full amounts">
+                      Together <span className="font-mono tabular-nums">{eur.format(m.spentTogether)}</span>
+                    </span>
+                    {m.byCategory.length > 1 &&
+                      m.byCategory.map(([name, total]) => (
+                        <span key={name}>
+                          {name} <span className="font-mono tabular-nums">{eur.format(total)}</span>
+                        </span>
+                      ))}
                   </span>
                 </div>
               )}
@@ -323,10 +327,14 @@ export function Pooleks({ role }: { role: Person }) {
                       {r.settlement.amount > 0 ? `${names.partner} paid back` : `${names.argo} paid back`}
                       {r.settlement.note && ` · ${r.settlement.note}`}
                     </span>
-                    {details && <span className="hidden sm:block" />}
-                    <span className="text-right font-mono text-sm tabular-nums text-foreground">{signed(r.movement)}</span>
+                    <span className="text-right font-mono text-sm tabular-nums text-foreground">
+                      {signed(r.movement)}
+                      {details && <span className="block text-xs text-muted-foreground sm:hidden">{eur.format(r.running)}</span>}
+                    </span>
                     {details && (
-                      <span className="text-right font-mono text-sm tabular-nums text-foreground">{eur.format(r.running)}</span>
+                      <span className="hidden text-right font-mono text-sm tabular-nums text-foreground sm:block">
+                        {eur.format(r.running)}
+                      </span>
                     )}
                     <span />
                   </div>
@@ -340,23 +348,24 @@ export function Pooleks({ role }: { role: Person }) {
                           {" · "}
                           {r.item.category ?? "unsorted"}
                           {r.item.paidBy === "partner" && ` · ${names.partner} paid`}
+                          {details && ` · ${shareLabel(r.item.partnerShare)} of ${eur.format(r.item.total)}`}
                         </span>
                       </div>
                       <div className="truncate text-xs text-muted-foreground sm:hidden">
                         {r.item.category ?? "unsorted"}
                         {r.item.paidBy === "partner" && ` · ${names.partner} paid`}
-                        {details && ` · ${eur.format(r.item.total)} · ${shareLabel(r.item.partnerShare)}`}
+                        {details && ` · ${shareLabel(r.item.partnerShare)} of ${eur.format(r.item.total)}`}
                       </div>
                     </div>
-                    {details && (
-                      <span className="hidden text-right font-mono text-xs tabular-nums text-muted-foreground sm:block">
-                        {eur.format(r.item.total)} · {shareLabel(r.item.partnerShare)}
-                      </span>
-                    )}
                     <span className="text-right font-mono text-sm font-medium tabular-nums text-foreground">
                       {signed(r.movement)}
+                      {details && (
+                        <span className="block text-xs font-normal text-muted-foreground sm:hidden">{eur.format(r.running)}</span>
+                      )}
                     </span>
-                    {details && <span className="text-right font-mono text-sm tabular-nums">{eur.format(r.running)}</span>}
+                    {details && (
+                      <span className="hidden text-right font-mono text-sm tabular-nums sm:block">{eur.format(r.running)}</span>
+                    )}
                     {role === "argo" ? (
                       <button
                         type="button"
