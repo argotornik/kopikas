@@ -257,22 +257,21 @@ export function Pooleks({ role }: { role: Person }) {
         </p>
       ) : (
         // The statement: one sheet, ruled rows, month headers as section rules.
-        <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
-          <div className="flex items-center justify-end px-3 pt-2">
-            <button
-              type="button"
-              onClick={toggleDetails}
-              aria-pressed={details}
-              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-              title={details ? "Hide amounts and running balance" : "Show amounts and running balance"}
-            >
-              {details ? <EyeOffIcon className="size-3.5" /> : <EyeIcon className="size-3.5" />}
-              {details ? "Hide details" : "Details"}
-            </button>
-          </div>
-          <div className={cn(GRID, "pb-1 text-[10px] uppercase tracking-wide text-muted-foreground")}>
-            <span />
-            <span />
+        <div className="overflow-hidden rounded-xl bg-card pb-2 ring-1 ring-foreground/10">
+          {/* One head row: the view toggle in the label columns, column heads on the rail. */}
+          <div className={cn(GRID, "items-center pb-1 pt-2 text-[10px] uppercase tracking-wide text-muted-foreground")}>
+            <div className="col-span-2 -ml-2">
+              <button
+                type="button"
+                onClick={toggleDetails}
+                aria-pressed={details}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs normal-case tracking-normal text-muted-foreground hover:bg-accent hover:text-foreground"
+                title={details ? "Hide amounts and running balance" : "Show amounts and running balance"}
+              >
+                {details ? <EyeOffIcon className="size-3.5" /> : <EyeIcon className="size-3.5" />}
+                {details ? "Hide details" : "Details"}
+              </button>
+            </div>
             {details && <span className="hidden text-right sm:block">amount · share</span>}
             <span className="text-right">{shareHeader}</span>
             {details && <span className="text-right">{tabHeader}</span>}
@@ -280,7 +279,7 @@ export function Pooleks({ role }: { role: Person }) {
           </div>
           {months.map((m, mi) => (
             <div key={m.month}>
-              <div className={cn(GRID, "pb-1 pt-3", mi > 0 && "border-t border-border/70")}>
+              <div className={cn(GRID, "pb-1.5 pt-3", mi > 0 && "border-t border-border/70")}>
                 <span className="col-span-2 font-heading text-xs uppercase tracking-wide text-muted-foreground">
                   {monthLabel(m.month)}
                 </span>
