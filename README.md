@@ -9,9 +9,9 @@ A personal money board fed by LHV bank data. Transactions arrive as one ruled st
 
 ## Why
 
-Bank apps are built for a phone: tiny numbers, one transaction at a time, no way to see a month at once. Kopikas is the opposite. It wants a big screen, shows the whole month as a ledger, and turns categorising into a physical gesture. Drop a charge on a category, tick *always*, and every past and future charge from that merchant files itself. Two thousand transactions sort themselves in an afternoon.
+Bank apps are built for a phone: tiny numbers, one transaction at a time, no way to see a month at once. Kopikas wants a big screen. It shows the whole month as one ledger, and categorising becomes a physical gesture: drop a charge on a category, tick *always*, and every past and future charge from that merchant files itself. Two thousand transactions sort themselves in an afternoon.
 
-It is built for one household. Two people sign in, one owns the board and the other sees the shared page. There is no multi-tenant anything, and that is deliberate.
+It is built for one household. Two people sign in, one owns the board and the other sees the shared page. There is no multi-tenant anything.
 
 ## What is on the board
 
@@ -19,7 +19,7 @@ The ledger is the middle column: every transaction, newest first, grouped by day
 
 The rail on the right holds three cards.
 
-Categories are a fixed list in `lib/engine.ts`. Each row shows this month's total with a copper bar for its share of the largest, and each row is a drop target. A drop asks whether to file just this one or *always*; *always* writes a rule, which is a lowercase substring matched against the counterparty and description. Rules are listed and deleted on the Settings page. Money coming in is not a category, it is the Received line under Spent, and clicking it shows who sent what.
+Categories are a fixed list in `lib/engine.ts`. Each row shows this month's total with a copper bar for its share of the largest, and each row is a drop target. A drop asks whether to file just this one or *always*; *always* writes a rule, which is a lowercase substring matched against the counterparty and description. Rules are listed and deleted on the Settings page. Incoming money has its own line, Received, under Spent; clicking it shows who sent what.
 
 ![Dragging an uncategorised charge onto the Home row, choosing Always, and watching the merchant's other charges file themselves](docs/drag.gif)
 
@@ -32,7 +32,7 @@ Subscriptions watches recurring charges. Drop one on the zone and the board reco
   <img src="docs/mobile-dark.png" width="290" alt="The board on a phone">
 </p>
 
-Pooleks (Estonian for *in half*) is the shared ledger. Drop a charge on the zone with a 1/2, 1/3 or 1/4 split and it becomes a line on a running statement of who owes whom. The partner signs in and sees the same statement with the labels flipped, plus a dialog to add what they paid for. Either of you records a repayment with Settle up. The Splitwise replacement, straight from bank rows, with nothing typed twice.
+Pooleks (Estonian for *in half*) is the shared ledger. Drop a charge on the zone with a 1/2, 1/3 or 1/4 split and it becomes a line on a running statement of who owes whom. The partner signs in and sees the same statement with the labels flipped, plus a dialog to add what they paid for. Either of you records a repayment with Settle up. This is what replaced Splitwise here: the rows come from the bank, so nothing is typed twice.
 
 ![Pooleks: the shared statement, one figure per row, a Details toggle for the working](docs/pooleks-dark.png)
 
@@ -46,7 +46,7 @@ One storage module, `lib/storage.ts`, hides two adapters behind the same interfa
 
 Merchant identity lives in `lib/icons.ts`: a small table of known merchants with a favicon domain and a display name, matched on the counterparty or, for card payments that only carry a merchant id, on the description. Unknown ALL-CAPS strings are title-cased. Favicons are fetched once by the server and cached in the database, so the merchant list never leaves the app from a viewer's browser.
 
-Design notes, for the curious: copper accent from the coin, Geist for text and Geist Mono for amounts with tabular figures, Bricolage Grotesque for the wordmark, green and red reserved for money in and money out, purple for shared, amber for things that need filing.
+Design notes: copper accent from the coin, Geist for text and Geist Mono for amounts with tabular figures, Bricolage Grotesque for the wordmark, green and red reserved for money in and money out, purple for shared, amber for things that need filing.
 
 ## The LHV integration
 
@@ -92,7 +92,7 @@ You need a Vercel project pointed at the repo, a Neon database, and a Clerk appl
 | `PARTNER_EMAIL` | The partner's sign-in email. Pooleks and adding shared expenses only. |
 | `NEXT_PUBLIC_PARTNER_NAME` | How the partner is named on screen. Optional, defaults to Partner. |
 
-In Clerk, turn sign-up off and create the two users by hand; the app trusts the email on the session and nothing else. For the hourly sync, add `CRON_SECRET` as a repository secret and, if the app is not at the default URL, `SYNC_URL` as a repository variable. `/api/version` is public and returns the deployed commit, which is the quickest way to see whether a push has landed.
+In Clerk, turn sign-up off and create the two users by hand; the app trusts the email on the session and nothing else. For the hourly sync, add `CRON_SECRET` as a repository secret and `SYNC_URL`, your deployment's `/api/sync` address, as a repository variable. `/api/version` is public and returns the deployed commit, which is the quickest way to see whether a push has landed.
 
 ## Things to know
 

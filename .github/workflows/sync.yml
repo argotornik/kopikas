@@ -4,8 +4,12 @@
 # by transaction id), so overlaps with the Vercel cron are harmless.
 #
 # Repo settings needed once:
-#   Secrets  → CRON_SECRET  (same value as the Vercel env var)
-#   Variables → SYNC_URL    (optional; defaults to the vercel.app production URL)
+#   Secrets   → CRON_SECRET  (same value as the Vercel env var)
+#   Variables → SYNC_URL     (your deployment's /api/sync; there is no default,
+#                             so a fork never pokes someone else's instance)
+#
+# Actions logs of a public repository are public: the step prints the HTTP
+# status, and the response body only when the call fails.
 name: Hourly LHV sync
 
 on:
@@ -25,16 +29,20 @@ jobs:
     timeout-minutes: 5
     env:
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
-      SYNC_URL: ${{ vars.SYNC_URL || 'https://kopikas-rouge.vercel.app/api/sync' }}
+      SYNC_URL: ${{ vars.SYNC_URL }}
     steps:
       - name: Call /api/sync
         run: |
-          if [ -z "$CRON_SECRET" ]; then
-            echo "CRON_SECRET secret is not set on this repository" >&2
+          if [ -z "$CRON_SECRET" ] || [ -z "$SYNC_URL" ]; then
+            echo "Set the CRON_SECRET secret and the SYNC_URL variable on this repository" >&2
             exit 1
           fi
-          # Diagnostics are values-free by design (counts and key names only).
-          curl --silent --show-error --fail-with-body \
+          code=$(curl --silent --output /tmp/sync.json --write-out '%{http_code}' \
             --max-time 240 \
             -H "Authorization: Bearer $CRON_SECRET" \
-            "$SYNC_URL"
+            "$SYNC_URL")
+          echo "sync → HTTP $code"
+          if [ "$code" != "200" ]; then
+            cat /tmp/sync.json >&2
+            exit 1
+          fi
