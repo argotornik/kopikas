@@ -31,6 +31,7 @@ import {
 import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
 import { CATEGORIES, SAVINGS } from "@/lib/engine";
 import { cn, shareLabel } from "@/lib/utils";
+import { PARTNER_NAME } from "@/lib/names";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CoinMark } from "@/components/coin-mark";
 import { MerchantIcon } from "@/components/merchant-icon";
@@ -77,8 +78,8 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
   );
   // Free-text search over counterparty + description; combines with the filter.
   const [query, setQuery] = useState(view?.q ?? "");
-  // Anni's fraction for the next drop on the Anni zone (the 1/2 · 1/3 · 1/4 toggle).
-  const [anniShare, setAnniShare] = useState(0.5);
+  // The partner's fraction for the next drop on the Pooleks zone (the 1/2 · 1/3 · 1/4 toggle).
+  const [partnerShare, setPartnerShare] = useState(0.5);
   // Month shown on the Categories card (and month-scoped filter figures).
   // Defaults to now; browsable back to the earliest synced month.
   const [month, setMonth] = useState(() =>
@@ -150,9 +151,9 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
     setActiveTx(null);
     const over = e.over?.id as string | undefined;
     if (!tx || !over) return;
-    if (over === "anni") {
+    if (over === "partner") {
       // Also handles re-drops: the server updates the fraction of an existing share.
-      void post({ type: "share", txId: tx.id, anniShare });
+      void post({ type: "share", txId: tx.id, partnerShare });
     } else if (over === "subs") {
       void post({ type: "subscribe", txId: tx.id });
     } else if (over.startsWith("cat:")) {
@@ -770,10 +771,10 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
 
             <Card className="shrink-0 gap-3 py-4">
               <CardHeader className="px-4">
-                <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Pooleks · with Anni</CardTitle>
+                <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Pooleks · with {PARTNER_NAME}</CardTitle>
               </CardHeader>
               <CardContent className="px-4">
-                <AnniZone share={anniShare} onShareChange={setAnniShare} />
+                <PartnerZone share={partnerShare} onShareChange={setPartnerShare} />
                 {/* The full shared ledger lives on /pooleks; here: the zone,
                     the live balance, and the way there. */}
                 <div className="flex items-baseline justify-between gap-2">
@@ -784,7 +785,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       "All square"
                     ) : (
                       <>
-                        {bal > 0 ? "Anni owes you " : "You owe Anni "}
+                        {bal > 0 ? `${PARTNER_NAME} owes you ` : `You owe ${PARTNER_NAME} `}
                         <span className="font-mono tabular-nums">{eur.format(Math.abs(bal))}</span>
                       </>
                     )}
@@ -994,7 +995,7 @@ function Stat({
 
 // A ledger row: icon · merchant/meta · category · amount, in fixed columns so
 // categories and amounts align down the whole statement. Color is reserved
-// for meaning — uncategorized (attention), incoming (gain), Anni's share.
+// for meaning — uncategorized (attention), incoming (gain), the partner's share.
 function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => void }) {
   const draggable = tx.amount < 0;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -1040,12 +1041,12 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
             <button
               type="button"
               className="shrink-0 font-medium text-shared hover:underline"
-              title={`Shared with Anni — she pays ${shareLabel(tx.anniShare)}. Click to unshare`}
-              aria-label={`Unshare — Anni pays ${shareLabel(tx.anniShare)} of this`}
+              title={`Shared with ${PARTNER_NAME}, who pays ${shareLabel(tx.partnerShare)}. Click to unshare`}
+              aria-label={`Unshare — ${PARTNER_NAME} pays ${shareLabel(tx.partnerShare)} of this`}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => onUnshare(tx.shareId!)}
             >
-              {shareLabel(tx.anniShare)} Anni{tx.note && " ·"}
+              {shareLabel(tx.partnerShare)} {PARTNER_NAME}{tx.note && " ·"}
             </button>
           )}
           {tx.note && <span className="truncate">{tx.note}</span>}
@@ -1130,12 +1131,12 @@ const SPLIT_OPTIONS = [
   { fraction: 0.25, label: "1/4" },
 ];
 
-function AnniZone({ share, onShareChange }: { share: number; onShareChange: (f: number) => void }) {
-  const { setNodeRef, isOver } = useDroppable({ id: "anni" });
+function PartnerZone({ share, onShareChange }: { share: number; onShareChange: (f: number) => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: "partner" });
   return (
     <div className="mb-2">
       <div className="mb-1.5 flex items-center justify-between text-xs text-muted-foreground">
-        <span>Anni pays</span>
+        <span>{PARTNER_NAME} pays</span>
         <div className="flex gap-1">
           {SPLIT_OPTIONS.map((o) => (
             <button
@@ -1160,7 +1161,7 @@ function AnniZone({ share, onShareChange }: { share: number; onShareChange: (f: 
           isOver && "border-primary bg-accent text-foreground"
         )}
       >
-        {isOver ? `Drop to split — Anni pays ${shareLabel(share)}` : "Drag an expense here to split with Anni"}
+        {isOver ? `Drop to split — ${PARTNER_NAME} pays ${shareLabel(share)}` : `Drag an expense here to split with ${PARTNER_NAME}`}
       </div>
     </div>
   );

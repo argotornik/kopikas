@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
-import { CATEGORIES, anniShareOf, inferCadence, subscriptionStatus } from "@/lib/engine";
+import { CATEGORIES, partnerShareOf, inferCadence, subscriptionStatus } from "@/lib/engine";
 import { merchantFromDescription } from "@/lib/lhv";
 import { currentRole } from "@/lib/auth";
 import { stripPeriod } from "@/lib/utils";
@@ -20,9 +20,9 @@ type Action =
   | { type: "rule"; match: string; category: string }
   | { type: "override"; txId: string; category: string }
   | { type: "unrule"; ruleId: string }
-  | { type: "share"; txId: string; anniShare?: number }
+  | { type: "share"; txId: string; partnerShare?: number }
   | { type: "unshare"; shareId: string }
-  | { type: "quickadd"; description: string; amount: number; date: string; anniShare?: number; category?: string }
+  | { type: "quickadd"; description: string; amount: number; date: string; partnerShare?: number; category?: string }
   | { type: "settle"; amount: number; date: string; txId?: string; note?: string }
   | { type: "subscribe"; txId: string }
   | { type: "unsubscribe"; subId: string }
@@ -34,9 +34,9 @@ type Action =
 export async function POST(req: Request) {
   const action = (await req.json()) as Action;
 
-  // Argo: everything. Anni: quick-add only. Anyone else: nothing.
+  // Argo: everything. The partner: quick-add only. Anyone else: nothing.
   const role = await currentRole();
-  if (role !== "argo" && !(role === "anni" && action.type === "quickadd")) {
+  if (role !== "argo" && !(role === "partner" && action.type === "quickadd")) {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
 
@@ -69,21 +69,21 @@ export async function POST(req: Request) {
     }
     case "share": {
       if (!db.transactions.some((t) => t.id === action.txId)) return bad("unknown tx");
-      const fraction = Number(action.anniShare ?? 0.5);
-      if (!(fraction > 0 && fraction < 1)) return bad("anniShare must be between 0 and 1");
+      const fraction = Number(action.partnerShare ?? 0.5);
+      if (!(fraction > 0 && fraction < 1)) return bad("partnerShare must be between 0 and 1");
       const existing = db.shares.find((s) => s.txId === action.txId);
       if (!existing) {
         db.shares.push({
           id: newId("share"),
           paidBy: "argo",
           txId: action.txId,
-          anniShare: fraction,
+          partnerShare: fraction,
           createdAt: now,
         });
         await writeCollection("shares", db.shares);
-      } else if (anniShareOf(existing) !== fraction) {
+      } else if (partnerShareOf(existing) !== fraction) {
         // Re-dropping with a different toggle just changes the split.
-        existing.anniShare = fraction;
+        existing.partnerShare = fraction;
         await writeCollection("shares", db.shares);
       }
       break;
@@ -96,22 +96,22 @@ export async function POST(req: Request) {
     case "quickadd": {
       const amount = Number(action.amount);
       if (!action.description?.trim() || !(amount > 0)) return bad("description and positive amount required");
-      const fraction = Number(action.anniShare ?? 0.5);
-      if (!(fraction > 0 && fraction < 1)) return bad("anniShare must be between 0 and 1");
+      const fraction = Number(action.partnerShare ?? 0.5);
+      if (!(fraction > 0 && fraction < 1)) return bad("partnerShare must be between 0 and 1");
       const category = action.category && CATEGORIES.includes(action.category) ? action.category : undefined;
       db.shares.push({
         id: newId("share"),
-        // Whoever is adding paid for it — Anni's card, Argo's cash.
-        paidBy: role === "anni" ? "anni" : "argo",
+        // Whoever is adding paid for it — the partner's card, Argo's cash.
+        paidBy: role === "partner" ? "partner" : "argo",
         manual: { date: action.date, description: action.description.trim(), amount, category },
-        anniShare: fraction,
+        partnerShare: fraction,
         createdAt: now,
       });
       await writeCollection("shares", db.shares);
       break;
     }
     case "settle": {
-      // Sign is direction: positive = Anni paid Argo, negative = Argo paid Anni.
+      // Sign is direction: positive = the partner paid Argo, negative = Argo paid the partner.
       const amount = Number(action.amount);
       if (!Number.isFinite(amount) || amount === 0) return bad("non-zero amount required");
       db.settlements.push({

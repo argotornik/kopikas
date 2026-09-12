@@ -2,7 +2,7 @@ import type { Db } from "./types";
 import {
   CATEGORIES,
   SAVINGS,
-  anniShareOf,
+  partnerShareOf,
   balance,
   categoryOf,
   categoryTotals,
@@ -47,7 +47,7 @@ export interface BoardTx {
   categorySource: "rule" | "override" | null;
   shared: boolean;
   shareId?: string;
-  anniShare?: number;
+  partnerShare?: number;
   // Set-and-forget noise (LHV micro-investing round-ups): collapsed into a
   // per-day rollup line in the feed. Math still counts the underlying rows.
   micro: boolean;
@@ -101,7 +101,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
         categorySource: override && override.category !== ruleCategory ? "override" : cat ? "rule" : null,
         shared: !!share,
         shareId: share?.id,
-        anniShare: share ? anniShareOf(share) : undefined,
+        partnerShare: share ? partnerShareOf(share) : undefined,
       };
     });
 
@@ -124,7 +124,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
           return tx ? displayName(tx.counterparty, tx.description) : "";
         })(),
       total: shareAmount(s, db.transactions),
-      anniShare: anniShareOf(s),
+      partnerShare: partnerShareOf(s),
       // What the couple spent it on: the transaction's category when bank-linked,
       // the optional pick on a quick-add otherwise.
       category: s.manual
@@ -189,11 +189,11 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
       if (monthKey(tx.date) !== month || tx.date > day || tx.amount >= 0) continue;
       if (categoryOf(tx, db.rules, db.overrides) === SAVINGS) continue;
       const share = shareByTx.get(tx.id);
-      total += Math.abs(tx.amount) * (share ? 1 - anniShareOf(share) : 1);
+      total += Math.abs(tx.amount) * (share ? 1 - partnerShareOf(share) : 1);
     }
     for (const s of db.shares) {
-      if (s.manual && s.paidBy === "anni" && monthKey(s.manual.date) === month && s.manual.date <= day) {
-        total += s.manual.amount * (1 - anniShareOf(s));
+      if (s.manual && s.paidBy === "partner" && monthKey(s.manual.date) === month && s.manual.date <= day) {
+        total += s.manual.amount * (1 - partnerShareOf(s));
       }
     }
     spentPoints.push(Math.round(total * 100) / 100);

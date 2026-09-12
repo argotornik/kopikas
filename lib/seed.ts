@@ -43,7 +43,7 @@ export function seedDb(): Db {
     tx("2026-08-05", -300.0, "Lightyear Europe AS", "Deposit"),
     tx("2026-08-06", -12.3, "BOLT.EU/O/0608", "Ride"),
     tx("2026-08-08", -49.86, "Selver AS", "Card payment"),
-    tx("2026-08-10", 23.45, "Anni Kask", "poole peale"),
+    tx("2026-08-10", 23.45, "Mari Tamm", "poole peale"),
     tx("2026-08-11", -21.4, "Wolt Eesti OU", "Order 9204"),
     tx("2026-08-14", -29.9, "Telia Eesti AS", "Mobile 5512907"),
     tx("2026-08-15", -2.99, "APPLE.COM/BILL", "iCloud 50GB"),

@@ -12,7 +12,7 @@ export default async function Home({
   searchParams: Promise<{ cat?: string; month?: string; q?: string }>;
 }) {
   const role = await currentRole();
-  if (role === "anni") redirect("/pooleks");
+  if (role === "partner") redirect("/pooleks");
   if (role !== "argo") {
     return (
       <div className="mx-auto max-w-md px-5 py-16 text-center text-sm text-muted-foreground">

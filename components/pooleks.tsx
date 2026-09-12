@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
 import { CATEGORIES } from "@/lib/engine";
 import { cn, shareLabel } from "@/lib/utils";
+import { PARTNER_NAME } from "@/lib/names";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -23,24 +24,24 @@ const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" 
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 const signed = (n: number) => `${n >= 0 ? "+" : "−"}${eur.format(Math.abs(n))}`;
 
-type Person = "argo" | "anni";
+type Person = "argo" | "partner";
 
 interface SharedView {
   role: Person;
-  balance: number; // positive = Anni owes Argo
+  balance: number; // positive = the partner owes the owner
   sharedItems: {
     id: string;
     paidBy: Person;
     date: string;
     description: string;
     total: number;
-    anniShare?: number;
+    partnerShare?: number;
     category: string | null;
   }[];
   settlements: { id: string; amount: number; date: string; note?: string }[];
 }
 
-// One statement row. `movement` is how the tab changed (positive = Anni owes
+// One statement row. `movement` is how the tab changed (positive = the partner owes
 // more), `running` the tab after it — read top-down, the column walks from
 // the headline back to zero.
 type Row = { movement: number; running: number; date: string } & (
@@ -111,7 +112,7 @@ export function Pooleks({ role }: { role: Person }) {
   );
 
   // "You" for whoever is looking; the other by name.
-  const names = role === "argo" ? { argo: "You", anni: "Anni" } : { argo: "Argo", anni: "You" };
+  const names = role === "argo" ? { argo: "You", partner: PARTNER_NAME } : { argo: "Argo", partner: "You" };
   const owes = (who: string) => (who === "You" ? "owe" : "owes");
   const today = new Date().toISOString().slice(0, 10);
 
@@ -127,8 +128,8 @@ export function Pooleks({ role }: { role: Person }) {
       const movement =
         e.kind === "share"
           ? e.item.paidBy === "argo"
-            ? e.item.total * (e.item.anniShare ?? 0.5)
-            : -(e.item.total * (1 - (e.item.anniShare ?? 0.5)))
+            ? e.item.total * (e.item.partnerShare ?? 0.5)
+            : -(e.item.total * (1 - (e.item.partnerShare ?? 0.5)))
           : -e.settlement.amount;
       running += movement;
       return { ...e, movement, running };
@@ -176,7 +177,7 @@ export function Pooleks({ role }: { role: Person }) {
         description: desc,
         amount: a,
         date: today,
-        anniShare: share,
+        partnerShare: share,
         category: category || undefined,
       })
     ) {
@@ -189,15 +190,15 @@ export function Pooleks({ role }: { role: Person }) {
 
   if (!view) return <div className="mx-auto max-w-xl px-5 py-6 text-sm text-muted-foreground">Loading…</div>;
   const bal = view.balance;
-  // Balance sentence from the viewer's side. bal > 0 means Anni owes Argo.
+  // Balance sentence from the viewer's side. bal > 0 means the partner owes the owner.
   const balanceText =
     bal === 0
       ? "All square"
       : bal > 0
-        ? `${names.anni} ${owes(names.anni)} ${names.argo === "You" ? "you" : names.argo}`
-        : `${names.argo} ${owes(names.argo)} ${names.anni === "You" ? "you" : names.anni}`;
+        ? `${names.partner} ${owes(names.partner)} ${names.argo === "You" ? "you" : names.argo}`
+        : `${names.argo} ${owes(names.argo)} ${names.partner === "You" ? "you" : names.partner}`;
   const balanceGood = bal === 0 || (role === "argo" ? bal > 0 : bal < 0);
-  const tabHeader = role === "argo" ? "Anni owes" : "You owe";
+  const tabHeader = role === "argo" ? `${PARTNER_NAME} owes` : "You owe";
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-5 py-6 pb-24">
@@ -320,7 +321,7 @@ export function Pooleks({ role }: { role: Person }) {
                   >
                     <span>{shortDate.format(new Date(r.date))}</span>
                     <span className="truncate italic">
-                      {r.settlement.amount > 0 ? `${names.anni} paid back` : `${names.argo} paid back`}
+                      {r.settlement.amount > 0 ? `${names.partner} paid back` : `${names.argo} paid back`}
                       {r.settlement.note && ` · ${r.settlement.note}`}
                     </span>
                     {details && <span className="hidden sm:block" />}
@@ -339,18 +340,18 @@ export function Pooleks({ role }: { role: Person }) {
                         <span className="hidden text-muted-foreground sm:inline">
                           {" · "}
                           {r.item.category ?? "unsorted"}
-                          {r.item.paidBy === "anni" && ` · ${names.anni} paid`}
+                          {r.item.paidBy === "partner" && ` · ${names.partner} paid`}
                         </span>
                       </div>
                       <div className="truncate text-xs text-muted-foreground sm:hidden">
                         {r.item.category ?? "unsorted"}
-                        {r.item.paidBy === "anni" && ` · ${names.anni} paid`}
-                        {details && ` · ${eur.format(r.item.total)} · ${shareLabel(r.item.anniShare)}`}
+                        {r.item.paidBy === "partner" && ` · ${names.partner} paid`}
+                        {details && ` · ${eur.format(r.item.total)} · ${shareLabel(r.item.partnerShare)}`}
                       </div>
                     </div>
                     {details && (
                       <span className="hidden text-right font-mono text-xs tabular-nums text-muted-foreground sm:block">
-                        {eur.format(r.item.total)} · {shareLabel(r.item.anniShare)}
+                        {eur.format(r.item.total)} · {shareLabel(r.item.partnerShare)}
                       </span>
                     )}
                     <span className="text-right font-mono text-sm font-medium tabular-nums text-shared">
@@ -418,7 +419,7 @@ export function Pooleks({ role }: { role: Person }) {
             ))}
           </select>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{role === "argo" ? "Anni pays" : "You pay"}</span>
+            <span>{role === "argo" ? `${PARTNER_NAME} pays` : "You pay"}</span>
             <div className="flex gap-1">
               {SPLIT_OPTIONS.map((o) => (
                 <button
@@ -449,7 +450,7 @@ export function Pooleks({ role }: { role: Person }) {
           <DialogHeader>
             <DialogTitle>Settle up</DialogTitle>
             <DialogDescription>
-              {bal > 0 ? "Anni → you" : "You → Anni"} · records a repayment and moves the tab toward zero.
+              {bal > 0 ? `${PARTNER_NAME} → you` : `You → ${PARTNER_NAME}`} · records a repayment and moves the tab toward zero.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">

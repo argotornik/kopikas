@@ -17,10 +17,6 @@ export const CATEGORIES = [
   "Other",
 ];
 
-// Counterparty match string for Anni's incoming repayments (settlement suggestions).
-// Real build: configurable in settings.
-export const ANNI_MATCH = "anni";
-
 const norm = (s: string) => s.toLowerCase();
 
 export function matches(tx: Tx, pattern: string): boolean {
@@ -43,17 +39,17 @@ export function shareAmount(s: Share, txs: Tx[]): number {
   return tx ? Math.abs(tx.amount) : 0;
 }
 
-// Anni's fraction of a shared expense; shares predating split options are 50/50.
-export const anniShareOf = (s: Share): number => s.anniShare ?? 0.5;
+// The partner's fraction of a shared expense; shares predating split options are 50/50.
+export const partnerShareOf = (s: Share): number => s.partnerShare ?? 0.5;
 
-// Positive = Anni owes Argo.
+// Positive = the partner owes the owner.
 export function balance(shares: Share[], settlements: { amount: number }[], txs: Tx[]): number {
   let b = 0;
   for (const s of shares) {
     const total = shareAmount(s, txs);
-    const anniPart = total * anniShareOf(s);
+    const partnerPart = total * partnerShareOf(s);
     // Whoever paid is owed the other's portion.
-    b += s.paidBy === "argo" ? anniPart : -(total - anniPart);
+    b += s.paidBy === "argo" ? partnerPart : -(total - partnerPart);
   }
   for (const st of settlements) b -= st.amount;
   return Math.round(b * 100) / 100;
@@ -64,7 +60,7 @@ export function monthKey(date: string): string {
 }
 
 // Spend for a month = Argo's consumption: his outgoing non-savings expenses,
-// shared ones counted at his portion, plus his portion of Anni-paid shared expenses.
+// shared ones counted at his portion, plus his portion of partner-paid shared expenses.
 export function monthlySpend(db: Db, month: string): number {
   const shareByTx = new Map(db.shares.filter((s) => s.txId).map((s) => [s.txId!, s]));
   let total = 0;
@@ -72,11 +68,11 @@ export function monthlySpend(db: Db, month: string): number {
     if (monthKey(tx.date) !== month || tx.amount >= 0) continue;
     if (categoryOf(tx, db.rules, db.overrides) === SAVINGS) continue;
     const share = shareByTx.get(tx.id);
-    total += Math.abs(tx.amount) * (share ? 1 - anniShareOf(share) : 1);
+    total += Math.abs(tx.amount) * (share ? 1 - partnerShareOf(share) : 1);
   }
   for (const s of db.shares) {
-    if (s.manual && s.paidBy === "anni" && monthKey(s.manual.date) === month) {
-      total += s.manual.amount * (1 - anniShareOf(s));
+    if (s.manual && s.paidBy === "partner" && monthKey(s.manual.date) === month) {
+      total += s.manual.amount * (1 - partnerShareOf(s));
     }
   }
   return Math.round(total * 100) / 100;
@@ -159,13 +155,4 @@ export function monthlyBurn(statuses: SubStatus[]): number {
     total += st.sub.cadence === "monthly" ? amt : amt / 12;
   }
   return Math.round(total * 100) / 100;
-}
-
-// Transfers between the couple not yet recorded as settlements — incoming
-// (Anni repaying) and outgoing (Argo repaying her). The tx amount's sign
-// carries the direction: positive settles toward "Anni paid Argo".
-// `match` is configurable (ANNI_MATCH env in prod) so it can be her full name.
-export function settlementSuggestions(db: Db, match: string = ANNI_MATCH): Tx[] {
-  const used = new Set(db.settlements.map((s) => s.txId).filter(Boolean));
-  return db.transactions.filter((t) => matches(t, match) && !used.has(t.id));
 }

@@ -1,4 +1,4 @@
-export type Person = "argo" | "anni";
+export type Person = "argo" | "partner";
 
 export interface Tx {
   id: string;
@@ -23,7 +23,7 @@ export interface Override {
 }
 
 // A shared expense. Either points at a bank transaction (txId)
-// or is a manual quick-add (Anni paid with her own money).
+// or is a manual quick-add (the partner paid with their own money).
 export interface Share {
   id: string;
   paidBy: Person;
@@ -31,13 +31,13 @@ export interface Share {
   // amount positive; category optional — bank-linked shares inherit their
   // transaction's category instead.
   manual?: { date: string; description: string; amount: number; category?: string };
-  // Fraction of the expense that is Anni's responsibility. Absent = 0.5,
+  // Fraction of the expense that is the partner's responsibility. Absent = 0.5,
   // so shares from before split options keep meaning 50/50.
-  anniShare?: number;
+  partnerShare?: number;
   createdAt: string;
 }
 
-// Repayment between the two. amount positive = Anni -> Argo.
+// Repayment between the two. amount positive = partner -> owner.
 export interface Settlement {
   id: string;
   amount: number;

@@ -14,7 +14,7 @@ export function stripPeriod(s: string): string {
   return s.replace(PERIOD_SUFFIX, "").trim()
 }
 
-// Display label for Anni's fraction of a shared expense. Tolerant compare:
+// Display label for the partner's fraction of a shared expense. Tolerant compare:
 // thirds are stored as rounded decimals. Plain ASCII fractions — precomposed
 // glyphs (½ vs ⅓) come from different fonts and render inconsistently.
 export function shareLabel(f = 0.5): string {

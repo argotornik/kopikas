@@ -90,7 +90,7 @@
     --sidebar-accent-foreground: oklch(0.38 0.14 265.52);
     --sidebar-border: oklch(0.93 0.01 264.53);
     --sidebar-ring: oklch(0.60 0.11 55);
-    /* Semantic money colors: gain/loss direction, shared-with-Anni, needs-attention. */
+    /* Semantic money colors: gain/loss direction, shared-with-partner, needs-attention. */
     --gain: oklch(0.596 0.145 163.225);
     --loss: oklch(0.577 0.245 27.325);
     --shared: oklch(0.541 0.281 293.009);
