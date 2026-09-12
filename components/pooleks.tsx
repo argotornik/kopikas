@@ -197,8 +197,12 @@ export function Pooleks({ role }: { role: Person }) {
       : bal > 0
         ? `${names.partner} ${owes(names.partner)} ${names.argo === "You" ? "you" : names.argo}`
         : `${names.argo} ${owes(names.argo)} ${names.partner === "You" ? "you" : names.partner}`;
-  const balanceGood = bal === 0 || (role === "argo" ? bal > 0 : bal < 0);
   const tabHeader = role === "argo" ? `${PARTNER_NAME} owes` : "You owe";
+  // What the visible number on each row is: that person's part of the bill,
+  // signed by how it moved the tab. Same words as the split control.
+  const shareHeader = role === "argo" ? `${PARTNER_NAME} pays` : "you pay";
+  // "Anni → you" / "You → Argo": from whoever owes to whoever is owed.
+  const arrow = (from: string, to: string) => `${from} → ${to === "You" ? "you" : to}`;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-5 py-6 pb-24">
@@ -221,7 +225,7 @@ export function Pooleks({ role }: { role: Person }) {
       <Card className="gap-3 py-4">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 px-4">
           <div>
-            <div className={cn("text-xl font-semibold", balanceGood ? "text-gain" : "text-loss")}>
+            <div className="text-xl font-semibold">
               {balanceText}
               {bal !== 0 && <span className="ml-2 font-mono tabular-nums">{eur.format(Math.abs(bal))}</span>}
             </div>
@@ -232,19 +236,17 @@ export function Pooleks({ role }: { role: Person }) {
           </div>
           <div className="flex gap-2">
             <Button onClick={() => setAddOpen(true)}>Add expense</Button>
-            {role === "argo" && (
-              <Button
-                variant="outline"
-                disabled={bal === 0}
-                onClick={() => {
-                  setSettleAmount(Math.abs(bal).toFixed(2));
-                  setSettleNote("");
-                  setSettleOpen(true);
-                }}
-              >
-                Settle up
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              disabled={bal === 0}
+              onClick={() => {
+                setSettleAmount(Math.abs(bal).toFixed(2));
+                setSettleNote("");
+                setSettleOpen(true);
+              }}
+            >
+              Settle up
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -268,16 +270,14 @@ export function Pooleks({ role }: { role: Person }) {
               {details ? "Hide details" : "Details"}
             </button>
           </div>
-          {details && (
-            <div className={cn(GRID, "pb-1 text-[10px] uppercase tracking-wide text-muted-foreground")}>
-              <span />
-              <span />
-              <span className="hidden text-right sm:block">amount · share</span>
-              <span className="text-right">change</span>
-              <span className="text-right">{tabHeader}</span>
-              <span />
-            </div>
-          )}
+          <div className={cn(GRID, "pb-1 text-[10px] uppercase tracking-wide text-muted-foreground")}>
+            <span />
+            <span />
+            {details && <span className="hidden text-right sm:block">amount · share</span>}
+            <span className="text-right">{shareHeader}</span>
+            {details && <span className="text-right">{tabHeader}</span>}
+            <span />
+          </div>
           {months.map((m, mi) => (
             <div key={m.month}>
               <div className={cn(GRID, "pb-1 pt-3", mi > 0 && "border-t border-border/70")}>
@@ -354,7 +354,7 @@ export function Pooleks({ role }: { role: Person }) {
                         {eur.format(r.item.total)} · {shareLabel(r.item.partnerShare)}
                       </span>
                     )}
-                    <span className="text-right font-mono text-sm font-medium tabular-nums text-shared">
+                    <span className="text-right font-mono text-sm font-medium tabular-nums text-foreground">
                       {signed(r.movement)}
                     </span>
                     {details && <span className="text-right font-mono text-sm tabular-nums">{eur.format(r.running)}</span>}
@@ -450,7 +450,7 @@ export function Pooleks({ role }: { role: Person }) {
           <DialogHeader>
             <DialogTitle>Settle up</DialogTitle>
             <DialogDescription>
-              {bal > 0 ? `${PARTNER_NAME} → you` : `You → ${PARTNER_NAME}`} · records a repayment and moves the tab toward zero.
+              {bal > 0 ? arrow(names.partner, names.argo) : arrow(names.argo, names.partner)} · records a repayment and moves the tab toward zero.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">

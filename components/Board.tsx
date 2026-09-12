@@ -778,7 +778,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                 {/* The full shared ledger lives on /pooleks; here: the zone,
                     the live balance, and the way there. */}
                 <div className="flex items-baseline justify-between gap-2">
-                  <div className={cn("text-base font-semibold", bal >= 0 ? "text-gain" : "text-loss")}>
+                  <div className="text-base font-semibold">
                     {board.sharedItems.length === 0 ? (
                       <span className="text-sm font-normal text-muted-foreground">Nothing shared yet</span>
                     ) : bal === 0 ? (

@@ -24,9 +24,10 @@ type Action =
 export async function POST(req: Request) {
   const action = (await req.json()) as Action;
 
-  // Argo: everything. The partner: quick-add only. Anyone else: nothing.
+  // Argo: everything. The partner: adding what they paid and recording a
+  // repayment — the two moves on the shared tab that are theirs. Anyone else: nothing.
   const role = await currentRole();
-  if (role !== "argo" && !(role === "partner" && action.type === "quickadd")) {
+  if (role !== "argo" && !(role === "partner" && (action.type === "quickadd" || action.type === "settle"))) {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
 
