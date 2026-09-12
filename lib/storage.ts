@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { neon } from "@neondatabase/serverless";
-import type { Db, Share } from "./types";
+import type { Db } from "./types";
 import { seedDb } from "./seed";
 import { SCHEMA } from "./schema";
 import { stripPeriod } from "./utils";
@@ -30,22 +30,8 @@ export function newId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// Legacy stores (JSON files, or Postgres rows the migrations have not reached)
-// still carry first names as roles; the code says "owner" and "partner".
-function normalizeRoles(db: Db): Db {
-  for (const s of db.shares as (Share & { anniShare?: number })[]) {
-    if ((s.paidBy as string) === "anni") s.paidBy = "partner";
-    if ((s.paidBy as string) === "argo") s.paidBy = "owner";
-    if (s.partnerShare === undefined && s.anniShare !== undefined) {
-      s.partnerShare = s.anniShare;
-      delete s.anniShare;
-    }
-  }
-  return db;
-}
-
 export async function readDb(): Promise<Db> {
-  return normalizeRoles(normalizePatterns(normalizeCategories(await (process.env.DATABASE_URL ? pgReadDb() : jsonReadDb()))));
+  return normalizePatterns(normalizeCategories(await (process.env.DATABASE_URL ? pgReadDb() : jsonReadDb())));
 }
 
 // Rows taught before the period-stamp stripper shipped: "kaardi kuutasu
@@ -128,45 +114,14 @@ function db() {
   return neon(process.env.DATABASE_URL!);
 }
 
-// 2026-09: the second person is "partner" in code, not a first name. One
-// idempotent statement renames the legacy column, moves the stored role and
-// swaps the check constraint; once the old column is gone it is a no-op.
-async function migrateSharesToPartner(sql: ReturnType<typeof db>) {
-  await sql`do $$ begin
-    if exists (select 1 from information_schema.columns where table_name = 'shares' and column_name = 'anni_share') then
-      alter table shares rename column anni_share to partner_share;
-      alter table shares drop constraint if exists shares_paid_by_check;
-      update shares set paid_by = 'partner' where paid_by = 'anni';
-      alter table shares add constraint shares_paid_by_check check (paid_by in ('argo', 'partner'));
-    end if;
-  end $$`;
-}
-
-// 2026-09: the first person is "owner" in code, not a first name either. Runs
-// while the stored role or the check constraint still says otherwise.
-async function migrateOwnerRole(sql: ReturnType<typeof db>) {
-  await sql`do $$ begin
-    if exists (select 1 from shares where paid_by = 'argo')
-       or exists (select 1 from pg_constraint c join pg_class t on t.oid = c.conrelid
-                  where t.relname = 'shares' and c.conname = 'shares_paid_by_check'
-                    and pg_get_constraintdef(c.oid) like '%argo%') then
-      alter table shares drop constraint if exists shares_paid_by_check;
-      update shares set paid_by = 'owner' where paid_by = 'argo';
-      alter table shares add constraint shares_paid_by_check check (paid_by in ('owner', 'partner'));
-    end if;
-  end $$`;
-}
-
-// Tables on first start, then the lazy migrations for anything the schema has
-// grown since a database was created. Once per server instance; a failure
-// clears the memo so the next request tries again.
+// Tables on first start, then the columns the schema has grown since a
+// database was created. Once per server instance; a failure clears the memo
+// so the next request tries again.
 let schemaReady: Promise<void> | null = null;
 function ensureSchema(sql: ReturnType<typeof db>): Promise<void> {
   if (!schemaReady) {
     schemaReady = (async () => {
       for (const statement of SCHEMA) await sql.query(statement);
-      await migrateSharesToPartner(sql);
-      await migrateOwnerRole(sql);
       await sql`alter table snapshots add column if not exists return_pct numeric(6,2)`;
       await sql`alter table subscriptions add column if not exists match_amount boolean not null default false`;
       await sql`alter table shares add column if not exists partner_share numeric(6,5)`;
