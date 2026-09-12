@@ -103,8 +103,8 @@ export function SettingsForm({
         </CardHeader>
         <CardContent className="flex flex-col gap-2 px-4">
           <p className="text-xs text-muted-foreground">
-            Runs automatically every morning (05:00 UTC). The first successful sync replaces the demo data
-            with your real transactions — demo rules and subscriptions stay, since they match real merchants.
+            Runs by itself every hour once the GitHub Actions secret is set, and every morning at 05:00 UTC
+            from Vercel. Syncing is idempotent, so running it by hand any time is harmless.
           </p>
           <div>
             <Button onClick={() => void syncNow()} disabled={syncing}>

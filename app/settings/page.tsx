@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const role = await currentRole();
-  if (role !== "argo") redirect("/");
+  if (role !== "owner") redirect("/");
 
   // Only metadata crosses to the client — never the token itself.
   const [tokens, { accounts, fetchedAt }, db] = await Promise.all([getLhvTokens(), getAccounts(), readDb()]);

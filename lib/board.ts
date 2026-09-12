@@ -182,7 +182,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
   }
   const investmentPoints = investmentSeries.map((p) => p.total);
 
-  // Cumulative spend (Argo's share, savings excluded) per day of the month.
+  // Cumulative spend (the owner's share, savings excluded) per day of the month.
   const spentPoints: number[] = [];
   for (let d = new Date(month + "-01T00:00:00Z"); d.toISOString().slice(0, 10) <= todayStr; d = new Date(d.getTime() + DAY)) {
     const day = d.toISOString().slice(0, 10);

@@ -1,7 +1,6 @@
--- Neon Postgres schema for expense-board (hosted build).
--- Mirrors the JSON dev collections in lib/storage.ts one-to-one; run once
--- against the Neon database, then swap lib/storage.ts internals to read/write
--- these tables. Amounts follow the app convention: negative = money out.
+-- Postgres schema, for reading. The app creates these tables itself on first
+-- start (lib/schema.ts is the copy it runs), so nothing here needs running by
+-- hand. Amounts follow the app convention: negative = money out.
 
 create table if not exists transactions (
   id           text primary key,
@@ -27,7 +26,7 @@ create table if not exists overrides (
 
 create table if not exists shares (
   id                 text primary key,
-  paid_by            text not null check (paid_by in ('argo', 'partner')),
+  paid_by            text not null check (paid_by in ('owner', 'partner')),
   tx_id              text references transactions (id),
   manual_date        date,
   manual_description text,

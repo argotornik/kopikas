@@ -35,7 +35,7 @@ export function seedDb(): Db {
     tx("2026-07-24", -6.9, "BOLT.EU/O/2407", "Ride"),
     tx("2026-07-26", -38.75, "Rimi Eesti Food AS", "Card payment"),
     tx("2026-07-28", -89.0, "Zone Media OU", "Domain + hosting yearly"),
-    tx("2026-07-31", 2650.0, "Starship Technologies OU", "Salary 07/2026"),
+    tx("2026-07-31", 2650.0, "Tööandja OÜ", "Salary 07/2026"),
     // August
     tx("2026-08-01", -14.99, "NETFLIX.COM", "Netflix subscription"),
     tx("2026-08-02", -55.12, "Rimi Eesti Food AS", "Card payment"),
@@ -55,7 +55,7 @@ export function seedDb(): Db {
     tx("2026-08-25", -11.99, "PAYPAL *NORDVPN", "Subscription payment"),
     tx("2026-08-27", -36.44, "Rimi Eesti Food AS", "Card payment"),
     tx("2026-08-28", -58.9, "Prisma Peremarket", "Card payment"),
-    tx("2026-08-29", 2650.0, "Starship Technologies OU", "Salary 08/2026"),
+    tx("2026-08-29", 2650.0, "Tööandja OÜ", "Salary 08/2026"),
     tx("2026-08-29", -27.4, "Vapiano Tallinn", "Card payment"),
   ];
 

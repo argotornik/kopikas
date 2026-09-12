@@ -21,7 +21,7 @@ export default function SignInPage() {
         <SignIn />
       ) : (
         <p className="text-center text-sm text-muted-foreground">
-          Sign-in is off in local development — the board acts as Argo.
+          Sign-in is off in local development — the board acts as the owner.
         </p>
       )}
     </div>

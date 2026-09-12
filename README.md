@@ -28,7 +28,7 @@ The stat row across the top shows this month's spend against last month, the acc
 
 Next.js 16 on the App Router, React 19, TypeScript, Tailwind v4, shadcn/ui on Base UI. Drag and drop is dnd-kit. The ledger's enter and exit animation is Motion, one flat presence for headers and rows alike. Charts are recharts. Sign-in is Clerk. Production runs on Vercel with Postgres on Neon.
 
-One storage module, `lib/storage.ts`, hides two adapters behind the same interface. With `DATABASE_URL` set it talks to Postgres; without it, each collection is a JSON file under `data/`. Both seed mock data into an empty store on first read, so `npm run dev` with no configuration at all gives you a working board with invented merchants and amounts. That is how the screenshots were made. `data/` is gitignored, so nothing real can end up in the repo by accident.
+One storage module, `lib/storage.ts`, hides two adapters behind the same interface. With `DATABASE_URL` set it talks to Postgres and creates its own tables on first start; without it, each collection is a JSON file under `data/`. The JSON adapter seeds mock data into an empty folder, so `npm run dev` with no configuration at all gives you a working board with invented merchants and amounts. That is how the screenshots were made. Production starts empty and asks you to connect LHV. `data/` is gitignored, so nothing real can end up in the repo by accident.
 
 Merchant identity lives in `lib/icons.ts`: a small table of known merchants with a favicon domain and a display name, matched on the counterparty or, for card payments that only carry a merchant id, on the description. Unknown ALL-CAPS strings are title-cased. Favicons are fetched once by the server and cached in the database, so the merchant list never leaves the app from a viewer's browser.
 
@@ -61,7 +61,9 @@ Open http://localhost:3000. Without Clerk keys there is no sign-in and you are t
 
 ## Deploying your own
 
-You need a Vercel project pointed at the repo, a Neon database, and a Clerk application. Run `db/schema.sql` against the database once; the app adds the few columns it has grown since then on its own.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fargotornik%2Fkopikas&project-name=kopikas&repository-name=kopikas&env=ENCRYPTION_KEY,LHV_CLIENT_ID,CRON_SECRET,OWNER_EMAIL,NEXT_PUBLIC_OWNER_NAME&envDescription=See%20the%20table%20under%20%22Deploying%20your%20own%22%20in%20the%20README&envLink=https%3A%2F%2Fgithub.com%2Fargotornik%2Fkopikas%23deploying-your-own)
+
+You need a Vercel project pointed at the repo, a Neon database, and a Clerk application. The Neon and Clerk integrations on the Vercel Marketplace set `DATABASE_URL` and the Clerk keys for you. The app creates its tables on first start. Sign in, and an empty board walks you through connecting LHV: get a token, paste it, run the first sync.
 
 | Variable | What it is |
 |---|---|
@@ -71,7 +73,8 @@ You need a Vercel project pointed at the repo, a Neon database, and a Clerk appl
 | `CRON_SECRET` | Bearer token the sync route expects. Also set as a GitHub Actions secret. |
 | `CLERK_SECRET_KEY` | Clerk. Absent means auth is off and everyone is the owner. |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk, client side. |
-| `ARGO_EMAIL` | The owner's sign-in email. Everything. |
+| `OWNER_EMAIL` | The owner's sign-in email. Everything. |
+| `NEXT_PUBLIC_OWNER_NAME` | How the owner is named on the partner's screens. Optional, defaults to Owner. |
 | `PARTNER_EMAIL` | The partner's sign-in email. Pooleks and adding shared expenses only. |
 | `NEXT_PUBLIC_PARTNER_NAME` | How the partner is named on screen. Optional, defaults to Partner. |
 

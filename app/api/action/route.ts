@@ -24,10 +24,10 @@ type Action =
 export async function POST(req: Request) {
   const action = (await req.json()) as Action;
 
-  // Argo: everything. The partner: adding what they paid and recording a
+  // The owner: everything. The partner: adding what they paid and recording a
   // repayment — the two moves on the shared tab that are theirs. Anyone else: nothing.
   const role = await currentRole();
-  if (role !== "argo" && !(role === "partner" && (action.type === "quickadd" || action.type === "settle"))) {
+  if (role !== "owner" && !(role === "partner" && (action.type === "quickadd" || action.type === "settle"))) {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
 
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
       if (!existing) {
         db.shares.push({
           id: newId("share"),
-          paidBy: "argo",
+          paidBy: "owner",
           txId: action.txId,
           partnerShare: fraction,
           createdAt: now,
@@ -96,8 +96,8 @@ export async function POST(req: Request) {
       const category = action.category && CATEGORIES.includes(action.category) ? action.category : undefined;
       db.shares.push({
         id: newId("share"),
-        // Whoever is adding paid for it — the partner's card, Argo's cash.
-        paidBy: role === "partner" ? "partner" : "argo",
+        // Whoever is adding paid for it — the partner's card, the owner's cash.
+        paidBy: role === "partner" ? "partner" : "owner",
         manual: { date: action.date, description: action.description.trim(), amount, category },
         partnerShare: fraction,
         createdAt: now,
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
       break;
     }
     case "settle": {
-      // Sign is direction: positive = the partner paid Argo, negative = Argo paid the partner.
+      // Sign is direction: positive = the partner paid the owner, negative = the owner paid the partner.
       const amount = Number(action.amount);
       if (!Number.isFinite(amount) || amount === 0) return bad("non-zero amount required");
       db.settlements.push({

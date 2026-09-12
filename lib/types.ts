@@ -1,4 +1,4 @@
-export type Person = "argo" | "partner";
+export type Person = "owner" | "partner";
 
 export interface Tx {
   id: string;

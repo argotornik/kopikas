@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
 import { CATEGORIES } from "@/lib/engine";
 import { cn, shareLabel } from "@/lib/utils";
-import { PARTNER_NAME } from "@/lib/names";
+import { OWNER_NAME, PARTNER_NAME } from "@/lib/names";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -24,7 +24,7 @@ const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" 
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 const signed = (n: number) => `${n >= 0 ? "+" : "−"}${eur.format(Math.abs(n))}`;
 
-type Person = "argo" | "partner";
+type Person = "owner" | "partner";
 
 interface SharedView {
   role: Person;
@@ -116,7 +116,7 @@ export function Pooleks({ role }: { role: Person }) {
   );
 
   // "You" for whoever is looking; the other by name.
-  const names = role === "argo" ? { argo: "You", partner: PARTNER_NAME } : { argo: "Argo", partner: "You" };
+  const names = role === "owner" ? { owner: "You", partner: PARTNER_NAME } : { owner: OWNER_NAME, partner: "You" };
   const owes = (who: string) => (who === "You" ? "owe" : "owes");
   const today = new Date().toISOString().slice(0, 10);
 
@@ -131,7 +131,7 @@ export function Pooleks({ role }: { role: Person }) {
     const rows: Row[] = chronological.map((e) => {
       const movement =
         e.kind === "share"
-          ? e.item.paidBy === "argo"
+          ? e.item.paidBy === "owner"
             ? e.item.total * (e.item.partnerShare ?? 0.5)
             : -(e.item.total * (1 - (e.item.partnerShare ?? 0.5)))
           : -e.settlement.amount;
@@ -199,13 +199,13 @@ export function Pooleks({ role }: { role: Person }) {
     bal === 0
       ? "All square"
       : bal > 0
-        ? `${names.partner} ${owes(names.partner)} ${names.argo === "You" ? "you" : names.argo}`
-        : `${names.argo} ${owes(names.argo)} ${names.partner === "You" ? "you" : names.partner}`;
-  const tabHeader = role === "argo" ? `${PARTNER_NAME} owes` : "You owe";
+        ? `${names.partner} ${owes(names.partner)} ${names.owner === "You" ? "you" : names.owner}`
+        : `${names.owner} ${owes(names.owner)} ${names.partner === "You" ? "you" : names.partner}`;
+  const tabHeader = role === "owner" ? `${PARTNER_NAME} owes` : "You owe";
   // What the visible number on each row is: that person's part of the bill,
   // signed by how it moved the tab. Same words as the split control.
-  const shareHeader = role === "argo" ? `${PARTNER_NAME} pays` : "you pay";
-  // "Anni → you" / "You → Argo": from whoever owes to whoever is owed.
+  const shareHeader = role === "owner" ? `${PARTNER_NAME} pays` : "you pay";
+  // "Partner → you" / "You → Owner": from whoever owes to whoever is owed.
   const arrow = (from: string, to: string) => `${from} → ${to === "You" ? "you" : to}`;
 
   return (
@@ -216,7 +216,7 @@ export function Pooleks({ role }: { role: Person }) {
           Pooleks
         </h1>
         <div className="flex items-center gap-1.5">
-          {role === "argo" && (
+          {role === "owner" && (
             <a href="/" className="text-sm text-muted-foreground hover:text-foreground">
               ← board
             </a>
@@ -324,7 +324,7 @@ export function Pooleks({ role }: { role: Person }) {
                   >
                     <span>{shortDate.format(new Date(r.date))}</span>
                     <span className="truncate italic">
-                      {r.settlement.amount > 0 ? `${names.partner} paid back` : `${names.argo} paid back`}
+                      {r.settlement.amount > 0 ? `${names.partner} paid back` : `${names.owner} paid back`}
                       {r.settlement.note && ` · ${r.settlement.note}`}
                     </span>
                     <span className="text-right font-mono text-sm tabular-nums text-foreground">
@@ -366,7 +366,7 @@ export function Pooleks({ role }: { role: Person }) {
                     {details && (
                       <span className="hidden text-right font-mono text-sm tabular-nums sm:block">{eur.format(r.running)}</span>
                     )}
-                    {role === "argo" ? (
+                    {role === "owner" ? (
                       <button
                         type="button"
                         className="flex size-5 items-center justify-center justify-self-end rounded text-muted-foreground hover:text-foreground [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
@@ -427,7 +427,7 @@ export function Pooleks({ role }: { role: Person }) {
             ))}
           </select>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{role === "argo" ? `${PARTNER_NAME} pays` : "You pay"}</span>
+            <span>{role === "owner" ? `${PARTNER_NAME} pays` : "You pay"}</span>
             <div className="flex gap-1">
               {SPLIT_OPTIONS.map((o) => (
                 <button
@@ -458,7 +458,7 @@ export function Pooleks({ role }: { role: Person }) {
           <DialogHeader>
             <DialogTitle>Settle up</DialogTitle>
             <DialogDescription>
-              {bal > 0 ? arrow(names.partner, names.argo) : arrow(names.argo, names.partner)} · records a repayment and moves the tab toward zero.
+              {bal > 0 ? arrow(names.partner, names.owner) : arrow(names.owner, names.partner)} · records a repayment and moves the tab toward zero.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">

@@ -3,6 +3,7 @@ import path from "path";
 import { neon } from "@neondatabase/serverless";
 import type { Db, Share } from "./types";
 import { seedDb } from "./seed";
+import { SCHEMA } from "./schema";
 import { stripPeriod } from "./utils";
 import { seal, unseal } from "./crypto";
 import type { LhvAccount, LhvTokens } from "./lhv";
@@ -10,7 +11,7 @@ import type { LhvAccount, LhvTokens } from "./lhv";
 // The single storage module, two adapters behind one interface:
 //   - DATABASE_URL set (Vercel + Neon): Postgres, tables from db/schema.sql
 //   - otherwise (local dev): one JSON file per collection under ./data
-// Both seed mock data on first read of an empty store. Collection writes are
+// The JSON adapter seeds mock data into an empty folder; Postgres starts empty. Collection writes are
 // whole-collection, mirroring the JSON semantics — except transactions, which
 // are append-only facts and therefore upsert-only (also keeps FK references
 // from shares/overrides safe).
@@ -29,11 +30,12 @@ export function newId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-// Legacy stores (JSON files, or Postgres rows the migration has not reached)
-// still say "anni"; the code says "partner".
+// Legacy stores (JSON files, or Postgres rows the migrations have not reached)
+// still carry first names as roles; the code says "owner" and "partner".
 function normalizeRoles(db: Db): Db {
   for (const s of db.shares as (Share & { anniShare?: number })[]) {
     if ((s.paidBy as string) === "anni") s.paidBy = "partner";
+    if ((s.paidBy as string) === "argo") s.paidBy = "owner";
     if (s.partnerShare === undefined && s.anniShare !== undefined) {
       s.partnerShare = s.anniShare;
       delete s.anniShare;
@@ -140,15 +142,47 @@ async function migrateSharesToPartner(sql: ReturnType<typeof db>) {
   end $$`;
 }
 
+// 2026-09: the first person is "owner" in code, not a first name either. Runs
+// while the stored role or the check constraint still says otherwise.
+async function migrateOwnerRole(sql: ReturnType<typeof db>) {
+  await sql`do $$ begin
+    if exists (select 1 from shares where paid_by = 'argo')
+       or exists (select 1 from pg_constraint c join pg_class t on t.oid = c.conrelid
+                  where t.relname = 'shares' and c.conname = 'shares_paid_by_check'
+                    and pg_get_constraintdef(c.oid) like '%argo%') then
+      alter table shares drop constraint if exists shares_paid_by_check;
+      update shares set paid_by = 'owner' where paid_by = 'argo';
+      alter table shares add constraint shares_paid_by_check check (paid_by in ('owner', 'partner'));
+    end if;
+  end $$`;
+}
+
+// Tables on first start, then the lazy migrations for anything the schema has
+// grown since a database was created. Once per server instance; a failure
+// clears the memo so the next request tries again.
+let schemaReady: Promise<void> | null = null;
+function ensureSchema(sql: ReturnType<typeof db>): Promise<void> {
+  if (!schemaReady) {
+    schemaReady = (async () => {
+      for (const statement of SCHEMA) await sql.query(statement);
+      await migrateSharesToPartner(sql);
+      await migrateOwnerRole(sql);
+      await sql`alter table snapshots add column if not exists return_pct numeric(6,2)`;
+      await sql`alter table subscriptions add column if not exists match_amount boolean not null default false`;
+      await sql`alter table shares add column if not exists partner_share numeric(6,5)`;
+      await sql`alter table shares add column if not exists manual_category text`;
+      await sql`alter table snapshots add column if not exists source text`;
+    })().catch((e) => {
+      schemaReady = null;
+      throw e;
+    });
+  }
+  return schemaReady;
+}
+
 async function pgReadDb(): Promise<Db> {
   const sql = db();
-  // Lazy migration for columns added after the original schema shipped.
-  await migrateSharesToPartner(sql);
-  await sql`alter table snapshots add column if not exists return_pct numeric(6,2)`;
-  await sql`alter table subscriptions add column if not exists match_amount boolean not null default false`;
-  await sql`alter table shares add column if not exists partner_share numeric(6,5)`;
-  await sql`alter table shares add column if not exists manual_category text`;
-  await sql`alter table snapshots add column if not exists source text`;
+  await ensureSchema(sql);
   const [txs, rules, overrides, shares, settlements, subscriptions, snapshots] = await Promise.all([
     sql`select id, date::text as date, amount::float8 as amount, currency, counterparty, description, iban
         from transactions order by date, id`,
@@ -163,12 +197,6 @@ async function pgReadDb(): Promise<Db> {
         match_amount, created_at::text as created_at from subscriptions order by created_at, id`,
     sql`select id, source, total::float8 as total, holdings, return_pct::float8 as return_pct, at::text as at from snapshots order by at, id`,
   ]);
-
-  if (txs.length === 0) {
-    const seed = seedDb();
-    for (const f of FILES) await pgWriteCollection(f, seed[f]);
-    return seed;
-  }
 
   return {
     transactions: txs.map((r) => ({
@@ -263,8 +291,7 @@ async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Pro
       return;
     }
     case "shares": {
-      await migrateSharesToPartner(sql);
-      await sql`alter table shares add column if not exists partner_share numeric(6,5)`;
+      await ensureSchema(sql);
       await sql`alter table shares add column if not exists manual_category text`;
       await sql`delete from shares`;
       for (const s of value as Db["shares"]) {

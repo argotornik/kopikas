@@ -49,7 +49,7 @@ export function balance(shares: Share[], settlements: { amount: number }[], txs:
     const total = shareAmount(s, txs);
     const partnerPart = total * partnerShareOf(s);
     // Whoever paid is owed the other's portion.
-    b += s.paidBy === "argo" ? partnerPart : -(total - partnerPart);
+    b += s.paidBy === "owner" ? partnerPart : -(total - partnerPart);
   }
   for (const st of settlements) b -= st.amount;
   return Math.round(b * 100) / 100;
@@ -59,7 +59,7 @@ export function monthKey(date: string): string {
   return date.slice(0, 7);
 }
 
-// Spend for a month = Argo's consumption: his outgoing non-savings expenses,
+// Spend for a month = the owner's consumption: his outgoing non-savings expenses,
 // shared ones counted at his portion, plus his portion of partner-paid shared expenses.
 export function monthlySpend(db: Db, month: string): number {
   const shareByTx = new Map(db.shares.filter((s) => s.txId).map((s) => [s.txId!, s]));

@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 // The LHV sync. Runs as Vercel Cron (GET with CRON_SECRET bearer) and from the
-// settings page's "Sync now" button (POST as Argo). Window: from 7 days before
+// settings page's "Sync now" button (POST as the owner). Window: from 7 days before
 // the newest LHV transaction (overlap re-fetch is safe — upsert dedupes by id)
 // or 90 days back on the first run. Diagnostics contain counts and key NAMES
 // only, never transaction values.
@@ -24,7 +24,7 @@ export const maxDuration = 60;
 async function isAuthorized(req: Request): Promise<boolean> {
   const secret = process.env.CRON_SECRET;
   if (secret && req.headers.get("authorization") === `Bearer ${secret}`) return true;
-  return (await currentRole()) === "argo";
+  return (await currentRole()) === "owner";
 }
 
 function isoMinusDays(date: string, days: number): string {

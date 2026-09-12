@@ -6,7 +6,7 @@ import { currentRole } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  if ((await currentRole()) !== "argo") {
+  if ((await currentRole()) !== "owner") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const [db, { accounts }] = await Promise.all([readDb(), getAccounts()]);
