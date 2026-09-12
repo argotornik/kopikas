@@ -1,4 +1,7 @@
 import { stripPeriod } from "./utils";
+import { matches } from "./engine";
+import { merchantFromDescription } from "./lhv";
+import type { Tx } from "./types";
 
 // Known merchants: match token → favicon domain, display name. Conservative by
 // design: a wrong logo is worse than a letter, so we only answer when
@@ -53,13 +56,32 @@ function known(s: string) {
   return MERCHANTS.find(([pattern]) => lower.includes(pattern));
 }
 
+// A trailing reference in parentheses — "(laenuleping nr EAL-2025…)". LHV cuts
+// counterparty names at 60 characters, so the closing paren may be missing.
+const TRAILING_REFERENCE = /\s*\([^()]*\d[^()]*\)?\s*$/;
+
+// What a rule should match on when this transaction is filed with "always".
+// Known merchants use their match token, which by construction sits in the
+// bank string; anything else is the counterparty with the per-charge noise
+// (card-payment prefix, billing period, trailing reference) cut off. Each
+// candidate is checked against the transaction itself, so a rule is never
+// taught that would not even match the charge it came from.
+export function rulePattern(tx: Tx): string {
+  const idOnly = !/\p{L}/u.test(tx.counterparty);
+  const hit = known(tx.counterparty) ?? (idOnly ? known(tx.description) : undefined);
+  const merchant = merchantFromDescription(tx.counterparty) ?? tx.counterparty;
+  const trimmed = stripPeriod(merchant.replace(/^PAYPAL\s*\*\s*/i, "").replace(TRAILING_REFERENCE, "")).trim();
+  const candidates = [hit?.[0], trimmed.toLowerCase(), merchant.trim().toLowerCase()];
+  return candidates.find((c): c is string => !!c && matches(tx, c)) ?? tx.counterparty.trim().toLowerCase();
+}
+
 // Bank strings shout: "VIIMSI DELICE ISETEENI", "PAYPAL *PATREON INC M".
 // Title-case them only when they have no lower-case at all, so mixed-case
 // names ("MON*Natty") stay as the merchant wrote them. A trailing reference
 // in parentheses — "(laenuleping nr EAL-2025…)" — is bookkeeping, not name.
 function tidy(raw: string): string {
   let s = stripPeriod(raw.trim()) || raw.trim();
-  s = s.replace(/^PAYPAL\s*\*\s*/i, "").replace(/\s*\([^()]*\d[^()]*\)\s*$/, "") || s;
+  s = s.replace(/^PAYPAL\s*\*\s*/i, "").replace(TRAILING_REFERENCE, "") || s;
   s = s.replace(/\s*\(\.\.\d{3,4}\)\s*/, " ").trim(); // card tail: "Kaardi (..3696) kuutasu"
   if (/\p{Ll}/u.test(s)) return s;
   return s

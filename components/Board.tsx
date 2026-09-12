@@ -60,7 +60,7 @@ const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" 
 const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
-type Prompt = { txId: string; merchant: string; category: string };
+type Prompt = { txId: string; name: string; pattern: string; category: string };
 
 // View state carried in the URL (?cat=&month=&q=) so filtered views deep-link.
 type ViewParams = { cat?: string; month?: string; q?: string };
@@ -158,7 +158,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
       void post({ type: "subscribe", txId: tx.id });
     } else if (over.startsWith("cat:")) {
       const category = over.slice(4);
-      if (category !== tx.category) setPrompt({ txId: tx.id, merchant: tx.counterparty, category });
+      if (category !== tx.category) setPrompt({ txId: tx.id, name: tx.name, pattern: tx.rulePattern, category });
     }
   };
 
@@ -879,19 +879,19 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>File under {prompt?.category}?</DialogTitle>
-            <DialogDescription>{prompt?.merchant}</DialogDescription>
+            <DialogDescription>{prompt?.name}</DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
             <Button
               onClick={() => {
                 if (!prompt) return;
-                void post({ type: "rule", match: prompt.merchant, category: prompt.category }).then(() =>
+                void post({ type: "rule", txId: prompt.txId, category: prompt.category }).then(() =>
                   post({ type: "override", txId: prompt.txId, category: prompt.category })
                 );
                 setPrompt(null);
               }}
             >
-              Always — teach a rule for “{prompt?.merchant}”
+              Always — file every “{prompt?.pattern}” charge here
             </Button>
             <Button
               variant="outline"

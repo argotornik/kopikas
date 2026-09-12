@@ -1,23 +1,13 @@
 import { NextResponse } from "next/server";
 import { newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
 import { CATEGORIES, partnerShareOf, inferCadence, subscriptionStatus } from "@/lib/engine";
-import { merchantFromDescription } from "@/lib/lhv";
 import { currentRole } from "@/lib/auth";
-import { stripPeriod } from "@/lib/utils";
-
-// Rules and subscription patterns must never contain a raw card string —
-// "( ..3696) 2026-08-18 16:14 GR. TK. VIIMSI\..." has a timestamp in it and
-// matches exactly one transaction ever. Extract the merchant part if present.
-// Bank fees carry the billing period in the name itself ("Kaardi kuutasu
-// 07-2026") — same disease, so trailing month/date stamps come off too.
-function cleanPattern(raw: string): string {
-  return stripPeriod((merchantFromDescription(raw) ?? raw).trim().toLowerCase());
-}
+import { displayName, rulePattern } from "@/lib/icons";
 
 export const dynamic = "force-dynamic";
 
 type Action =
-  | { type: "rule"; match: string; category: string }
+  | { type: "rule"; txId: string; category: string }
   | { type: "override"; txId: string; category: string }
   | { type: "unrule"; ruleId: string }
   | { type: "share"; txId: string; partnerShare?: number }
@@ -45,8 +35,12 @@ export async function POST(req: Request) {
 
   switch (action.type) {
     case "rule": {
-      const match = cleanPattern(action.match ?? "");
-      if (!match || !action.category) return bad("match and category required");
+      // The pattern comes from the transaction, never from the client: the
+      // merchant token for known merchants, the counterparty minus per-charge
+      // noise otherwise (see rulePattern).
+      const tx = db.transactions.find((t) => t.id === action.txId);
+      if (!tx || !action.category) return bad("txId and category required");
+      const match = rulePattern(tx);
       if (!db.rules.some((r) => r.match === match && r.category === action.category)) {
         db.rules.push({ id: newId("rule"), match, category: action.category, createdAt: now });
         await writeCollection("rules", db.rules);
@@ -127,11 +121,12 @@ export async function POST(req: Request) {
     case "subscribe": {
       const tx = db.transactions.find((t) => t.id === action.txId);
       if (!tx) return bad("unknown tx");
-      const cleanName = stripPeriod(merchantFromDescription(tx.counterparty) ?? tx.counterparty);
-      const match = cleanPattern(tx.counterparty);
+      const cleanName = displayName(tx.counterparty, tx.description);
+      const match = rulePattern(tx);
       // Aggregators bill many subscriptions under one merchant string —
       // amount-match those so each stays a distinct record.
-      const isAggregator = ["apple.com/bill", "google play"].some((a) => match.includes(a));
+      const raw = tx.counterparty.toLowerCase();
+      const isAggregator = ["apple.com/bill", "google play"].some((a) => raw.includes(a));
       const txAmount = Math.abs(tx.amount);
       const duplicate = db.subscriptions.some(
         (s) =>

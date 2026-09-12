@@ -14,7 +14,7 @@ import {
   subscriptionStatus,
 } from "./engine";
 import { MOCK_BALANCES } from "./seed";
-import { displayName, guessDomain, identifyMerchant, subscriptionLabel } from "./icons";
+import { displayName, guessDomain, identifyMerchant, rulePattern, subscriptionLabel } from "./icons";
 import { merchantFromDescription, type LhvAccount } from "./lhv";
 import type { Tx } from "./types";
 
@@ -37,6 +37,7 @@ export interface BoardTx {
   amount: number;
   counterparty: string; // raw bank string: rules match on it
   name: string; // statement-legible merchant name
+  rulePattern: string; // what "always" would teach a rule to match on
   description: string;
   // What the second line says. Card payments carry the raw statement string
   // the merchant name was cut from (card tail, timestamp, address) — noise
@@ -93,6 +94,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
         amount: tx.amount,
         counterparty: tx.counterparty,
         name: merchant.name,
+        rulePattern: rulePattern(tx),
         description: tx.description,
         note: isCardString || redundant ? "" : tx.description.trim(),
         domain: merchant.domain,
