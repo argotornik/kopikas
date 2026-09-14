@@ -115,13 +115,15 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
 
   const totals = categoryTotals(db, month);
   const subStatuses = db.subscriptions.map((s) => {
-    // An identity set on the merchant's tiles names the subscription row too.
-    const own = db.merchants.find((m) => m.match === s.match);
+    // An identity whose pattern sits inside the subscription's own covers
+    // every charge the subscription matches, so it names the row too.
+    const own = db.merchants.findLast((m) => s.match.includes(m.match));
     return {
       ...subscriptionStatus(s, db.transactions, today),
       domain: own?.domain ?? guessDomain(s.name),
       emoji: own?.emoji ?? null,
       label: own?.name ?? subscriptionLabel(s.name),
+      customMerchant: !!own,
     };
   });
 

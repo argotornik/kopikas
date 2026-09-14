@@ -15,7 +15,7 @@ It is built for one household. Two people sign in, one owns the board and the ot
 
 ## What is on the board
 
-The ledger is the middle column: every transaction, newest first, grouped by day, with the merchant's real name and favicon instead of the bank's shouting string. Click the icon to give a merchant your own name, a website for its favicon, or an emoji; it applies to every charge from that merchant. Card payments are one line. Transfers keep their payment note. Shared rows wear a faint purple wash. Search and a month switcher sit above it, and the current view lives in the URL (`?cat`, `?month`, `?q`), so a filtered month is a link you can keep.
+The ledger is the middle column: every transaction, newest first, grouped by day, with the merchant's real name and favicon instead of the bank's shouting string. Click the icon, here or on a subscription row, to give a merchant your own name, a website for its favicon, or an emoji; it applies to every charge from that merchant. Card payments are one line. Transfers keep their payment note. Shared rows wear a faint purple wash. Search and a month switcher sit above it, and the current view lives in the URL (`?cat`, `?month`, `?q`), so a filtered month is a link you can keep.
 
 The rail on the right holds three cards.
 

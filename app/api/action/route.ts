@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Db, Merchant } from "@/lib/types";
 import { newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
 import {
   FIXED_CATEGORIES,
@@ -30,8 +31,8 @@ type Action =
   | { type: "category-add"; name: string }
   | { type: "category-rename"; from: string; to: string }
   | { type: "category-order"; order: string[] }
-  | { type: "merchant"; txId: string; name: string; domain?: string; emoji?: string }
-  | { type: "merchant-reset"; txId: string }
+  | { type: "merchant"; txId?: string; subId?: string; name: string; domain?: string; emoji?: string }
+  | { type: "merchant-reset"; txId?: string; subId?: string }
   | { type: "set-lhv-token"; refreshToken: string };
 
 export async function POST(req: Request) {
@@ -253,9 +254,9 @@ export async function POST(req: Request) {
     case "merchant": {
       // The owner's identity for a merchant. Applies to every charge the
       // pattern matches, like a rule, and wins over the built-in table. An
-      // identity already covering this charge is edited in place.
-      const tx = db.transactions.find((t) => t.id === action.txId);
-      if (!tx) return bad("unknown tx");
+      // identity already covering the tile or subscription is edited in place.
+      const scope = merchantScope(db, action);
+      if (!scope) return bad("unknown tx or subscription");
       const name = String(action.name ?? "").replace(/\s+/g, " ").trim();
       if (!name || name.length > 40) return bad("a short name is required");
       const domain = hostname(action.domain);
@@ -263,17 +264,17 @@ export async function POST(req: Request) {
       const emoji = String(action.emoji ?? "").trim();
       if (emoji.length > 16) return bad("one emoji is enough");
       const fields = { name, domain: domain || undefined, emoji: emoji || undefined };
-      const existing = db.merchants.findLast((m) => matches(tx, m.match));
+      const existing = db.merchants.findLast(scope.covers);
       if (existing) Object.assign(existing, fields);
-      else db.merchants.push({ id: newId("mer"), match: rulePattern(tx), ...fields, createdAt: now });
+      else db.merchants.push({ id: newId("mer"), match: scope.pattern, ...fields, createdAt: now });
       await writeCollection("merchants", db.merchants);
       break;
     }
     case "merchant-reset": {
       // Back to the built-in table for this merchant.
-      const tx = db.transactions.find((t) => t.id === action.txId);
-      if (!tx) return bad("unknown tx");
-      db.merchants = db.merchants.filter((m) => !matches(tx, m.match));
+      const scope = merchantScope(db, action);
+      if (!scope) return bad("unknown tx or subscription");
+      db.merchants = db.merchants.filter((m) => !scope.covers(m));
       await writeCollection("merchants", db.merchants);
       break;
     }
@@ -288,6 +289,24 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ ok: true });
+}
+
+// What an identity edit is about. From a tile: the pattern a rule would use,
+// covering any identity that matches the charge. From a subscription row: its
+// own pattern, covering identities whose pattern sits inside it (so they apply
+// to every charge the subscription matches).
+function merchantScope(
+  db: Db,
+  target: { txId?: string; subId?: string }
+): { pattern: string; covers: (m: Merchant) => boolean } | undefined {
+  if (target.txId) {
+    const tx = db.transactions.find((t) => t.id === target.txId);
+    return tx && { pattern: rulePattern(tx), covers: (m) => matches(tx, m.match) };
+  }
+  if (target.subId) {
+    const sub = db.subscriptions.find((s) => s.id === target.subId);
+    return sub && { pattern: sub.match, covers: (m) => sub.match.includes(m.match) };
+  }
 }
 
 // "https://www.delice.ee/menu" → "delice.ee". Empty stays empty; anything

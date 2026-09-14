@@ -44,7 +44,7 @@ import { PARTNER_NAME } from "@/lib/names";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CoinMark } from "@/components/coin-mark";
 import { MerchantIcon } from "@/components/merchant-icon";
-import { MerchantEditor } from "@/components/merchant-editor";
+import { MerchantEditor, type MerchantSubject } from "@/components/merchant-editor";
 import { UserMenu } from "@/components/user-menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Badge } from "@/components/ui/badge";
@@ -87,8 +87,8 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [snapOpen, setSnapOpen] = useState(false);
   const [catsOpen, setCatsOpen] = useState(false);
-  // The tile whose merchant identity is being edited.
-  const [merchantTx, setMerchantTx] = useState<BoardTx | null>(null);
+  // The merchant whose identity is being edited, from a tile or a subscription row.
+  const [merchantSubject, setMerchantSubject] = useState<MerchantSubject | null>(null);
   // Category filter: a category name, "Uncategorized", or null for the full feed.
   const [filter, setFilter] = useState<string | null>(() =>
     view?.cat &&
@@ -562,7 +562,17 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                         <Tile
                           tx={tx}
                           onUnshare={(id) => void post({ type: "unshare", shareId: id })}
-                          onEditMerchant={setMerchantTx}
+                          onEditMerchant={(t) =>
+                            setMerchantSubject({
+                              key: t.id,
+                              name: t.name,
+                              domain: t.domain,
+                              emoji: t.emoji,
+                              pattern: t.merchantPattern,
+                              custom: t.customMerchant,
+                              target: { txId: t.id },
+                            })
+                          }
                         />
                       </motion.div>
                     )),
@@ -754,7 +764,25 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       <div className="divide-y">
                         {g.subs.map((s) => (
                       <div className="group flex items-center gap-2 py-2" key={s.sub.id}>
-                        <MerchantIcon name={s.label} domain={s.domain} emoji={s.emoji} className="size-6" />
+                        <button
+                          type="button"
+                          className="rounded-full hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          title="Change name or icon"
+                          aria-label={`Change the name or icon of ${s.label}`}
+                          onClick={() =>
+                            setMerchantSubject({
+                              key: s.sub.id,
+                              name: s.label,
+                              domain: s.domain,
+                              emoji: s.emoji,
+                              pattern: s.sub.match,
+                              custom: s.customMerchant,
+                              target: { subId: s.sub.id },
+                            })
+                          }
+                        >
+                          <MerchantIcon name={s.label} domain={s.domain} emoji={s.emoji} className="size-6" />
+                        </button>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-medium">{s.label}</div>
                           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
@@ -980,10 +1008,10 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
       </Dialog>
 
       <MerchantEditor
-        tx={merchantTx}
-        onClose={() => setMerchantTx(null)}
-        onSave={(fields) => tryPost({ type: "merchant", txId: merchantTx?.id, ...fields })}
-        onReset={() => tryPost({ type: "merchant-reset", txId: merchantTx?.id })}
+        subject={merchantSubject}
+        onClose={() => setMerchantSubject(null)}
+        onSave={(fields) => tryPost({ type: "merchant", ...merchantSubject?.target, ...fields })}
+        onReset={() => tryPost({ type: "merchant-reset", ...merchantSubject?.target })}
       />
 
       <CategoriesEditor

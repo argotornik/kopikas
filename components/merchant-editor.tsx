@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import type { BoardTx } from "@/lib/board";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,24 +15,35 @@ import { Input } from "@/components/ui/input";
 
 type Fields = { name: string; domain: string; emoji: string };
 
+// The merchant being edited, as the row that opened the dialog knows it: a
+// ledger tile (target by transaction) or a subscription row (by subscription).
+export type MerchantSubject = {
+  key: string; // re-keys the form so each opening starts from its own row
+  name: string;
+  domain: string | null;
+  emoji: string | null;
+  pattern: string; // what the identity will apply to
+  custom: boolean; // an identity of the owner's already covers it
+  target: { txId: string } | { subId: string };
+};
+
 // How a merchant reads on the board: the name, the site its favicon comes
-// from, an emoji for when there is none. Opened from a tile's avatar; the
-// form re-keys on the tile so each opening starts from that merchant.
+// from, an emoji for when there is none. Opened from an avatar.
 export function MerchantEditor({
-  tx,
+  subject,
   onClose,
   onSave,
   onReset,
 }: {
-  tx: BoardTx | null;
+  subject: MerchantSubject | null;
   onClose: () => void;
   onSave: (fields: Fields) => Promise<string | null>; // null = saved, otherwise the reason
   onReset: () => Promise<string | null>;
 }) {
   return (
-    <Dialog open={!!tx} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={!!subject} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-sm">
-        {tx && <MerchantForm key={tx.id} tx={tx} onClose={onClose} onSave={onSave} onReset={onReset} />}
+        {subject && <MerchantForm key={subject.key} tx={subject} onClose={onClose} onSave={onSave} onReset={onReset} />}
       </DialogContent>
     </Dialog>
   );
@@ -45,7 +55,7 @@ function MerchantForm({
   onSave,
   onReset,
 }: {
-  tx: BoardTx;
+  tx: MerchantSubject;
   onClose: () => void;
   onSave: (fields: Fields) => Promise<string | null>;
   onReset: () => Promise<string | null>;
@@ -70,7 +80,7 @@ function MerchantForm({
       <DialogHeader>
         <DialogTitle>Name and icon</DialogTitle>
         <DialogDescription>
-          Applies to every charge matching <code className="rounded bg-muted px-1 py-0.5 text-xs">{tx.merchantPattern}</code>.
+          Applies to every charge matching <code className="rounded bg-muted px-1 py-0.5 text-xs">{tx.pattern}</code>.
         </DialogDescription>
       </DialogHeader>
       <div className="flex items-start gap-3">
@@ -110,7 +120,7 @@ function MerchantForm({
         </div>
       </div>
       <DialogFooter className="sm:justify-between">
-        {tx.customMerchant ? (
+        {tx.custom ? (
           <Button variant="ghost" disabled={busy} onClick={() => void finish(onReset)}>
             Use default
           </Button>
