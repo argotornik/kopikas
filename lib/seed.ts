@@ -1,4 +1,5 @@
 import type { Db, Tx } from "./types";
+import { DEFAULT_CATEGORIES } from "./engine";
 
 // Deterministic mock data: July + August 2026, one everyday account.
 // Replaced by the real LHV sync later — same shapes.
@@ -67,6 +68,7 @@ export function seedDb(): Db {
   });
 
   return {
+    categories: [...DEFAULT_CATEGORIES],
     transactions,
     rules: [
       mkRule(1, "rimi", "Groceries"),
@@ -98,6 +100,7 @@ export function seedDb(): Db {
         createdAt: "2026-07-03T00:00:00Z",
       },
     ],
+    merchants: [],
     snapshots: [
       { id: "snap-0a", total: 8140.0, holdings: [], at: "2026-05-16T18:00:00Z" },
       { id: "snap-0b", total: 8655.3, holdings: [], at: "2026-06-14T18:00:00Z" },

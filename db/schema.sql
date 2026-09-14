@@ -12,6 +12,13 @@ create table if not exists transactions (
   iban         text not null
 );
 
+-- The board's category list, in display order. Empty means the defaults in
+-- lib/engine.ts; the first rename or addition from the board fills it.
+create table if not exists categories (
+  name     text primary key,
+  position int not null
+);
+
 create table if not exists rules (
   id         text primary key,
   match      text not null,
@@ -51,9 +58,21 @@ create table if not exists subscriptions (
   match           text not null,
   expected_amount numeric(12, 2) not null,
   cadence         text not null check (cadence in ('monthly', 'yearly')),
+  cadence_by_hand boolean not null default false, -- the owner's answer; syncs stop re-measuring
   active          boolean not null default true,
   match_amount    boolean not null default false,
   created_at      timestamptz not null
+);
+
+-- Merchant identities the owner set from a tile: name, favicon domain, emoji.
+-- Matched like rules; wins over the built-in table in lib/icons.ts.
+create table if not exists merchants (
+  id         text primary key,
+  match      text not null,
+  name       text not null,
+  domain     text,
+  emoji      text,
+  created_at timestamptz not null
 );
 
 create table if not exists snapshots (

@@ -4,6 +4,7 @@ import { neon } from "@neondatabase/serverless";
 import type { Db } from "./types";
 import { seedDb } from "./seed";
 import { SCHEMA } from "./schema";
+import { DEFAULT_CATEGORIES } from "./engine";
 import { stripPeriod } from "./utils";
 import { seal, unseal } from "./crypto";
 import type { LhvAccount, LhvTokens } from "./lhv";
@@ -17,12 +18,14 @@ import type { LhvAccount, LhvTokens } from "./lhv";
 // from shares/overrides safe).
 
 const FILES: (keyof Db)[] = [
+  "categories",
   "transactions",
   "rules",
   "overrides",
   "shares",
   "settlements",
   "subscriptions",
+  "merchants",
   "snapshots",
 ];
 
@@ -31,7 +34,10 @@ export function newId(prefix: string): string {
 }
 
 export async function readDb(): Promise<Db> {
-  return normalizePatterns(normalizeCategories(await (process.env.DATABASE_URL ? pgReadDb() : jsonReadDb())));
+  const db = normalizePatterns(normalizeCategories(await (process.env.DATABASE_URL ? pgReadDb() : jsonReadDb())));
+  // A board that has never edited its categories stores none and shows the defaults.
+  if (db.categories.length === 0) db.categories = [...DEFAULT_CATEGORIES];
+  return db;
 }
 
 // Rows taught before the period-stamp stripper shipped: "kaardi kuutasu
@@ -96,8 +102,18 @@ async function jsonReadDb(): Promise<Db> {
   await ensureSeeded();
   const entries = await Promise.all(
     FILES.map(async (f) => {
-      const raw = await fs.readFile(path.join(DATA_DIR, `${f}.json`), "utf8");
-      return [f, JSON.parse(raw)] as const;
+      try {
+        const raw = await fs.readFile(path.join(DATA_DIR, `${f}.json`), "utf8");
+        return [f, JSON.parse(raw)] as const;
+      } catch (e) {
+        // categories.json and merchants.json arrived after the other files; a
+        // data/ folder from before them means "none yet". Any other file
+        // missing is an error.
+        if ((f === "categories" || f === "merchants") && (e as NodeJS.ErrnoException).code === "ENOENT") {
+          return [f, []] as const;
+        }
+        throw e;
+      }
     })
   );
   return Object.fromEntries(entries) as unknown as Db;
@@ -127,6 +143,7 @@ function ensureSchema(sql: ReturnType<typeof db>): Promise<void> {
       await sql`alter table shares add column if not exists partner_share numeric(6,5)`;
       await sql`alter table shares add column if not exists manual_category text`;
       await sql`alter table snapshots add column if not exists source text`;
+      await sql`alter table subscriptions add column if not exists cadence_by_hand boolean not null default false`;
     })().catch((e) => {
       schemaReady = null;
       throw e;
@@ -138,7 +155,8 @@ function ensureSchema(sql: ReturnType<typeof db>): Promise<void> {
 async function pgReadDb(): Promise<Db> {
   const sql = db();
   await ensureSchema(sql);
-  const [txs, rules, overrides, shares, settlements, subscriptions, snapshots] = await Promise.all([
+  const [categories, txs, rules, overrides, shares, settlements, subscriptions, merchants, snapshots] = await Promise.all([
+    sql`select name from categories order by position, name`,
     sql`select id, date::text as date, amount::float8 as amount, currency, counterparty, description, iban
         from transactions order by date, id`,
     sql`select id, match, category, created_at::text as created_at from rules order by created_at, id`,
@@ -148,12 +166,14 @@ async function pgReadDb(): Promise<Db> {
         created_at::text as created_at
         from shares order by created_at, id`,
     sql`select id, amount::float8 as amount, date::text as date, tx_id, note from settlements order by date, id`,
-    sql`select id, name, match, expected_amount::float8 as expected_amount, cadence, active,
+    sql`select id, name, match, expected_amount::float8 as expected_amount, cadence, cadence_by_hand, active,
         match_amount, created_at::text as created_at from subscriptions order by created_at, id`,
+    sql`select id, match, name, domain, emoji, created_at::text as created_at from merchants order by created_at, id`,
     sql`select id, source, total::float8 as total, holdings, return_pct::float8 as return_pct, at::text as at from snapshots order by at, id`,
   ]);
 
   return {
+    categories: categories.map((r) => r.name),
     transactions: txs.map((r) => ({
       id: r.id,
       date: r.date,
@@ -194,8 +214,17 @@ async function pgReadDb(): Promise<Db> {
       match: r.match,
       expectedAmount: r.expected_amount,
       cadence: r.cadence,
+      cadenceByHand: r.cadence_by_hand || undefined,
       active: r.active,
       matchAmount: r.match_amount ?? false,
+      createdAt: r.created_at,
+    })),
+    merchants: merchants.map((r) => ({
+      id: r.id,
+      match: r.match,
+      name: r.name,
+      domain: r.domain ?? undefined,
+      emoji: r.emoji ?? undefined,
       createdAt: r.created_at,
     })),
     snapshots: snapshots.map((r) => ({
@@ -212,6 +241,14 @@ async function pgReadDb(): Promise<Db> {
 async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Promise<void> {
   const sql = db();
   switch (name) {
+    case "categories": {
+      await ensureSchema(sql);
+      await sql`delete from categories`;
+      for (const [i, c] of (value as Db["categories"]).entries()) {
+        await sql.query(`insert into categories (name, position) values ($1, $2)`, [c, i]);
+      }
+      return;
+    }
     case "transactions": {
       // Append-only facts: upsert, never delete (shares/overrides hold FKs).
       // Display fields refresh on conflict so mapper improvements reach
@@ -279,13 +316,24 @@ async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Pro
       return;
     }
     case "subscriptions": {
-      await sql`alter table subscriptions add column if not exists match_amount boolean not null default false`;
+      await ensureSchema(sql);
       await sql`delete from subscriptions`;
       for (const s of value as Db["subscriptions"]) {
         await sql.query(
-          `insert into subscriptions (id, name, match, expected_amount, cadence, active, match_amount, created_at)
-           values ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [s.id, s.name, s.match, s.expectedAmount, s.cadence, s.active, s.matchAmount ?? false, s.createdAt]
+          `insert into subscriptions (id, name, match, expected_amount, cadence, cadence_by_hand, active, match_amount, created_at)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [s.id, s.name, s.match, s.expectedAmount, s.cadence, s.cadenceByHand ?? false, s.active, s.matchAmount ?? false, s.createdAt]
+        );
+      }
+      return;
+    }
+    case "merchants": {
+      await ensureSchema(sql);
+      await sql`delete from merchants`;
+      for (const m of value as Db["merchants"]) {
+        await sql.query(
+          `insert into merchants (id, match, name, domain, emoji, created_at) values ($1, $2, $3, $4, $5, $6)`,
+          [m.id, m.match, m.name, m.domain ?? null, m.emoji ?? null, m.createdAt]
         );
       }
       return;

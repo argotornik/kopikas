@@ -1,7 +1,13 @@
 import type { Db, Rule, Override, Share, Subscription, Tx } from "./types";
 
+// Two names the code relies on: Savings is a transfer the maths sets aside,
+// Subscriptions is where the zone files what lands on it. The board renames
+// every other category freely.
 export const SAVINGS = "Savings";
-export const CATEGORIES = [
+export const SUBSCRIPTIONS = "Subscriptions";
+export const FIXED_CATEGORIES: readonly string[] = [SAVINGS, SUBSCRIPTIONS];
+// What a fresh board starts with. The live list is db.categories.
+export const DEFAULT_CATEGORIES = [
   "Groceries",
   "Eating out",
   "Transport",
@@ -103,8 +109,25 @@ const DAY = 86400000;
 // decides: "Domain + hosting yearly", "aastamaks", "annual plan" → yearly.
 const YEARLY_HINT = /\b(yearly|annual(?:ly)?|per year|12 months|aasta(?:ne|maks|s)?|12 kuud)\b|\/\s*(?:yr|year|a)\b/i;
 
-export function inferCadence(txs: Tx[], pattern: string): "monthly" | "yearly" {
-  const charges = txs.filter((t) => t.amount < 0 && matches(t, pattern));
+// The charges a subscription is made of: outgoing, matching its pattern and,
+// for aggregator rows (one merchant string billing many things), its amount.
+export function subscriptionCharges(
+  sub: Pick<Subscription, "match" | "expectedAmount" | "matchAmount">,
+  txs: Tx[]
+): Tx[] {
+  return txs
+    .filter(
+      (t) =>
+        t.amount < 0 &&
+        matches(t, sub.match) &&
+        (!sub.matchAmount || Math.abs(Math.abs(t.amount) - sub.expectedAmount) <= 0.01)
+    )
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// Monthly or yearly, from the gaps between charges when there are two or more
+// to measure between, from the statement text when there is only one.
+export function inferCadence(charges: Tx[]): "monthly" | "yearly" {
   const dates = charges.map((t) => new Date(t.date).getTime()).sort((a, b) => a - b);
   if (dates.length < 2) {
     return charges.some((t) => YEARLY_HINT.test(t.counterparty + " " + t.description)) ? "yearly" : "monthly";
@@ -116,6 +139,24 @@ export function inferCadence(txs: Tx[], pattern: string): "monthly" | "yearly" {
   return median >= 200 ? "yearly" : "monthly";
 }
 
+// After a sync: a cadence that was guessed from one charge gets re-measured
+// once a second charge is there to measure against. One the owner set by
+// hand stays. Returns how many rows changed.
+export function recheckCadences(db: Db): number {
+  let changed = 0;
+  for (const sub of db.subscriptions) {
+    if (!sub.active || sub.cadenceByHand) continue;
+    const charges = subscriptionCharges(sub, db.transactions);
+    if (charges.length < 2) continue;
+    const cadence = inferCadence(charges);
+    if (cadence !== sub.cadence) {
+      sub.cadence = cadence;
+      changed++;
+    }
+  }
+  return changed;
+}
+
 export interface SubStatus {
   sub: Subscription;
   lastCharge?: { date: string; amount: number };
@@ -125,14 +166,7 @@ export interface SubStatus {
 }
 
 export function subscriptionStatus(sub: Subscription, txs: Tx[], today: Date): SubStatus {
-  const charges = txs
-    .filter(
-      (t) =>
-        t.amount < 0 &&
-        matches(t, sub.match) &&
-        (!sub.matchAmount || Math.abs(Math.abs(t.amount) - sub.expectedAmount) <= 0.01)
-    )
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const charges = subscriptionCharges(sub, txs);
   const last = charges[charges.length - 1];
   if (!last) return { sub, priceChanged: false, overdue: false };
   const cadenceDays = sub.cadence === "monthly" ? 30 : 365;

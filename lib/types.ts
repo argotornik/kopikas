@@ -52,12 +52,26 @@ export interface Subscription {
   match: string; // same matching semantics as rules
   expectedAmount: number; // positive
   cadence: "monthly" | "yearly";
+  // The owner flipped the cadence themselves: syncs stop re-measuring it.
+  cadenceByHand?: boolean;
   active: boolean;
   createdAt: string;
   // Aggregator merchants (APPLE.COM/BILL) bill many subscriptions under one
   // name; matchAmount requires the charge amount to equal expectedAmount so
   // they stay distinguishable. Price changes then show as "gone quiet".
   matchAmount?: boolean;
+}
+
+// A merchant identity the owner set from a tile: how it reads on the board,
+// where its favicon comes from, an emoji for when there is no website. Wins
+// over the built-in table for every charge the pattern matches.
+export interface Merchant {
+  id: string;
+  match: string; // same matching semantics as rules
+  name: string;
+  domain?: string;
+  emoji?: string;
+  createdAt: string;
 }
 
 // A manual portfolio snapshot. Append-only. `source` names the pot — Lightyear
@@ -74,11 +88,15 @@ export interface Snapshot {
 }
 
 export interface Db {
+  // Ordered category names as shown on the board. Empty in storage means
+  // DEFAULT_CATEGORIES; the first edit persists the whole list.
+  categories: string[];
   transactions: Tx[];
   rules: Rule[];
   overrides: Override[];
   shares: Share[];
   settlements: Settlement[];
   subscriptions: Subscription[];
+  merchants: Merchant[];
   snapshots: Snapshot[];
 }

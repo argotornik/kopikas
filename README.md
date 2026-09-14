@@ -15,17 +15,17 @@ It is built for one household. Two people sign in, one owns the board and the ot
 
 ## What is on the board
 
-The ledger is the middle column: every transaction, newest first, grouped by day, with the merchant's real name and favicon instead of the bank's shouting string. Card payments are one line. Transfers keep their payment note. Shared rows wear a faint purple wash. Search and a month switcher sit above it, and the current view lives in the URL (`?cat`, `?month`, `?q`), so a filtered month is a link you can keep.
+The ledger is the middle column: every transaction, newest first, grouped by day, with the merchant's real name and favicon instead of the bank's shouting string. Click the icon to give a merchant your own name, a website for its favicon, or an emoji; it applies to every charge from that merchant. Card payments are one line. Transfers keep their payment note. Shared rows wear a faint purple wash. Search and a month switcher sit above it, and the current view lives in the URL (`?cat`, `?month`, `?q`), so a filtered month is a link you can keep.
 
 The rail on the right holds three cards.
 
-Categories are a fixed list in `lib/engine.ts`. Each row shows this month's total with a copper bar for its share of the largest, and each row is a drop target. A drop asks whether to file just this one or *always*; *always* writes a rule, which is a lowercase substring matched against the counterparty and description. Rules are listed and deleted on the Settings page. Incoming money has its own line, Received, under Spent; clicking it shows who sent what.
+Categories start as a default list, and a cog on the card renames them, adds new ones or drags them into a new order; a rename carries every rule and filed charge along. Each row shows this month's total with a copper bar for its share of the largest, and each row is a drop target. A drop asks whether to file just this one or *always*; *always* writes a rule, which is a lowercase substring matched against the counterparty and description. Rules are listed and deleted on the Settings page. Incoming money has its own line, Received, under Spent; clicking it shows who sent what.
 
 ![Dragging an uncategorised charge onto the Home row, choosing Always, and watching the merchant's other charges file themselves](docs/drag.gif)
 
 <img src="docs/file-under.png" width="620" alt="The prompt after the drop: file every charge from this merchant here, or only this one">
 
-Subscriptions watches recurring charges. Drop one on the zone and the board records the merchant pattern and expected amount, then tracks the last charge, the next due date, and whether the price moved. A price change shows as a badge you click to accept the new price. A charge that stops arriving shows as gone quiet. Rows group into monthly and yearly, with the monthly burn at the bottom; the guess between the two reads the statement text when there is only one charge to go on, and a control on each row corrects it.
+Subscriptions watches recurring charges. Drop one on the zone and the board records the merchant pattern and expected amount, then tracks the last charge, the next due date, and whether the price moved. A price change shows as a badge you click to accept the new price. A charge that stops arriving shows as gone quiet. Rows group into monthly and yearly, with the monthly burn at the bottom; the guess between the two reads the statement text when there is only one charge to go on, re-measures itself once a second charge lands, and a control on each row corrects it for good.
 
 <p>
   <img src="docs/subscriptions-dark.png" width="380" alt="The Subscriptions card: monthly and yearly groups, a price-change badge, the monthly burn">
@@ -96,7 +96,7 @@ In Clerk, turn sign-up off and create the two users by hand; the app trusts the 
 
 ## Things to know
 
-The categories, the two investment pots and the two sign-in roles are hard-coded to one household's life. Making any of them configurable is a small change, it just has not been needed.
+The two investment pots and the two sign-in roles are hard-coded to one household's life. Making them configurable is a small change, it just has not been needed. Categories can be renamed, added and reordered from the board, but not deleted yet.
 
 Only LHV is supported. Another bank means implementing the two fetch functions in `lib/lhv.ts` against its API and mapping into the same transaction shape.
 

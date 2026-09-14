@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  closestCenter,
   DndContext,
   DragOverlay,
   KeyboardSensor,
@@ -14,6 +15,13 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import {
@@ -21,6 +29,7 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  GripVerticalIcon,
   InboxIcon,
   RepeatIcon,
   SearchIcon,
@@ -29,12 +38,13 @@ import {
   XIcon,
 } from "lucide-react";
 import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
-import { CATEGORIES, SAVINGS } from "@/lib/engine";
+import { FIXED_CATEGORIES, SAVINGS, SUBSCRIPTIONS } from "@/lib/engine";
 import { cn, shareLabel } from "@/lib/utils";
 import { PARTNER_NAME } from "@/lib/names";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CoinMark } from "@/components/coin-mark";
 import { MerchantIcon } from "@/components/merchant-icon";
+import { MerchantEditor } from "@/components/merchant-editor";
 import { UserMenu } from "@/components/user-menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +72,12 @@ const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "sho
 
 type Prompt = { txId: string; name: string; pattern: string; category: string; amount: number; date: string };
 
+// What the Categories dialog can ask the server to do.
+type CategoryAction =
+  | { type: "category-add"; name: string }
+  | { type: "category-rename"; from: string; to: string }
+  | { type: "category-order"; order: string[] };
+
 // View state carried in the URL (?cat=&month=&q=) so filtered views deep-link.
 type ViewParams = { cat?: string; month?: string; q?: string };
 
@@ -70,9 +86,13 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
   const [activeTx, setActiveTx] = useState<BoardTx | null>(null);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [snapOpen, setSnapOpen] = useState(false);
+  const [catsOpen, setCatsOpen] = useState(false);
+  // The tile whose merchant identity is being edited.
+  const [merchantTx, setMerchantTx] = useState<BoardTx | null>(null);
   // Category filter: a category name, "Uncategorized", or null for the full feed.
   const [filter, setFilter] = useState<string | null>(() =>
-    view?.cat && (view.cat === "Uncategorized" || view.cat === "Incoming" || CATEGORIES.includes(view.cat))
+    view?.cat &&
+    (view.cat === "Uncategorized" || view.cat === "Incoming" || initial.categories.some((c) => c.name === view.cat))
       ? view.cat
       : null
   );
@@ -135,6 +155,34 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
       await refetch();
     },
     [refetch]
+  );
+
+  // Like post, but reports the server's reason so a dialog can show it.
+  const tryPost = useCallback(
+    async (action: object): Promise<string | null> => {
+      const res = await fetch("/api/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(action),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        return body.error ?? "Couldn't save that";
+      }
+      await refetch();
+      return null;
+    },
+    [refetch]
+  );
+
+  // Renames and additions from the Categories dialog; a renamed filter follows the name.
+  const editCategories = useCallback(
+    async (action: CategoryAction) => {
+      const err = await tryPost(action);
+      if (!err && action.type === "category-rename") setFilter((f) => (f === action.from ? action.to : f));
+      return err;
+    },
+    [tryPost]
   );
 
   const sensors = useSensors(
@@ -244,9 +292,9 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
   // rest, so it neither sets the scale nor gets a bar.
   const maxCategoryTotal = useMemo(() => {
     let max = 0;
-    for (const c of CATEGORIES) if (c !== SAVINGS) max = Math.max(max, monthCategoryTotals.get(c) ?? 0);
+    for (const c of board.categories) if (c.name !== SAVINGS) max = Math.max(max, monthCategoryTotals.get(c.name) ?? 0);
     return max;
-  }, [monthCategoryTotals]);
+  }, [monthCategoryTotals, board.categories]);
 
   // Full household outgo for the viewed month — everything except Savings
   // and micro-investing (money moved, not spent). Unlike the "Spent" stat
@@ -511,7 +559,11 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                         transition={{ duration: 0.18, ease: "easeOut" }}
                         className={cn(i > 0 && "border-t border-border/70")}
                       >
-                        <Tile tx={tx} onUnshare={(id) => void post({ type: "unshare", shareId: id })} />
+                        <Tile
+                          tx={tx}
+                          onUnshare={(id) => void post({ type: "unshare", shareId: id })}
+                          onEditMerchant={setMerchantTx}
+                        />
                       </motion.div>
                     )),
                     ...(micro.length > 0
@@ -556,6 +608,14 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                 <CardTitle className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
                   <span>Categories · {fmtMonth(month)}</span>
                   <span className="flex items-center gap-0.5">
+                    <button
+                      aria-label="Edit categories"
+                      title="Rename or add categories"
+                      onClick={() => setCatsOpen(true)}
+                      className="mr-1 flex size-5 items-center justify-center rounded-md hover:bg-accent hover:text-foreground"
+                    >
+                      <SettingsIcon className="size-3.5" />
+                    </button>
                     <button
                       aria-label="Previous month"
                       disabled={month <= earliestMonth}
@@ -694,7 +754,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       <div className="divide-y">
                         {g.subs.map((s) => (
                       <div className="group flex items-center gap-2 py-2" key={s.sub.id}>
-                        <MerchantIcon name={s.label} domain={s.domain} className="size-6" />
+                        <MerchantIcon name={s.label} domain={s.domain} emoji={s.emoji} className="size-6" />
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-medium">{s.label}</div>
                           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
@@ -919,6 +979,20 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
         </DialogContent>
       </Dialog>
 
+      <MerchantEditor
+        tx={merchantTx}
+        onClose={() => setMerchantTx(null)}
+        onSave={(fields) => tryPost({ type: "merchant", txId: merchantTx?.id, ...fields })}
+        onReset={() => tryPost({ type: "merchant-reset", txId: merchantTx?.id })}
+      />
+
+      <CategoriesEditor
+        open={catsOpen}
+        categories={board.categories.map((c) => c.name)}
+        onClose={() => setCatsOpen(false)}
+        onAction={editCategories}
+      />
+
       <SnapshotEditor
         open={snapOpen}
         latest={board.investments.latest}
@@ -1008,7 +1082,15 @@ function Stat({
 // A ledger row: icon · merchant/meta · category · amount, in fixed columns so
 // categories and amounts align down the whole statement. Color is reserved
 // for meaning — uncategorized (attention), incoming (gain), the partner's share.
-function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => void }) {
+function Tile({
+  tx,
+  onUnshare,
+  onEditMerchant,
+}: {
+  tx: BoardTx;
+  onUnshare: (shareId: string) => void;
+  onEditMerchant: (tx: BoardTx) => void;
+}) {
   const draggable = tx.amount < 0;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: tx.id,
@@ -1045,7 +1127,18 @@ function Tile({ tx, onUnshare }: { tx: BoardTx; onUnshare: (shareId: string) => 
       {...listeners}
       {...attributes}
     >
-      <MerchantIcon name={tx.name} domain={tx.domain} />
+      {/* The avatar is the handle for the merchant's identity: name, favicon
+          site, emoji. It swallows pointerdown so a click does not start a drag. */}
+      <button
+        type="button"
+        className="rounded-full hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        title="Change name or icon"
+        aria-label={`Change the name or icon of ${tx.name}`}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={() => onEditMerchant(tx)}
+      >
+        <MerchantIcon name={tx.name} domain={tx.domain} emoji={tx.emoji} />
+      </button>
       <div className="min-w-0">
         <div className="truncate text-sm font-medium">{tx.name}</div>
         <div className="flex min-w-0 items-baseline gap-1.5 text-xs text-muted-foreground">
@@ -1176,6 +1269,161 @@ function PartnerZone({ share, onShareChange }: { share: number; onShareChange: (
         {isOver ? `Drop to split — ${PARTNER_NAME} pays ${shareLabel(share)}` : `Drag an expense here to split with ${PARTNER_NAME}`}
       </div>
     </div>
+  );
+}
+
+// The list behind the Categories card. Each row saves on blur or Enter, so
+// there is nothing to batch and a failed rename shows up right away.
+function CategoriesEditor({
+  open,
+  categories,
+  onClose,
+  onAction,
+}: {
+  open: boolean;
+  categories: string[];
+  onClose: () => void;
+  onAction: (action: CategoryAction) => Promise<string | null>; // null = saved, otherwise the reason it was not
+}) {
+  const [newName, setNewName] = useState("");
+  const [err, setErr] = useState("");
+  const run = async (action: CategoryAction) => {
+    const e = await onAction(action);
+    setErr(e ?? "");
+    return !e;
+  };
+  // The order on screen. Follows the server list, except for the moment
+  // between a drop and the refetch, when it already shows the new order.
+  const [order, setOrder] = useState(categories);
+  useEffect(() => setOrder(categories), [categories]);
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+  const onDragEnd = async (e: DragEndEvent) => {
+    const from = order.indexOf(String(e.active.id));
+    const to = e.over ? order.indexOf(String(e.over.id)) : -1;
+    if (from < 0 || to < 0 || from === to) return;
+    const next = arrayMove(order, from, to);
+    setOrder(next);
+    if (!(await run({ type: "category-order", order: next }))) setOrder(categories);
+  };
+  const addNew = async () => {
+    const name = newName.trim();
+    if (name && (await run({ type: "category-add", name }))) setNewName("");
+  };
+  // A new row lands at the bottom of a list that scrolls: bring it into view.
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+  }, [categories.length]);
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Categories</DialogTitle>
+          <DialogDescription>Rename in place. Everything filed under the old name follows it.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-1.5">
+          <div ref={listRef} className="grid max-h-[55vh] gap-1.5 overflow-y-auto pr-0.5">
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+              <SortableContext items={order} strategy={verticalListSortingStrategy}>
+                {order.map((c) => (
+                  <SortableRow key={c} id={c}>
+                    {FIXED_CATEGORIES.includes(c) ? (
+                      <Input value={c} disabled aria-label={`${c} (keeps its name)`} title="Wired into the board — keeps its name" />
+                    ) : (
+                      <NameField value={c} onCommit={(to) => run({ type: "category-rename", from: c, to })} />
+                    )}
+                  </SortableRow>
+                ))}
+              </SortableContext>
+            </DndContext>
+          </div>
+          <div className="mt-1 flex gap-2">
+            <Input
+              placeholder="New category"
+              aria-label="New category"
+              name="new-category"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void addNew();
+                }
+              }}
+            />
+            <Button variant="outline" disabled={!newName.trim()} onClick={() => void addNew()}>
+              Add
+            </Button>
+          </div>
+          <p className={cn("min-h-4 text-xs", err ? "text-destructive" : "text-muted-foreground")}>
+            {err || `${SAVINGS} and ${SUBSCRIPTIONS} are wired into the board and keep their names.`}
+          </p>
+        </div>
+        <DialogFooter>
+          <Button onClick={onClose}>Done</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// A row of the list with a grip to drag it by. Only the grip starts a drag,
+// so the text field beside it still selects and edits normally.
+function SortableRow({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: transform ? `translate3d(${Math.round(transform.x)}px, ${Math.round(transform.y)}px, 0)` : undefined, transition }}
+      className={cn("flex items-center gap-1", isDragging && "relative z-10")}
+    >
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        {...listeners}
+        aria-label={`Move ${id}`}
+        title="Drag to reorder"
+        className="flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground/60 hover:bg-accent hover:text-foreground active:cursor-grabbing"
+      >
+        <GripVerticalIcon className="size-4" />
+      </button>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
+// One editable category name. Commits on blur or Enter when changed; a
+// refused rename puts the saved name back, and so does Escape (which also
+// closes the dialog, so the blur that follows must see the reset — hence the ref).
+function NameField({ value, onCommit }: { value: string; onCommit: (to: string) => Promise<boolean> }) {
+  const [draft, setDraft] = useState(value);
+  const latest = useRef(value);
+  const set = (v: string) => {
+    latest.current = v;
+    setDraft(v);
+  };
+  useEffect(() => set(value), [value]);
+  return (
+    <Input
+      aria-label={`Rename ${value}`}
+      value={draft}
+      onChange={(e) => set(e.target.value)}
+      onBlur={async () => {
+        const to = latest.current.trim();
+        if (to && to !== value && (await onCommit(to))) return;
+        set(value);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.currentTarget.blur();
+        } else if (e.key === "Escape") set(value);
+      }}
+    />
   );
 }
 

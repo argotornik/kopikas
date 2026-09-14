@@ -1,6 +1,5 @@
 import type { Db } from "./types";
 import {
-  CATEGORIES,
   SAVINGS,
   partnerShareOf,
   balance,
@@ -14,7 +13,7 @@ import {
   subscriptionStatus,
 } from "./engine";
 import { MOCK_BALANCES } from "./seed";
-import { displayName, guessDomain, identifyMerchant, rulePattern, subscriptionLabel } from "./icons";
+import { guessDomain, merchantOf, rulePattern, subscriptionLabel } from "./icons";
 import { merchantFromDescription, type LhvAccount } from "./lhv";
 import type { Tx } from "./types";
 
@@ -44,6 +43,10 @@ export interface BoardTx {
   // once the name is shown, so it is dropped. Transfers keep their note.
   note: string;
   domain: string | null;
+  emoji: string | null; // the owner's stand-in when there is no favicon
+  // The pattern an identity set from this tile applies to; true when one already does.
+  merchantPattern: string;
+  customMerchant: boolean;
   category: string | null;
   categorySource: "rule" | "override" | null;
   shared: boolean;
@@ -80,7 +83,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
       // check would mark every teaching tile as an exception.
       const ruleCategory = db.rules.findLast((r) => matches(tx, r.match))?.category ?? null;
       const share = shareByTx.get(tx.id);
-      const merchant = identifyMerchant(tx.counterparty, tx.description);
+      const merchant = merchantOf(tx, db.merchants);
       const isCardString = !!merchantFromDescription(tx.description);
       // A note that only repeats the name (bank transfers often carry the
       // counterparty text again, give or take a reference) says nothing.
@@ -98,6 +101,9 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
         description: tx.description,
         note: isCardString || redundant ? "" : tx.description.trim(),
         domain: merchant.domain,
+        emoji: merchant.emoji,
+        merchantPattern: merchant.match ?? rulePattern(tx),
+        customMerchant: merchant.match !== null,
         micro: (tx.counterparty + " " + tx.description).toLowerCase().includes("mikroinvesteering"),
         category: cat,
         categorySource: override && override.category !== ruleCategory ? "override" : cat ? "rule" : null,
@@ -108,11 +114,16 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     });
 
   const totals = categoryTotals(db, month);
-  const subStatuses = db.subscriptions.map((s) => ({
-    ...subscriptionStatus(s, db.transactions, today),
-    domain: guessDomain(s.name),
-    label: subscriptionLabel(s.name),
-  }));
+  const subStatuses = db.subscriptions.map((s) => {
+    // An identity set on the merchant's tiles names the subscription row too.
+    const own = db.merchants.find((m) => m.match === s.match);
+    return {
+      ...subscriptionStatus(s, db.transactions, today),
+      domain: own?.domain ?? guessDomain(s.name),
+      emoji: own?.emoji ?? null,
+      label: own?.name ?? subscriptionLabel(s.name),
+    };
+  });
 
   const sharedItems = [...db.shares]
     .map((s) => ({
@@ -123,7 +134,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
         s.manual?.description ??
         (() => {
           const tx = db.transactions.find((t) => t.id === s.txId);
-          return tx ? displayName(tx.counterparty, tx.description) : "";
+          return tx ? merchantOf(tx, db.merchants).name : "";
         })(),
       total: shareAmount(s, db.transactions),
       partnerShare: partnerShareOf(s),
@@ -222,7 +233,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     month,
     txs,
     sparks,
-    categories: CATEGORIES.map((c) => ({ name: c, total: Math.round((totals[c] ?? 0) * 100) / 100 })),
+    categories: db.categories.map((c) => ({ name: c, total: Math.round((totals[c] ?? 0) * 100) / 100 })),
     uncategorizedCount: txs.filter((t) => !t.category && t.amount < 0).length,
     balance: bal,
     sharedItems,

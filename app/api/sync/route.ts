@@ -9,6 +9,7 @@ import {
   writeCollection,
 } from "@/lib/storage";
 import { fetchAccounts, fetchStatement, refreshAccessToken } from "@/lib/lhv";
+import { recheckCadences } from "@/lib/engine";
 import { currentRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -111,6 +112,17 @@ async function run(req: Request) {
     }
     if (txs.length > 0) await writeCollection("transactions", txs);
 
+    // A second charge settles a cadence that was guessed from one. The new
+    // rows are merged in memory rather than read back: same data, one less trip.
+    let cadencesChanged = 0;
+    if (txs.length > 0) {
+      const byId = new Map(db.transactions.map((t) => [t.id, t]));
+      for (const t of txs) byId.set(t.id, t);
+      db.transactions = [...byId.values()];
+      cadencesChanged = recheckCadences(db);
+      if (cadencesChanged > 0) await writeCollection("subscriptions", db.subscriptions);
+    }
+
     const mockCleaned = txs.length > 0 ? await cleanupMockData() : false;
 
     return NextResponse.json({
@@ -120,6 +132,7 @@ async function run(req: Request) {
       accounts: accounts.length,
       fetched,
       mapped: txs.length,
+      cadencesChanged,
       mockCleaned,
       rotatedRefreshToken: !!newRefreshToken,
       window: { from, to, slices: windows.length },

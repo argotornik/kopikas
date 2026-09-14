@@ -3,14 +3,17 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-// Favicon when we know the domain, letter avatar otherwise (or on load failure).
+// Favicon when we know the domain; otherwise (or on load failure) the owner's
+// emoji for this merchant, or a letter avatar.
 export function MerchantIcon({
   name,
   domain,
+  emoji,
   className,
 }: {
   name: string;
   domain: string | null;
+  emoji?: string | null;
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
@@ -20,11 +23,12 @@ export function MerchantIcon({
       <div
         className={cn(
           "flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium text-secondary-foreground",
+          emoji && "text-base leading-none",
           className
         )}
         aria-hidden
       >
-        {letter}
+        {emoji || letter}
       </div>
     );
   }

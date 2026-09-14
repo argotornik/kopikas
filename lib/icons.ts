@@ -1,7 +1,7 @@
 import { stripPeriod } from "./utils";
 import { matches } from "./engine";
 import { merchantFromDescription } from "./lhv";
-import type { Tx } from "./types";
+import type { Merchant, Tx } from "./types";
 
 // Known merchants: match token → favicon domain, display name. Conservative by
 // design: a wrong logo is worse than a letter, so we only answer when
@@ -97,6 +97,17 @@ export function identifyMerchant(counterparty: string, description = ""): { doma
   if (hit) return { domain: hit[1], name: hit[2] };
   const m = counterparty.toLowerCase().match(DOMAIN_TOKEN);
   return { domain: m ? m[1] : null, name: tidy(counterparty) };
+}
+
+// Who the merchant is on this board: the owner's own identity when one of
+// theirs matches (newest wins, like rules), the built-in table otherwise.
+export function merchantOf(
+  tx: Tx,
+  merchants: Merchant[]
+): { name: string; domain: string | null; emoji: string | null; match: string | null } {
+  const own = merchants.findLast((m) => matches(tx, m.match));
+  if (own) return { name: own.name, domain: own.domain ?? null, emoji: own.emoji ?? null, match: own.match };
+  return { ...identifyMerchant(tx.counterparty, tx.description), emoji: null, match: null };
 }
 
 export function guessDomain(counterparty: string): string | null {

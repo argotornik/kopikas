@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
-import { CATEGORIES, partnerShareOf, inferCadence, subscriptionStatus } from "@/lib/engine";
+import {
+  FIXED_CATEGORIES,
+  SUBSCRIPTIONS,
+  matches,
+  partnerShareOf,
+  inferCadence,
+  subscriptionCharges,
+  subscriptionStatus,
+} from "@/lib/engine";
 import { currentRole } from "@/lib/auth";
-import { displayName, rulePattern } from "@/lib/icons";
+import { merchantOf, rulePattern } from "@/lib/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +27,11 @@ type Action =
   | { type: "accept-price"; subId: string }
   | { type: "cadence"; subId: string; cadence: "monthly" | "yearly" }
   | { type: "snapshot"; total: number; holdings: { name: string; pct: number }[]; returnPct?: number; source?: string }
+  | { type: "category-add"; name: string }
+  | { type: "category-rename"; from: string; to: string }
+  | { type: "category-order"; order: string[] }
+  | { type: "merchant"; txId: string; name: string; domain?: string; emoji?: string }
+  | { type: "merchant-reset"; txId: string }
   | { type: "set-lhv-token"; refreshToken: string };
 
 export async function POST(req: Request) {
@@ -93,7 +106,7 @@ export async function POST(req: Request) {
       if (!action.description?.trim() || !(amount > 0)) return bad("description and positive amount required");
       const fraction = Number(action.partnerShare ?? 0.5);
       if (!(fraction > 0 && fraction < 1)) return bad("partnerShare must be between 0 and 1");
-      const category = action.category && CATEGORIES.includes(action.category) ? action.category : undefined;
+      const category = action.category && db.categories.includes(action.category) ? action.category : undefined;
       db.shares.push({
         id: newId("share"),
         // Whoever is adding paid for it — the partner's card, the owner's cash.
@@ -122,7 +135,7 @@ export async function POST(req: Request) {
     case "subscribe": {
       const tx = db.transactions.find((t) => t.id === action.txId);
       if (!tx) return bad("unknown tx");
-      const cleanName = displayName(tx.counterparty, tx.description);
+      const cleanName = merchantOf(tx, db.merchants).name;
       const match = rulePattern(tx);
       // Aggregators bill many subscriptions under one merchant string —
       // amount-match those so each stays a distinct record.
@@ -141,15 +154,17 @@ export async function POST(req: Request) {
           name: cleanName,
           matchAmount: isAggregator,
           match,
-          expectedAmount: Math.abs(tx.amount),
-          cadence: inferCadence(db.transactions, match),
+          expectedAmount: txAmount,
+          cadence: inferCadence(
+            subscriptionCharges({ match, expectedAmount: txAmount, matchAmount: isAggregator }, db.transactions)
+          ),
           active: true,
           createdAt: now,
         });
         await writeCollection("subscriptions", db.subscriptions);
       }
       if (!db.rules.some((r) => r.match === match)) {
-        db.rules.push({ id: newId("rule"), match, category: "Subscriptions", createdAt: now });
+        db.rules.push({ id: newId("rule"), match, category: SUBSCRIPTIONS, createdAt: now });
         await writeCollection("rules", db.rules);
       }
       break;
@@ -171,6 +186,7 @@ export async function POST(req: Request) {
       if (!sub) return bad("unknown subscription");
       if (action.cadence !== "monthly" && action.cadence !== "yearly") return bad("cadence must be monthly or yearly");
       sub.cadence = action.cadence;
+      sub.cadenceByHand = true;
       await writeCollection("subscriptions", db.subscriptions);
       break;
     }
@@ -192,6 +208,75 @@ export async function POST(req: Request) {
       await writeCollection("snapshots", db.snapshots);
       break;
     }
+    case "category-add": {
+      const name = categoryName(action.name);
+      if (!name) return bad("a short name is required");
+      if (db.categories.some((c) => c.toLowerCase() === name.toLowerCase())) return bad("that category already exists");
+      db.categories.push(name);
+      await writeCollection("categories", db.categories);
+      break;
+    }
+    case "category-rename": {
+      // Everything filed under the old name follows it: rules, hand-filed
+      // tiles, quick-added shared expenses.
+      const i = db.categories.indexOf(action.from);
+      if (i < 0) return bad("unknown category");
+      if (FIXED_CATEGORIES.includes(action.from)) return bad(`${action.from} keeps its name`);
+      const to = categoryName(action.to);
+      if (!to) return bad("a short name is required");
+      if (to === action.from) break;
+      if (db.categories.some((c, j) => j !== i && c.toLowerCase() === to.toLowerCase())) {
+        return bad("that category already exists");
+      }
+      db.categories[i] = to;
+      for (const r of db.rules) if (r.category === action.from) r.category = to;
+      for (const o of db.overrides) if (o.category === action.from) o.category = to;
+      for (const s of db.shares) if (s.manual?.category === action.from) s.manual.category = to;
+      await writeCollection("categories", db.categories);
+      await writeCollection("rules", db.rules);
+      await writeCollection("overrides", db.overrides);
+      await writeCollection("shares", db.shares);
+      break;
+    }
+    case "category-order": {
+      // The same names as now, in the order the dialog shows them after a drag.
+      const order = Array.isArray(action.order) ? action.order : [];
+      const complete =
+        order.length === db.categories.length &&
+        new Set(order).size === order.length &&
+        order.every((c) => db.categories.includes(c));
+      if (!complete) return bad("order must list every category once");
+      db.categories = order;
+      await writeCollection("categories", db.categories);
+      break;
+    }
+    case "merchant": {
+      // The owner's identity for a merchant. Applies to every charge the
+      // pattern matches, like a rule, and wins over the built-in table. An
+      // identity already covering this charge is edited in place.
+      const tx = db.transactions.find((t) => t.id === action.txId);
+      if (!tx) return bad("unknown tx");
+      const name = String(action.name ?? "").replace(/\s+/g, " ").trim();
+      if (!name || name.length > 40) return bad("a short name is required");
+      const domain = hostname(action.domain);
+      if (domain === null) return bad("the website should look like delice.ee");
+      const emoji = String(action.emoji ?? "").trim();
+      if (emoji.length > 16) return bad("one emoji is enough");
+      const fields = { name, domain: domain || undefined, emoji: emoji || undefined };
+      const existing = db.merchants.findLast((m) => matches(tx, m.match));
+      if (existing) Object.assign(existing, fields);
+      else db.merchants.push({ id: newId("mer"), match: rulePattern(tx), ...fields, createdAt: now });
+      await writeCollection("merchants", db.merchants);
+      break;
+    }
+    case "merchant-reset": {
+      // Back to the built-in table for this merchant.
+      const tx = db.transactions.find((t) => t.id === action.txId);
+      if (!tx) return bad("unknown tx");
+      db.merchants = db.merchants.filter((m) => !matches(tx, m.match));
+      await writeCollection("merchants", db.merchants);
+      break;
+    }
     case "set-lhv-token": {
       const token = action.refreshToken?.trim();
       if (!token) return bad("refresh token required");
@@ -203,6 +288,24 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ ok: true });
+}
+
+// "https://www.delice.ee/menu" → "delice.ee". Empty stays empty; anything
+// that does not look like a hostname is null.
+function hostname(raw: unknown): string | null {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (!s) return "";
+  const host = s.replace(/^[a-z]+:\/\//, "").replace(/^www\./, "").split(/[/?#:]/)[0];
+  return /^[a-z0-9][a-z0-9.-]{1,60}$/.test(host) && host.includes(".") ? host : null;
+}
+
+// A category name as typed on the board: one line, trimmed, short, and not
+// one of the two words the feed filter reserves.
+function categoryName(raw: unknown): string | null {
+  const name = String(raw ?? "").replace(/\s+/g, " ").trim();
+  if (!name || name.length > 32) return null;
+  if (["uncategorized", "incoming"].includes(name.toLowerCase())) return null;
+  return name;
 }
 
 function bad(message: string) {

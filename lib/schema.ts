@@ -6,6 +6,7 @@ export const SCHEMA: string[] = [
     id text primary key, date date not null, amount numeric(12, 2) not null,
     currency text not null default 'EUR', counterparty text not null,
     description text not null default '', iban text not null)`,
+  `create table if not exists categories (name text primary key, position int not null)`,
   `create table if not exists rules (
     id text primary key, match text not null, category text not null, created_at timestamptz not null)`,
   `create table if not exists overrides (
@@ -23,7 +24,11 @@ export const SCHEMA: string[] = [
   `create table if not exists subscriptions (
     id text primary key, name text not null, match text not null, expected_amount numeric(12, 2) not null,
     cadence text not null check (cadence in ('monthly', 'yearly')),
+    cadence_by_hand boolean not null default false,
     active boolean not null default true, match_amount boolean not null default false,
+    created_at timestamptz not null)`,
+  `create table if not exists merchants (
+    id text primary key, match text not null, name text not null, domain text, emoji text,
     created_at timestamptz not null)`,
   `create table if not exists snapshots (
     id text primary key, total numeric(12, 2) not null, holdings jsonb not null default '[]',

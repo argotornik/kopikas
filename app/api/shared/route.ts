@@ -17,5 +17,6 @@ export async function GET() {
     balance: board.balance,
     sharedItems: board.sharedItems,
     settlements: board.settlements,
+    categories: db.categories,
   });
 }

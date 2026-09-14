@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
-import { CATEGORIES } from "@/lib/engine";
 import { cn, shareLabel } from "@/lib/utils";
 import { OWNER_NAME, PARTNER_NAME } from "@/lib/names";
 import { Button } from "@/components/ui/button";
@@ -39,6 +38,7 @@ interface SharedView {
     category: string | null;
   }[];
   settlements: { id: string; amount: number; date: string; note?: string }[];
+  categories: string[];
 }
 
 // One statement row. `movement` is how the tab changed (positive = the partner owes
@@ -420,7 +420,7 @@ export function Pooleks({ role }: { role: Person }) {
             className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
           >
             <option value="">Category (optional)</option>
-            {CATEGORIES.map((c) => (
+            {(view?.categories ?? []).map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
