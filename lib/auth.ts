@@ -11,10 +11,20 @@ export type Role = "owner" | "partner" | null;
 
 export const authEnabled = !!process.env.CLERK_SECRET_KEY;
 
+// A deployment with sign-in but no OWNER_EMAIL has not been told who owns
+// it yet; the board shows a setup screen instead of a locked door.
+export const ownerConfigured = !!process.env.OWNER_EMAIL?.trim();
+
+// The signed-in address, lower-cased; null when auth is off or nobody is signed in.
+export async function currentEmail(): Promise<string | null> {
+  if (!authEnabled) return null;
+  const user = await currentUser();
+  return user?.primaryEmailAddress?.emailAddress?.toLowerCase() ?? null;
+}
+
 export async function currentRole(): Promise<Role> {
   if (!authEnabled) return "owner";
-  const user = await currentUser();
-  const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
+  const email = await currentEmail();
   if (!email) return null;
   if (email === process.env.OWNER_EMAIL?.toLowerCase()) return "owner";
   if (email === process.env.PARTNER_EMAIL?.toLowerCase()) return "partner";

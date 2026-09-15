@@ -82,14 +82,18 @@ export async function writeCollection<K extends keyof Db>(name: K, value: Db[K])
 
 /* ---------------- JSON dev adapter ---------------- */
 
-const DATA_DIR = path.join(process.cwd(), "data");
+// KOPIKAS_EMPTY=1 runs the dev server against an empty store in data/empty:
+// the normal data/ is seeded with mock transactions and never empty, and the
+// first-run screens only show on an empty board.
+const EMPTY = !!process.env.KOPIKAS_EMPTY;
+const DATA_DIR = path.join(process.cwd(), "data", EMPTY ? "empty" : "");
 
 async function ensureSeeded(): Promise<void> {
   await fs.mkdir(DATA_DIR, { recursive: true });
   try {
     await fs.access(path.join(DATA_DIR, "transactions.json"));
   } catch {
-    const seed = seedDb();
+    const seed = EMPTY ? (Object.fromEntries(FILES.map((f) => [f, []])) as unknown as Db) : seedDb();
     await Promise.all(
       FILES.map((f) =>
         fs.writeFile(path.join(DATA_DIR, `${f}.json`), JSON.stringify(seed[f], null, 2))

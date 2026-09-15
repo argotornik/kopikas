@@ -4,8 +4,25 @@
     {
       "name": "expense-board",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "kopikas-empty",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "KOPIKAS_EMPTY=1",
+        "npm",
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3001"
+      ],
+      "port": 3001
     }
   ]
 }
