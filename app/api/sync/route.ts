@@ -3,13 +3,14 @@ import type { Tx } from "@/lib/types";
 import {
   cleanupMockData,
   getLhvTokens,
+  newId,
   readDb,
   saveAccounts,
   saveLhvTokens,
   writeCollection,
 } from "@/lib/storage";
-import { fetchAccounts, fetchStatement, refreshAccessToken } from "@/lib/lhv";
-import { recheckCadences } from "@/lib/engine";
+import { fetchAccounts, fetchInvestments, fetchStatement, refreshAccessToken } from "@/lib/lhv";
+import { recheckCadences, recordInvestments } from "@/lib/engine";
 import { currentRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -125,6 +126,23 @@ async function run(req: Request) {
 
     const mockCleaned = txs.length > 0 ? await cleanupMockData() : false;
 
+    // The LHV investment pot straight from the API: one snapshot a day,
+    // refreshed by later syncs. Reported as a count only; a failure here
+    // never fails the sync. After a mock cleanup the store is read again so
+    // the fictional snapshots are not written back.
+    let investments: { positions: number; updated: boolean } | { error: string } | null = null;
+    try {
+      const portfolio = await fetchInvestments(accessToken);
+      if (portfolio) {
+        const store = mockCleaned ? await readDb() : db;
+        const updated = recordInvestments(store, portfolio, new Date().toISOString(), () => newId("snap"));
+        if (updated) await writeCollection("snapshots", store.snapshots);
+        investments = { positions: portfolio.positions, updated };
+      }
+    } catch (e) {
+      investments = { error: e instanceof Error ? e.message : String(e) };
+    }
+
     return NextResponse.json({
       ok: true,
       tokenMode,
@@ -133,6 +151,7 @@ async function run(req: Request) {
       fetched,
       mapped: txs.length,
       cadencesChanged,
+      investments,
       mockCleaned,
       rotatedRefreshToken: !!newRefreshToken,
       window: { from, to, slices: windows.length },

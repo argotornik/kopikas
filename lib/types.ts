@@ -85,6 +85,7 @@ export interface Snapshot {
   holdings: { name: string; pct: number }[];
   returnPct?: number; // overall return % as reported by Lightyear at snapshot time
   at: string; // ISO datetime
+  auto?: boolean; // written by the sync from the LHV investments endpoint
 }
 
 // A category as the board shows it, in display order. budget is an optional

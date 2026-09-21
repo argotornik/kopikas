@@ -82,6 +82,7 @@ create table if not exists snapshots (
   holdings   jsonb not null default '[]',
   return_pct numeric(6, 2),
   source     text,            -- lightyear (null = lightyear) | lhv
+  auto         boolean not null default false, -- written by the sync from the LHV investments endpoint
   at         timestamptz not null
 );
 

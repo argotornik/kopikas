@@ -32,7 +32,7 @@ export const SCHEMA: string[] = [
     created_at timestamptz not null)`,
   `create table if not exists snapshots (
     id text primary key, total numeric(12, 2) not null, holdings jsonb not null default '[]',
-    return_pct numeric(6, 2), source text, at timestamptz not null)`,
+    return_pct numeric(6, 2), source text, auto boolean not null default false, at timestamptz not null)`,
   `create table if not exists icons (domain text primary key, png bytea not null, fetched_at timestamptz not null)`,
   `create table if not exists tokens (id text primary key, encrypted text not null, updated_at timestamptz not null)`,
   `create table if not exists accounts (

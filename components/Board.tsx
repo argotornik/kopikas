@@ -1536,7 +1536,7 @@ function BudgetField({
   );
 }
 
-type PotLatest = { total: number; returnPct?: number; at: string } | null;
+type PotLatest = { total: number; returnPct?: number; at: string; auto?: boolean } | null;
 
 function SnapshotEditor({
   open,
@@ -1550,6 +1550,8 @@ function SnapshotEditor({
   onSave: (source: "lightyear" | "lhv", total: number, holdings: { name: string; pct: number }[], returnPct?: number) => void;
 }) {
   const [source, setSource] = useState<"lightyear" | "lhv">("lightyear");
+  // Once the sync feeds the LHV pot, only Lightyear is entered by hand.
+  const pots = latest.lhv?.auto ? (["lightyear"] as const) : (["lightyear", "lhv"] as const);
   const [total, setTotal] = useState("");
   const [returnPct, setReturnPct] = useState("");
   const [holdings, setHoldings] = useState("");
@@ -1560,11 +1562,15 @@ function SnapshotEditor({
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Update investments</DialogTitle>
-          <DialogDescription>Every update is logged — decreases too.</DialogDescription>
+          <DialogDescription>
+            Every update is logged — decreases too.
+            {latest.lhv?.auto && " The LHV account comes in with every sync; only Lightyear is entered here."}
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">
+          {pots.length > 1 && (
           <div className="flex gap-1" role="radiogroup" aria-label="Which pot">
-            {(["lightyear", "lhv"] as const).map((p) => (
+            {pots.map((p) => (
               <button
                 key={p}
                 type="button"
@@ -1582,6 +1588,7 @@ function SnapshotEditor({
               </button>
             ))}
           </div>
+          )}
           <p className="min-h-4 text-xs text-muted-foreground">
             {current
               ? `Last: ${eur.format(current.total)}${

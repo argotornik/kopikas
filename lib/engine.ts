@@ -157,6 +157,31 @@ export function recheckCadences(db: Db): number {
   return changed;
 }
 
+// The LHV pot as the sync read it: one snapshot per day, refreshed in place
+// by later syncs the same day so the tile stays current without a row an
+// hour. Returns whether the snapshots changed.
+export function recordInvestments(
+  db: Db,
+  reading: { total: number; returnPct?: number; holdings: { name: string; pct: number }[] },
+  now: string,
+  id: () => string
+): boolean {
+  const day = now.slice(0, 10);
+  const today = db.snapshots.find((s) => s.source === "lhv" && s.auto && s.at.slice(0, 10) === day);
+  const row = { total: reading.total, holdings: reading.holdings, returnPct: reading.returnPct, at: now };
+  if (today) {
+    const same =
+      today.total === row.total &&
+      today.returnPct === row.returnPct &&
+      JSON.stringify(today.holdings) === JSON.stringify(row.holdings);
+    if (same) return false;
+    Object.assign(today, row);
+    return true;
+  }
+  db.snapshots.push({ id: id(), source: "lhv", auto: true, ...row });
+  return true;
+}
+
 export interface SubStatus {
   sub: Subscription;
   lastCharge?: { date: string; amount: number };

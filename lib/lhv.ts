@@ -189,6 +189,49 @@ export async function fetchStatement(
   };
 }
 
+/* ---------- investments ---------- */
+
+export interface LhvPortfolio {
+  total: number; // market value in the base currency
+  returnPct?: number; // total profit or loss as a percentage, as LHV reports it
+  holdings: { name: string; pct: number }[];
+  positions: number;
+}
+
+// The portfolio across every investment account, from /investments/balances
+// (scope accounts:read, nothing extra). Positions are merged by instrument
+// and reported as shares of the total, the shape the snapshots already use.
+export function mapPortfolio(json: unknown): LhvPortfolio | null {
+  const o = json as { accounts?: unknown; summary?: Record<string, unknown> } | null;
+  const byName = new Map<string, number>();
+  for (const a of asArray(o?.accounts, [])) {
+    for (const p of asArray(a.positions, [])) {
+      const value = num(p.baseCurrencyMarketValue ?? p.marketValue);
+      const name = str(p.name, p.symbol);
+      if (value === undefined || !name) continue;
+      byName.set(name, (byName.get(name) ?? 0) + value);
+    }
+  }
+  const summed = [...byName.values()].reduce((s, v) => s + v, 0);
+  const total = num(o?.summary?.totalValue) ?? summed;
+  if (!(total > 0)) return null;
+  const holdings = [...byName.entries()]
+    .map(([name, v]) => ({ name, pct: Math.round((v / total) * 100) }))
+    .filter((h) => h.pct > 0)
+    .sort((a, b) => b.pct - a.pct);
+  const returnPct = num(o?.summary?.totalChangePercentage);
+  return {
+    total: Math.round(total * 100) / 100,
+    returnPct: returnPct === undefined ? undefined : Math.round(returnPct * 100) / 100,
+    holdings,
+    positions: byName.size,
+  };
+}
+
+export async function fetchInvestments(accessToken: string): Promise<LhvPortfolio | null> {
+  return mapPortfolio(await lhvGet(accessToken, "/investments/balances?isSettled=false"));
+}
+
 const DEBIT_MARKERS = new Set(["DBIT", "DEBIT", "D", "OUT", "OUTGOING", "DEB", "EXPENSE"]);
 
 // LHV card payments embed the merchant in the description:

@@ -36,7 +36,7 @@ Pooleks (Estonian for *in half*) is the shared ledger. Drop a charge on the zone
 
 ![Pooleks: the shared statement, one figure per row, a Details toggle for the working](docs/pooleks-dark.png)
 
-The stat row across the top shows this month's spend against last month, the account balances with a 30-day line each, and an Investments tile. LHV's API only gained investment endpoints in September 2026, so the two pots (a Lightyear account and the LHV investment account) are still tracked by manual snapshot and charted over time. Wiring the new endpoints is next.
+The stat row across the top shows this month's spend against last month, the account balances with a 30-day line each, and an Investments tile. The LHV investment account is read from the API on every sync, one snapshot a day refreshed through the day; the Lightyear pot has no API and is entered by hand. Both are charted over time.
 
 ## How it is built
 
@@ -57,6 +57,7 @@ LHV exposes a read-only API at `api.lhv.ai/api/v1` (in beta) with OAuth2 and two
 - Access tokens live 15 minutes in practice, not the hour the setup page states. Every sync refreshes first.
 - Statements are fetched in slices of at most 90 days, so a backfill of a whole year is three requests per account.
 - Card payments carry the merchant inside the description string, along with the card tail, a timestamp and an address. `merchantFromDescription` pulls the name out.
+- Investment positions come from `/investments/balances`: every investment account in one call, with a portfolio total and per-position market values. It needs only the accounts scope.
 
 To connect an account, open [api.lhv.ai/api-access](https://api.lhv.ai/api-access), authenticate with Smart-ID, Mobile-ID or ID-card, and paste the refresh token into the Settings page. From then on the sync keeps itself alive as long as it runs at least once every 30 days.
 

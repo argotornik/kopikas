@@ -151,6 +151,7 @@ function ensureSchema(sql: ReturnType<typeof db>): Promise<void> {
       await sql`alter table snapshots add column if not exists source text`;
       await sql`alter table subscriptions add column if not exists cadence_by_hand boolean not null default false`;
       await sql`alter table categories add column if not exists budget numeric(12,2)`;
+      await sql`alter table snapshots add column if not exists auto boolean not null default false`;
     })().catch((e) => {
       schemaReady = null;
       throw e;
@@ -176,7 +177,7 @@ async function pgReadDb(): Promise<Db> {
     sql`select id, name, match, expected_amount::float8 as expected_amount, cadence, cadence_by_hand, active,
         match_amount, created_at::text as created_at from subscriptions order by created_at, id`,
     sql`select id, match, name, domain, emoji, created_at::text as created_at from merchants order by created_at, id`,
-    sql`select id, source, total::float8 as total, holdings, return_pct::float8 as return_pct, at::text as at from snapshots order by at, id`,
+    sql`select id, source, auto, total::float8 as total, holdings, return_pct::float8 as return_pct, at::text as at from snapshots order by at, id`,
   ]);
 
   return {
@@ -241,6 +242,7 @@ async function pgReadDb(): Promise<Db> {
       holdings: r.holdings,
       returnPct: r.return_pct ?? undefined,
       at: r.at,
+      auto: r.auto || undefined,
     })),
   } as Db;
 }
@@ -348,11 +350,12 @@ async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Pro
     case "snapshots": {
       await sql`alter table snapshots add column if not exists return_pct numeric(6,2)`;
       await sql`alter table snapshots add column if not exists source text`;
+      await sql`alter table snapshots add column if not exists auto boolean not null default false`;
       await sql`delete from snapshots`;
       for (const s of value as Db["snapshots"]) {
         await sql.query(
-          `insert into snapshots (id, source, total, holdings, return_pct, at) values ($1, $2, $3, $4::jsonb, $5, $6)`,
-          [s.id, s.source ?? null, s.total, JSON.stringify(s.holdings), s.returnPct ?? null, s.at]
+          `insert into snapshots (id, source, auto, total, holdings, return_pct, at) values ($1, $2, $3, $4, $5::jsonb, $6, $7)`,
+          [s.id, s.source ?? null, s.auto ?? false, s.total, JSON.stringify(s.holdings), s.returnPct ?? null, s.at]
         );
       }
       return;
