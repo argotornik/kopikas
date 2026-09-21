@@ -1,6 +1,6 @@
-import { stripPeriod } from "./utils";
-import { matches } from "./engine";
-import { merchantFromDescription } from "./lhv";
+import { stripPeriod } from "./utils.ts";
+import { matches } from "./engine.ts";
+import { merchantFromDescription } from "./lhv.ts";
 import type { Merchant, Tx } from "./types";
 
 // Known merchants: match token → favicon domain, display name. Conservative by

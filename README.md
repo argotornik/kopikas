@@ -101,7 +101,7 @@ The two investment pots and the two sign-in roles are hard-coded to one househol
 
 Only LHV is supported. Another bank means implementing the two fetch functions in `lib/lhv.ts` against its API and mapping into the same transaction shape.
 
-There are no automated tests. The type checker is strict and the mock board is the manual one.
+`npm test` runs the engine tests on Node's built-in runner, no extra dependency: the rule matcher and category maths, the Pooleks balance, subscription cadence and status, merchant naming, and the LHV mappers. GitHub Actions runs them on every push and pull request. The type checker is strict, and the mock board is the manual test for the interface.
 
 The LHV API is in beta and changed during the build. If the sync starts returning empty, check `lhv.ai` before checking the code.
 

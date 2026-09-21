@@ -8,6 +8,7 @@ import {
   matches,
   partnerShareOf,
   inferCadence,
+  renameCategory,
   subscriptionCharges,
   subscriptionStatus,
 } from "@/lib/engine";
@@ -232,10 +233,7 @@ export async function POST(req: Request) {
       if (db.categories.some((c, j) => j !== i && c.name.toLowerCase() === to.toLowerCase())) {
         return bad("that category already exists");
       }
-      db.categories[i].name = to;
-      for (const r of db.rules) if (r.category === action.from) r.category = to;
-      for (const o of db.overrides) if (o.category === action.from) o.category = to;
-      for (const s of db.shares) if (s.manual?.category === action.from) s.manual.category = to;
+      renameCategory(db, action.from, to);
       await writeCollection("categories", db.categories);
       await writeCollection("rules", db.rules);
       await writeCollection("overrides", db.overrides);

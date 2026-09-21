@@ -182,6 +182,16 @@ export function recordInvestments(
   return true;
 }
 
+// A rename carries everything filed under the old name along: rules,
+// hand-filed tiles, quick-added shared expenses. Validation is the caller's.
+export function renameCategory(db: Db, from: string, to: string): void {
+  const cat = db.categories.find((c) => c.name === from);
+  if (cat) cat.name = to;
+  for (const r of db.rules) if (r.category === from) r.category = to;
+  for (const o of db.overrides) if (o.category === from) o.category = to;
+  for (const s of db.shares) if (s.manual?.category === from) s.manual.category = to;
+}
+
 export interface SubStatus {
   sub: Subscription;
   lastCharge?: { date: string; amount: number };
