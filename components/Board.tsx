@@ -67,6 +67,9 @@ import {
 import { Input } from "@/components/ui/input";
 
 const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
+// Limits are round numbers; show them without cents unless they have some.
+const eurWhole = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const limit = (b: number) => (Number.isInteger(b) ? eurWhole : eur).format(b);
 const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
@@ -76,7 +79,8 @@ type Prompt = { txId: string; name: string; pattern: string; category: string; a
 type CategoryAction =
   | { type: "category-add"; name: string }
   | { type: "category-rename"; from: string; to: string }
-  | { type: "category-order"; order: string[] };
+  | { type: "category-order"; order: string[] }
+  | { type: "category-budget"; name: string; budget: number | null };
 
 // View state carried in the URL (?cat=&month=&q=) so filtered views deep-link.
 type ViewParams = { cat?: string; month?: string; q?: string };
@@ -683,6 +687,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                         key={c.name}
                         name={c.name}
                         total={Math.round((monthCategoryTotals.get(c.name) ?? 0) * 100) / 100}
+                        budget={c.budget}
                         share={
                           c.name === SAVINGS || maxCategoryTotal === 0
                             ? 0
@@ -1016,7 +1021,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
 
       <CategoriesEditor
         open={catsOpen}
-        categories={board.categories.map((c) => c.name)}
+        categories={board.categories.map((c) => ({ name: c.name, budget: c.budget }))}
         onClose={() => setCatsOpen(false)}
         onAction={editCategories}
       />
@@ -1206,38 +1211,56 @@ function Tile({
 function CategoryRow({
   name,
   total,
+  budget,
   share,
   active,
   onSelect,
 }: {
   name: string;
   total: number;
+  budget: number | null; // monthly limit, when set
   share: number; // 0..1 of the month's largest spending category
   active: boolean;
   onSelect: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `cat:${name}` });
+  // With a limit the bar is a meter against it, on a faint track so it reads
+  // as one; without, it is the row's share of the month's largest category.
+  const over = budget != null && total > budget;
+  const fill = budget != null ? Math.min(total / budget, 1) : share;
   return (
     <button
       type="button"
       ref={setNodeRef}
       onClick={onSelect}
+      title={budget != null ? `${eur.format(Math.abs(budget - total))} ${over ? "over the limit" : "left this month"}` : undefined}
       className={cn(
         "relative flex w-full cursor-pointer justify-between overflow-hidden rounded-md border border-dashed border-transparent px-2.5 py-1.5 text-left text-sm hover:bg-accent/50",
         isOver && "border-primary bg-accent",
         active && "bg-accent font-medium"
       )}
     >
-      {share > 0 && (
+      {budget != null && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-full bg-foreground/[0.04]" />}
+      {fill > 0 && (
         <span
           aria-hidden="true"
-          className="absolute inset-y-0 left-0 rounded-md bg-primary/10 transition-[width] duration-300 motion-reduce:transition-none"
-          style={{ width: `${Math.round(share * 1000) / 10}%` }}
+          className={cn(
+            "absolute inset-y-0 left-0 rounded-md transition-[width] duration-300 motion-reduce:transition-none",
+            over ? "bg-attention/15" : "bg-primary/10"
+          )}
+          style={{ width: `${Math.round(fill * 1000) / 10}%` }}
         />
       )}
       <span className="relative">{name}</span>
-      <span className={cn("relative text-muted-foreground", !isOver && "font-mono tabular-nums")}>
-        {isOver ? "drop here" : total > 0 ? eur.format(total) : ""}
+      <span className={cn("relative text-muted-foreground", !isOver && "font-mono tabular-nums", over && !isOver && "text-attention")}>
+        {isOver ? (
+          "drop here"
+        ) : (
+          <>
+            {total > 0 || budget != null ? eur.format(total) : ""}
+            {budget != null && <span className="text-muted-foreground/70"> / {limit(budget)}</span>}
+          </>
+        )}
       </span>
     </button>
   );
@@ -1309,7 +1332,7 @@ function CategoriesEditor({
   onAction,
 }: {
   open: boolean;
-  categories: string[];
+  categories: { name: string; budget: number | null }[];
   onClose: () => void;
   onAction: (action: CategoryAction) => Promise<string | null>; // null = saved, otherwise the reason it was not
 }) {
@@ -1322,8 +1345,10 @@ function CategoriesEditor({
   };
   // The order on screen. Follows the server list, except for the moment
   // between a drop and the refetch, when it already shows the new order.
-  const [order, setOrder] = useState(categories);
-  useEffect(() => setOrder(categories), [categories]);
+  const names = categories.map((c) => c.name);
+  const [order, setOrder] = useState(names);
+  useEffect(() => setOrder(categories.map((c) => c.name)), [categories]);
+  const budgetOf = (name: string) => categories.find((c) => c.name === name)?.budget ?? null;
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -1334,7 +1359,7 @@ function CategoriesEditor({
     if (from < 0 || to < 0 || from === to) return;
     const next = arrayMove(order, from, to);
     setOrder(next);
-    if (!(await run({ type: "category-order", order: next }))) setOrder(categories);
+    if (!(await run({ type: "category-order", order: next }))) setOrder(names);
   };
   const addNew = async () => {
     const name = newName.trim();
@@ -1350,7 +1375,10 @@ function CategoriesEditor({
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Categories</DialogTitle>
-          <DialogDescription>Rename in place. Everything filed under the old name follows it.</DialogDescription>
+          <DialogDescription>
+            Rename in place; everything filed under the old name follows. The right field is a monthly limit, empty
+            for none.
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-1.5">
           <div ref={listRef} className="grid max-h-[55vh] gap-1.5 overflow-y-auto pr-0.5">
@@ -1358,11 +1386,20 @@ function CategoriesEditor({
               <SortableContext items={order} strategy={verticalListSortingStrategy}>
                 {order.map((c) => (
                   <SortableRow key={c} id={c}>
-                    {FIXED_CATEGORIES.includes(c) ? (
-                      <Input value={c} disabled aria-label={`${c} (keeps its name)`} title="Wired into the board — keeps its name" />
-                    ) : (
-                      <NameField value={c} onCommit={(to) => run({ type: "category-rename", from: c, to })} />
-                    )}
+                    <div className="flex gap-1.5">
+                      {FIXED_CATEGORIES.includes(c) ? (
+                        <Input value={c} disabled aria-label={`${c} (keeps its name)`} title="Wired into the board — keeps its name" />
+                      ) : (
+                        <NameField value={c} onCommit={(to) => run({ type: "category-rename", from: c, to })} />
+                      )}
+                      {c !== SAVINGS && (
+                        <BudgetField
+                          name={c}
+                          value={budgetOf(c)}
+                          onCommit={(budget) => run({ type: "category-budget", name: c, budget })}
+                        />
+                      )}
+                    </div>
                   </SortableRow>
                 ))}
               </SortableContext>
@@ -1450,6 +1487,50 @@ function NameField({ value, onCommit }: { value: string; onCommit: (to: string) 
           e.preventDefault();
           e.currentTarget.blur();
         } else if (e.key === "Escape") set(value);
+      }}
+    />
+  );
+}
+
+// One category's monthly limit, or none. Commits on blur or Enter; an empty
+// field removes the limit. Same ref trick as NameField, for the same reason.
+function BudgetField({
+  name,
+  value,
+  onCommit,
+}: {
+  name: string;
+  value: number | null;
+  onCommit: (budget: number | null) => Promise<boolean>;
+}) {
+  const text = value == null ? "" : String(value);
+  const [draft, setDraft] = useState(text);
+  const latest = useRef(text);
+  const set = (v: string) => {
+    latest.current = v;
+    setDraft(v);
+  };
+  useEffect(() => set(text), [text]);
+  return (
+    <Input
+      aria-label={`Monthly limit for ${name}, in euros`}
+      placeholder="€ / mo"
+      inputMode="decimal"
+      className="w-24 shrink-0 text-right font-mono tabular-nums"
+      value={draft}
+      onChange={(e) => set(e.target.value)}
+      onBlur={async () => {
+        const raw = latest.current.replace(/[\s€]/g, "").replace(",", ".");
+        const budget = raw === "" ? null : Number(raw);
+        if (budget !== null && !(budget > 0)) return set(text);
+        if (budget === value) return;
+        if (!(await onCommit(budget))) set(text);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.currentTarget.blur();
+        } else if (e.key === "Escape") set(text);
       }}
     />
   );

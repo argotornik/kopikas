@@ -68,7 +68,7 @@ export function seedDb(): Db {
   });
 
   return {
-    categories: [...DEFAULT_CATEGORIES],
+    categories: DEFAULT_CATEGORIES.map((name) => ({ name })),
     transactions,
     rules: [
       mkRule(1, "rimi", "Groceries"),

@@ -19,7 +19,7 @@ The ledger is the middle column: every transaction, newest first, grouped by day
 
 The rail on the right holds three cards.
 
-Categories start as a default list, and a cog on the card renames them, adds new ones or drags them into a new order; a rename carries every rule and filed charge along. Each row shows this month's total with a copper bar for its share of the largest, and each row is a drop target. A drop asks whether to file just this one or *always*; *always* writes a rule, which is a lowercase substring matched against the counterparty and description. Rules are listed and deleted on the Settings page. Incoming money has its own line, Received, under Spent; clicking it shows who sent what.
+Categories start as a default list, and a cog on the card renames them, adds new ones or drags them into a new order; a rename carries every rule and filed charge along. Each row shows this month's total with a copper bar for its share of the largest, and each row is a drop target. Give a category a monthly limit in the same dialog and its bar becomes a meter against the limit, amber once it is passed. A drop asks whether to file just this one or *always*; *always* writes a rule, which is a lowercase substring matched against the counterparty and description. Rules are listed and deleted on the Settings page. Incoming money has its own line, Received, under Spent; clicking it shows who sent what.
 
 ![Dragging an uncategorised charge onto the Home row, choosing Always, and watching the merchant's other charges file themselves](docs/drag.gif)
 
@@ -77,7 +77,7 @@ Open http://localhost:3000. Without Clerk keys there is no sign-in and you are t
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fargotornik%2Fkopikas&project-name=kopikas&repository-name=kopikas&env=ENCRYPTION_KEY,LHV_CLIENT_ID,CRON_SECRET,OWNER_EMAIL,NEXT_PUBLIC_OWNER_NAME&envDescription=See%20the%20table%20under%20%22Deploying%20your%20own%22%20in%20the%20README&envLink=https%3A%2F%2Fgithub.com%2Fargotornik%2Fkopikas%23deploying-your-own)
 
-You need a Vercel project pointed at the repo, a Neon database, and a Clerk application. The Neon and Clerk integrations on the Vercel Marketplace set `DATABASE_URL` and the Clerk keys for you. The app creates its tables on first start. Sign in, and an empty board walks you through connecting LHV: get a token, paste it, run the first sync.
+You need a Vercel project pointed at the repo, a Neon database, and a Clerk application. The Neon and Clerk integrations on the Vercel Marketplace set `DATABASE_URL` and the Clerk keys for you. The app creates its tables on first start. Sign in, and an empty board walks you through connecting LHV: get a token, paste it, press Connect. The first sync runs and the board opens.
 
 | Variable | What it is |
 |---|---|

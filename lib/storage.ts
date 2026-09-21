@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { neon } from "@neondatabase/serverless";
-import type { Db } from "./types";
+import type { Category, Db } from "./types";
 import { seedDb } from "./seed";
 import { SCHEMA } from "./schema";
 import { DEFAULT_CATEGORIES } from "./engine";
@@ -35,8 +35,10 @@ export function newId(prefix: string): string {
 
 export async function readDb(): Promise<Db> {
   const db = normalizePatterns(normalizeCategories(await (process.env.DATABASE_URL ? pgReadDb() : jsonReadDb())));
+  // categories.json from before limits existed holds bare names.
+  db.categories = (db.categories as unknown as (string | Category)[]).map((c) => (typeof c === "string" ? { name: c } : c));
   // A board that has never edited its categories stores none and shows the defaults.
-  if (db.categories.length === 0) db.categories = [...DEFAULT_CATEGORIES];
+  if (db.categories.length === 0) db.categories = DEFAULT_CATEGORIES.map((name) => ({ name }));
   return db;
 }
 
@@ -148,6 +150,7 @@ function ensureSchema(sql: ReturnType<typeof db>): Promise<void> {
       await sql`alter table shares add column if not exists manual_category text`;
       await sql`alter table snapshots add column if not exists source text`;
       await sql`alter table subscriptions add column if not exists cadence_by_hand boolean not null default false`;
+      await sql`alter table categories add column if not exists budget numeric(12,2)`;
     })().catch((e) => {
       schemaReady = null;
       throw e;
@@ -160,7 +163,7 @@ async function pgReadDb(): Promise<Db> {
   const sql = db();
   await ensureSchema(sql);
   const [categories, txs, rules, overrides, shares, settlements, subscriptions, merchants, snapshots] = await Promise.all([
-    sql`select name from categories order by position, name`,
+    sql`select name, budget::float8 as budget from categories order by position, name`,
     sql`select id, date::text as date, amount::float8 as amount, currency, counterparty, description, iban
         from transactions order by date, id`,
     sql`select id, match, category, created_at::text as created_at from rules order by created_at, id`,
@@ -177,7 +180,7 @@ async function pgReadDb(): Promise<Db> {
   ]);
 
   return {
-    categories: categories.map((r) => r.name),
+    categories: categories.map((r) => ({ name: r.name, budget: r.budget ?? undefined })),
     transactions: txs.map((r) => ({
       id: r.id,
       date: r.date,
@@ -249,7 +252,7 @@ async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Pro
       await ensureSchema(sql);
       await sql`delete from categories`;
       for (const [i, c] of (value as Db["categories"]).entries()) {
-        await sql.query(`insert into categories (name, position) values ($1, $2)`, [c, i]);
+        await sql.query(`insert into categories (name, position, budget) values ($1, $2, $3)`, [c.name, i, c.budget ?? null]);
       }
       return;
     }

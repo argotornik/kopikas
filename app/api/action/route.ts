@@ -3,6 +3,7 @@ import type { Db, Merchant } from "@/lib/types";
 import { newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
 import {
   FIXED_CATEGORIES,
+  SAVINGS,
   SUBSCRIPTIONS,
   matches,
   partnerShareOf,
@@ -31,6 +32,7 @@ type Action =
   | { type: "category-add"; name: string }
   | { type: "category-rename"; from: string; to: string }
   | { type: "category-order"; order: string[] }
+  | { type: "category-budget"; name: string; budget: number | null }
   | { type: "merchant"; txId?: string; subId?: string; name: string; domain?: string; emoji?: string }
   | { type: "merchant-reset"; txId?: string; subId?: string }
   | { type: "set-lhv-token"; refreshToken: string };
@@ -107,7 +109,8 @@ export async function POST(req: Request) {
       if (!action.description?.trim() || !(amount > 0)) return bad("description and positive amount required");
       const fraction = Number(action.partnerShare ?? 0.5);
       if (!(fraction > 0 && fraction < 1)) return bad("partnerShare must be between 0 and 1");
-      const category = action.category && db.categories.includes(action.category) ? action.category : undefined;
+      const category =
+        action.category && db.categories.some((c) => c.name === action.category) ? action.category : undefined;
       db.shares.push({
         id: newId("share"),
         // Whoever is adding paid for it — the partner's card, the owner's cash.
@@ -212,24 +215,24 @@ export async function POST(req: Request) {
     case "category-add": {
       const name = categoryName(action.name);
       if (!name) return bad("a short name is required");
-      if (db.categories.some((c) => c.toLowerCase() === name.toLowerCase())) return bad("that category already exists");
-      db.categories.push(name);
+      if (db.categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) return bad("that category already exists");
+      db.categories.push({ name });
       await writeCollection("categories", db.categories);
       break;
     }
     case "category-rename": {
       // Everything filed under the old name follows it: rules, hand-filed
       // tiles, quick-added shared expenses.
-      const i = db.categories.indexOf(action.from);
+      const i = db.categories.findIndex((c) => c.name === action.from);
       if (i < 0) return bad("unknown category");
       if (FIXED_CATEGORIES.includes(action.from)) return bad(`${action.from} keeps its name`);
       const to = categoryName(action.to);
       if (!to) return bad("a short name is required");
       if (to === action.from) break;
-      if (db.categories.some((c, j) => j !== i && c.toLowerCase() === to.toLowerCase())) {
+      if (db.categories.some((c, j) => j !== i && c.name.toLowerCase() === to.toLowerCase())) {
         return bad("that category already exists");
       }
-      db.categories[i] = to;
+      db.categories[i].name = to;
       for (const r of db.rules) if (r.category === action.from) r.category = to;
       for (const o of db.overrides) if (o.category === action.from) o.category = to;
       for (const s of db.shares) if (s.manual?.category === action.from) s.manual.category = to;
@@ -245,9 +248,20 @@ export async function POST(req: Request) {
       const complete =
         order.length === db.categories.length &&
         new Set(order).size === order.length &&
-        order.every((c) => db.categories.includes(c));
+        order.every((n) => db.categories.some((c) => c.name === n));
       if (!complete) return bad("order must list every category once");
-      db.categories = order;
+      db.categories = order.map((n) => db.categories.find((c) => c.name === n)!);
+      await writeCollection("categories", db.categories);
+      break;
+    }
+    case "category-budget": {
+      // A monthly limit in euros, or none. Savings is a transfer, not spending.
+      const cat = db.categories.find((c) => c.name === action.name);
+      if (!cat) return bad("unknown category");
+      if (cat.name === SAVINGS) return bad("Savings has no limit");
+      const budget = action.budget == null ? undefined : Number(action.budget);
+      if (budget !== undefined && !(budget > 0 && budget < 1e7)) return bad("a positive amount, or empty for no limit");
+      cat.budget = budget === undefined ? undefined : Math.round(budget * 100) / 100;
       await writeCollection("categories", db.categories);
       break;
     }

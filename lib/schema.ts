@@ -6,7 +6,7 @@ export const SCHEMA: string[] = [
     id text primary key, date date not null, amount numeric(12, 2) not null,
     currency text not null default 'EUR', counterparty text not null,
     description text not null default '', iban text not null)`,
-  `create table if not exists categories (name text primary key, position int not null)`,
+  `create table if not exists categories (name text primary key, position int not null, budget numeric(12, 2))`,
   `create table if not exists rules (
     id text primary key, match text not null, category text not null, created_at timestamptz not null)`,
   `create table if not exists overrides (

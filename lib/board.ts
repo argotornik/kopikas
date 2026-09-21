@@ -235,7 +235,11 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     month,
     txs,
     sparks,
-    categories: db.categories.map((c) => ({ name: c, total: Math.round((totals[c] ?? 0) * 100) / 100 })),
+    categories: db.categories.map((c) => ({
+      name: c.name,
+      budget: c.budget ?? null,
+      total: Math.round((totals[c.name] ?? 0) * 100) / 100,
+    })),
     uncategorizedCount: txs.filter((t) => !t.category && t.amount < 0).length,
     balance: bal,
     sharedItems,

@@ -87,10 +87,16 @@ export interface Snapshot {
   at: string; // ISO datetime
 }
 
+// A category as the board shows it, in display order. budget is an optional
+// monthly limit in euros; the card's bar becomes a meter against it.
+export interface Category {
+  name: string;
+  budget?: number;
+}
+
 export interface Db {
-  // Ordered category names as shown on the board. Empty in storage means
-  // DEFAULT_CATEGORIES; the first edit persists the whole list.
-  categories: string[];
+  // Empty in storage means DEFAULT_CATEGORIES; the first edit persists the whole list.
+  categories: Category[];
   transactions: Tx[];
   rules: Rule[];
   overrides: Override[];

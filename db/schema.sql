@@ -16,7 +16,8 @@ create table if not exists transactions (
 -- lib/engine.ts; the first rename or addition from the board fills it.
 create table if not exists categories (
   name     text primary key,
-  position int not null
+  position int not null,
+  budget   numeric(12, 2) -- optional monthly limit
 );
 
 create table if not exists rules (
