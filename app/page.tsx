@@ -23,7 +23,7 @@ export default async function Home({
     return <NotOnBoard email={email} />;
   }
   const [db, { accounts }, view, tokens] = await Promise.all([readDb(), getAccounts(), searchParams, getLhvTokens()]);
-  // No bank connected and nothing synced: a fresh deployment. Walk them in.
-  if (!tokens && db.transactions.length === 0) return <FirstRun />;
+  // Nothing synced yet: a fresh deployment, with or without a stored token. Walk them in.
+  if (db.transactions.length === 0) return <FirstRun hasToken={!!tokens} />;
   return <Board initial={buildBoard(db, new Date(), accounts)} view={view} />;
 }

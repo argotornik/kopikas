@@ -1,16 +1,13 @@
-import { CoinMark } from "@/components/coin-mark";
+import { PageHeader } from "@/components/page-header";
 import { OWNER_NAME } from "@/lib/names";
 
 // Signed in on a deployment that has no owner yet: the person looking at
 // this is almost certainly the owner, so tell them exactly what to set.
 export function SetupOwner({ email }: { email: string }) {
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 py-10">
-      <div className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight">
-        <CoinMark />
-        Kopikas
-      </div>
-      <h1 className="text-xl font-semibold tracking-tight">Who owns this board?</h1>
+    <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 py-6">
+      <PageHeader />
+      <h1 className="mt-4 text-xl font-semibold tracking-tight">Who owns this board?</h1>
       <p className="text-sm text-muted-foreground">
         You are signed in as <span className="font-medium text-foreground">{email}</span>, and this deployment has
         not been told who its owner is yet. Three steps, once.
@@ -33,13 +30,16 @@ export function SetupOwner({ email }: { email: string }) {
 // the signed-in address so a typo in the variables is visible to the owner.
 export function NotOnBoard({ email }: { email: string | null }) {
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-2 px-5 py-16 text-center text-sm text-muted-foreground">
-      <p>This account isn&apos;t on the board. Ask {OWNER_NAME}.</p>
-      {email && (
-        <p className="text-xs">
-          Signed in as {email}. Your own deployment? Then <Var>OWNER_EMAIL</Var> does not match this address.
-        </p>
-      )}
+    <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 py-6">
+      <PageHeader />
+      <div className="flex flex-col gap-2 py-10 text-center text-sm text-muted-foreground">
+        <p>This account isn&apos;t on the board. Ask {OWNER_NAME}.</p>
+        {email && (
+          <p className="text-xs">
+            Signed in as {email}. Your own deployment? Then <Var>OWNER_EMAIL</Var> does not match this address.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

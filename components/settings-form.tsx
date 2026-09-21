@@ -22,6 +22,8 @@ export function SettingsForm({
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState("");
+  // Sync needs a token; the button waits for one stored earlier or saved just now.
+  const [stored, setStored] = useState(!!tokenUpdatedAt);
 
   const saveToken = async () => {
     if (!token.trim()) {
@@ -36,6 +38,7 @@ export function SettingsForm({
         body: JSON.stringify({ type: "set-lhv-token", refreshToken: token }),
       });
       setToken("");
+      if (res.ok) setStored(true);
       setSaveMsg(res.ok ? "Token stored (encrypted). Run a sync to test it." : "Saving failed — try again.");
     } finally {
       setSaving(false);
@@ -68,8 +71,9 @@ export function SettingsForm({
             <a href="https://api.lhv.ai/api-access" className="underline" target="_blank" rel="noreferrer">
               api.lhv.ai/api-access
             </a>{" "}
-            (scopes: accounts + transactions, read-only). Tokens live ~30 days — when a sync starts failing
-            with a refresh error, come back here with a fresh one. Stored encrypted; never shown again.
+            (scopes: accounts + transactions, read-only). The token renews itself on every sync and only
+            expires after 30 days without one. If a sync ever fails with a refresh error, come back here with
+            a fresh token. Stored encrypted; never shown again.
           </p>
           <div className="flex gap-2">
             <Input
@@ -103,11 +107,12 @@ export function SettingsForm({
         </CardHeader>
         <CardContent className="flex flex-col gap-2 px-4">
           <p className="text-xs text-muted-foreground">
-            Runs by itself every hour once the GitHub Actions secret is set, and every morning at 05:00 UTC
-            from Vercel. Syncing is idempotent, so running it by hand any time is harmless.
+            Runs by itself every morning at 05:00 UTC from Vercel, and every hour once the optional GitHub
+            Actions workflow from the README is set up. Running it by hand any time is harmless; a sync never
+            duplicates anything.
           </p>
           <div>
-            <Button onClick={() => void syncNow()} disabled={syncing}>
+            <Button onClick={() => void syncNow()} disabled={syncing || !stored} title={stored ? undefined : "Store a token first"}>
               {syncing ? "Syncing…" : "Sync now"}
             </Button>
           </div>
