@@ -206,7 +206,9 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
     if (over === "partner") {
       // Also handles re-drops: the server updates the fraction of an existing share.
       void post({ type: "share", txId: tx.id, partnerShare });
-    } else if (over === "subs") {
+    } else if (over === "subs" || over === `cat:${SUBSCRIPTIONS}`) {
+      // The Subscriptions row and the zone mean the same thing: track it and
+      // file it, no prompt, since a subscription always means "always".
       void post({ type: "subscribe", txId: tx.id });
     } else if (over.startsWith("cat:")) {
       const category = over.slice(4);
