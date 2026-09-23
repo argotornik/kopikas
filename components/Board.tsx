@@ -70,6 +70,8 @@ const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" 
 // Limits are round numbers; show them without cents unless they have some.
 const eurWhole = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const limit = (b: number) => (Number.isInteger(b) ? eurWhole : eur).format(b);
+const monthLong = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" });
+const monthNarrow = new Intl.DateTimeFormat("en-GB", { month: "narrow" });
 const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
@@ -340,6 +342,26 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
       m.slice(0, 4) === board.month.slice(0, 4) ? { month: "long" } : { month: "long", year: "numeric" }
     ).format(new Date(m + "-01T00:00:00Z"));
 
+  // Twelve months of the selected category, ending at the current month, for
+  // the strip under the filter banner. Same rule as the card's totals. The
+  // average leaves out the unfinished current month and months before the
+  // data starts.
+  const trend = useMemo(() => {
+    if (!filter || filter === "Uncategorized" || filter === "Incoming") return null;
+    const months = Array.from({ length: 12 }, (_, i) => shiftMonth(board.month, i - 11));
+    const totals = new Map(months.map((m) => [m, 0]));
+    for (const t of board.txs) {
+      if (t.amount >= 0 || t.category !== filter) continue;
+      const m = t.date.slice(0, 7);
+      if (totals.has(m)) totals.set(m, totals.get(m)! + Math.abs(t.amount));
+    }
+    const points = months.map((m) => ({ month: m, total: Math.round(totals.get(m)! * 100) / 100 }));
+    const past = points.filter((p) => p.month !== board.month && p.month >= earliestMonth);
+    const average = past.length ? Math.round((past.reduce((s, p) => s + p.total, 0) / past.length) * 100) / 100 : 0;
+    return { points, average, budget: board.categories.find((c) => c.name === filter)?.budget ?? null };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board.txs, board.month, board.categories, filter, earliestMonth]);
+
   const bal = board.balance;
   const monthName = new Intl.DateTimeFormat("en-GB", { month: "long" }).format(
     new Date(board.month + "-01T00:00:00Z")
@@ -463,16 +485,19 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.15 }}
-                className="mb-2 flex items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm"
+                className="mb-2 rounded-lg border bg-card px-3 py-2 text-sm"
               >
-                <span className="font-medium">{filter}</span>
-                <span className="font-mono tabular-nums">{eur.format(filterStats.total)}</span>
-                <span className="text-xs text-muted-foreground">
-                  {filterStats.count} transactions · {eur.format(filterStats.monthTotal)} in {fmtMonth(month)}
-                </span>
-                <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => setFilter(null)}>
-                  Show all
-                </Button>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{filter}</span>
+                  <span className="font-mono tabular-nums">{eur.format(filterStats.total)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {filterStats.count} transactions · {eur.format(filterStats.monthTotal)} in {fmtMonth(month)}
+                  </span>
+                  <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => setFilter(null)}>
+                    Show all
+                  </Button>
+                </div>
+                {trend && <TrendStrip {...trend} month={month} onMonth={setMonth} />}
               </motion.div>
             )}
             {days.length === 0 ? (
@@ -1203,6 +1228,79 @@ function Tile({
         {tx.amount > 0 ? "+" : "−"}
         {eur.format(Math.abs(tx.amount))}
       </span>
+    </div>
+  );
+}
+
+// Twelve months of one category under the filter banner: a bar per month
+// against the tallest, the average as a grey hairline, the limit as an amber
+// one when there is one. The viewed month is copper; clicking a month moves
+// the categories card there.
+function TrendStrip({
+  points,
+  average,
+  budget,
+  month,
+  onMonth,
+}: {
+  points: { month: string; total: number }[];
+  average: number;
+  budget: number | null;
+  month: string;
+  onMonth: (m: string) => void;
+}) {
+  const max = Math.max(...points.map((p) => p.total), budget ?? 0, average, 1);
+  const pct = (v: number) => `${Math.round((v / max) * 1000) / 10}%`;
+  const label = (m: string) => monthLong.format(new Date(m + "-01T00:00:00Z"));
+  return (
+    <div className="mt-2 border-t pt-2">
+      <div className="relative h-14 border-b border-foreground/10">
+        {average > 0 && (
+          <div aria-hidden="true" className="absolute inset-x-0 border-t border-dashed border-foreground/25" style={{ bottom: pct(average) }} />
+        )}
+        {budget != null && (
+          <div aria-hidden="true" className="absolute inset-x-0 border-t border-dashed border-attention/70" style={{ bottom: pct(budget) }} />
+        )}
+        <div className="absolute inset-0 flex items-end gap-1">
+          {points.map((p) => (
+            <button
+              key={p.month}
+              type="button"
+              onClick={() => onMonth(p.month)}
+              title={`${label(p.month)} · ${eur.format(p.total)}`}
+              aria-label={`${label(p.month)}, ${eur.format(p.total)}`}
+              aria-pressed={p.month === month}
+              className="group flex h-full flex-1 items-end"
+            >
+              <span
+                className={cn(
+                  "w-full rounded-t-sm transition-colors",
+                  p.month === month
+                    ? "bg-primary"
+                    : budget != null && p.total > budget
+                      ? "bg-attention/50 group-hover:bg-attention/70"
+                      : "bg-foreground/20 group-hover:bg-foreground/35"
+                )}
+                style={{ height: pct(p.total) }}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-1 flex gap-1 text-[10px] leading-none text-muted-foreground">
+        {points.map((p) => (
+          <span key={p.month} className={cn("flex-1 text-center", p.month === month && "font-semibold text-foreground")}>
+            {monthNarrow.format(new Date(p.month + "-01T00:00:00Z"))}
+          </span>
+        ))}
+      </div>
+      <div className="mt-1.5 flex justify-between text-xs text-muted-foreground">
+        <span>Last 12 months</span>
+        <span className="font-mono tabular-nums">
+          {average > 0 && `avg ${eur.format(average)}`}
+          {budget != null && `${average > 0 ? " · " : ""}limit ${limit(budget)}`}
+        </span>
+      </div>
     </div>
   );
 }
