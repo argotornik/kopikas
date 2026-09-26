@@ -76,6 +76,8 @@ const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
 type Prompt = { txId: string; name: string; pattern: string; category: string; amount: number; date: string };
+// The Pooleks drop asks the same question a category does: this one, or always.
+type SharePrompt = { txId: string; name: string; pattern: string; amount: number; date: string; partnerShare: number };
 
 // What the Categories dialog can ask the server to do.
 type CategoryAction =
@@ -91,6 +93,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
   const [board, setBoard] = useState(initial);
   const [activeTx, setActiveTx] = useState<BoardTx | null>(null);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
+  const [sharePrompt, setSharePrompt] = useState<SharePrompt | null>(null);
   const [snapOpen, setSnapOpen] = useState(false);
   const [catsOpen, setCatsOpen] = useState(false);
   // The merchant whose identity is being edited, from a tile or a subscription row.
@@ -206,8 +209,8 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
     const over = e.over?.id as string | undefined;
     if (!tx || !over) return;
     if (over === "partner") {
-      // Also handles re-drops: the server updates the fraction of an existing share.
-      void post({ type: "share", txId: tx.id, partnerShare });
+      // Re-drops included: the server updates the fraction of an existing share.
+      setSharePrompt({ txId: tx.id, name: tx.name, pattern: tx.rulePattern, amount: tx.amount, date: tx.date, partnerShare });
     } else if (over === "subs" || over === `cat:${SUBSCRIPTIONS}`) {
       // The Subscriptions row and the zone mean the same thing: track it and
       // file it, no prompt, since a subscription always means "always".
@@ -1031,6 +1034,46 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                   post({ type: "override", txId: prompt.txId, category: prompt.category })
                 );
                 setPrompt(null);
+              }}
+            >
+              Always
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!sharePrompt} onOpenChange={(o) => !o && setSharePrompt(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Share with {PARTNER_NAME}?</DialogTitle>
+            <DialogDescription>
+              {sharePrompt?.name} ·{" "}
+              <span className="font-mono tabular-nums">{sharePrompt && eur.format(Math.abs(sharePrompt.amount))}</span> ·{" "}
+              {sharePrompt && shortDate.format(new Date(sharePrompt.date))} · {PARTNER_NAME} pays{" "}
+              {sharePrompt && shareLabel(sharePrompt.partnerShare)}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            Always also puts every future charge matching{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">{sharePrompt?.pattern}</code>{" "}
+            on Pooleks at the same split. Past charges stay as they are.
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (!sharePrompt) return;
+                void post({ type: "share", txId: sharePrompt.txId, partnerShare: sharePrompt.partnerShare });
+                setSharePrompt(null);
+              }}
+            >
+              Only this one
+            </Button>
+            <Button
+              onClick={() => {
+                if (!sharePrompt) return;
+                void post({ type: "share", txId: sharePrompt.txId, partnerShare: sharePrompt.partnerShare, always: true });
+                setSharePrompt(null);
               }}
             >
               Always

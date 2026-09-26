@@ -45,6 +45,15 @@ create table if not exists shares (
   check (tx_id is not null or manual_amount is not null)
 );
 
+-- Share rules: charges arriving after the rule exists that match the pattern
+-- land on Pooleks at partner_share. Never applied to the past.
+create table if not exists share_rules (
+  id            text primary key,
+  match         text not null,
+  partner_share numeric(6, 5) not null,
+  created_at    timestamptz not null
+);
+
 create table if not exists settlements (
   id     text primary key,
   amount numeric(12, 2) not null,

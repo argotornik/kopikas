@@ -32,7 +32,7 @@ Subscriptions watches recurring charges. Drop one on the zone, or on the Subscri
   <img src="docs/mobile-dark.png" width="290" alt="The board on a phone">
 </p>
 
-Pooleks (Estonian for *in half*) is the shared ledger. Drop a charge on the zone with a 1/2, 1/3 or 1/4 split and it becomes a line on a running statement of who owes whom. The partner signs in and sees the same statement with the labels flipped, plus a dialog to add what they paid for. Either of you records a repayment with Settle up. This is what replaced Splitwise here: the rows come from the bank, so nothing is typed twice.
+Pooleks (Estonian for *in half*) is the shared ledger. Drop a charge on the zone with a 1/2, 1/3 or 1/4 split and it becomes a line on a running statement of who owes whom. Choose Always and every future charge from that merchant lands on the statement by itself at the same split; past charges are left alone, and the rule can be removed on Settings. The partner signs in and sees the same statement with the labels flipped, plus a dialog to add what they paid for. Either of you records a repayment with Settle up. This is what replaced Splitwise here: the rows come from the bank, so nothing is typed twice.
 
 ![Pooleks: the shared statement, one figure per row, a Details toggle for the working](docs/pooleks-dark.png)
 

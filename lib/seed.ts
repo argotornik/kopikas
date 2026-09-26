@@ -101,6 +101,7 @@ export function seedDb(): Db {
       },
     ],
     merchants: [],
+    shareRules: [],
     snapshots: [
       { id: "snap-0a", total: 8140.0, holdings: [], at: "2026-05-16T18:00:00Z" },
       { id: "snap-0b", total: 8655.3, holdings: [], at: "2026-06-14T18:00:00Z" },

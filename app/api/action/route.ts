@@ -21,8 +21,9 @@ type Action =
   | { type: "rule"; txId: string; category: string }
   | { type: "override"; txId: string; category: string }
   | { type: "unrule"; ruleId: string }
-  | { type: "share"; txId: string; partnerShare?: number }
+  | { type: "share"; txId: string; partnerShare?: number; always?: boolean }
   | { type: "unshare"; shareId: string }
+  | { type: "unshare-rule"; ruleId: string }
   | { type: "quickadd"; description: string; amount: number; date: string; partnerShare?: number; category?: string }
   | { type: "settle"; amount: number; date: string; txId?: string; note?: string }
   | { type: "subscribe"; txId: string }
@@ -83,6 +84,7 @@ export async function POST(req: Request) {
       if (!db.transactions.some((t) => t.id === action.txId)) return bad("unknown tx");
       const fraction = Number(action.partnerShare ?? 0.5);
       if (!(fraction > 0 && fraction < 1)) return bad("partnerShare must be between 0 and 1");
+      const tx = db.transactions.find((t) => t.id === action.txId)!;
       const existing = db.shares.find((s) => s.txId === action.txId);
       if (!existing) {
         db.shares.push({
@@ -98,6 +100,21 @@ export async function POST(req: Request) {
         existing.partnerShare = fraction;
         await writeCollection("shares", db.shares);
       }
+      if (action.always) {
+        // From now on: every new charge matching this merchant lands on
+        // Pooleks at this split. Teaching again with another split updates it.
+        const match = rulePattern(tx);
+        const rule = db.shareRules.find((r) => r.match === match);
+        if (rule) rule.partnerShare = fraction;
+        else db.shareRules.push({ id: newId("srule"), match, partnerShare: fraction, createdAt: now });
+        await writeCollection("shareRules", db.shareRules);
+      }
+      break;
+    }
+    case "unshare-rule": {
+      if (!db.shareRules.some((r) => r.id === action.ruleId)) return bad("unknown rule");
+      db.shareRules = db.shareRules.filter((r) => r.id !== action.ruleId);
+      await writeCollection("shareRules", db.shareRules);
       break;
     }
     case "unshare": {

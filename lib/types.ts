@@ -37,6 +37,16 @@ export interface Share {
   createdAt: string;
 }
 
+// A share rule: every charge that arrives after the rule exists and matches
+// the pattern lands on Pooleks at this split. Never applied to the past, so
+// nothing already settled between the two changes.
+export interface ShareRule {
+  id: string;
+  match: string; // same matching semantics as rules
+  partnerShare: number;
+  createdAt: string;
+}
+
 // Repayment between the two. amount positive = partner -> owner.
 export interface Settlement {
   id: string;
@@ -102,6 +112,7 @@ export interface Db {
   rules: Rule[];
   overrides: Override[];
   shares: Share[];
+  shareRules: ShareRule[];
   settlements: Settlement[];
   subscriptions: Subscription[];
   merchants: Merchant[];

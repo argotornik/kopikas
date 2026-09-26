@@ -23,6 +23,7 @@ const FILES: (keyof Db)[] = [
   "rules",
   "overrides",
   "shares",
+  "shareRules",
   "settlements",
   "subscriptions",
   "merchants",
@@ -112,10 +113,13 @@ async function jsonReadDb(): Promise<Db> {
         const raw = await fs.readFile(path.join(DATA_DIR, `${f}.json`), "utf8");
         return [f, JSON.parse(raw)] as const;
       } catch (e) {
-        // categories.json and merchants.json arrived after the other files; a
-        // data/ folder from before them means "none yet". Any other file
+        // categories, merchants and shareRules arrived after the other files;
+        // a data/ folder from before them means "none yet". Any other file
         // missing is an error.
-        if ((f === "categories" || f === "merchants") && (e as NodeJS.ErrnoException).code === "ENOENT") {
+        if (
+          (f === "categories" || f === "merchants" || f === "shareRules") &&
+          (e as NodeJS.ErrnoException).code === "ENOENT"
+        ) {
           return [f, []] as const;
         }
         throw e;
@@ -163,7 +167,7 @@ function ensureSchema(sql: ReturnType<typeof db>): Promise<void> {
 async function pgReadDb(): Promise<Db> {
   const sql = db();
   await ensureSchema(sql);
-  const [categories, txs, rules, overrides, shares, settlements, subscriptions, merchants, snapshots] = await Promise.all([
+  const [categories, txs, rules, overrides, shares, shareRules, settlements, subscriptions, merchants, snapshots] = await Promise.all([
     sql`select name, budget::float8 as budget from categories order by position, name`,
     sql`select id, date::text as date, amount::float8 as amount, currency, counterparty, description, iban
         from transactions order by date, id`,
@@ -173,6 +177,7 @@ async function pgReadDb(): Promise<Db> {
         manual_amount::float8 as manual_amount, manual_category, partner_share::float8 as partner_share,
         created_at::text as created_at
         from shares order by created_at, id`,
+    sql`select id, match, partner_share::float8 as partner_share, created_at::text as created_at from share_rules order by created_at, id`,
     sql`select id, amount::float8 as amount, date::text as date, tx_id, note from settlements order by date, id`,
     sql`select id, name, match, expected_amount::float8 as expected_amount, cadence, cadence_by_hand, active,
         match_amount, created_at::text as created_at from subscriptions order by created_at, id`,
@@ -209,6 +214,7 @@ async function pgReadDb(): Promise<Db> {
       partnerShare: r.partner_share ?? undefined,
       createdAt: r.created_at,
     })),
+    shareRules: shareRules.map((r) => ({ id: r.id, match: r.match, partnerShare: r.partner_share, createdAt: r.created_at })),
     settlements: settlements.map((r) => ({
       id: r.id,
       amount: r.amount,
@@ -311,6 +317,19 @@ async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Pro
             s.createdAt,
           ]
         );
+      }
+      return;
+    }
+    case "shareRules": {
+      await ensureSchema(sql);
+      await sql`delete from share_rules`;
+      for (const r of value as Db["shareRules"]) {
+        await sql.query(`insert into share_rules (id, match, partner_share, created_at) values ($1, $2, $3, $4)`, [
+          r.id,
+          r.match,
+          r.partnerShare,
+          r.createdAt,
+        ]);
       }
       return;
     }

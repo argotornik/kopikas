@@ -4,6 +4,7 @@ import { getAccounts, getLhvTokens, readDb } from "@/lib/storage";
 import { matches } from "@/lib/engine";
 import { SettingsForm } from "@/components/settings-form";
 import { RulesList } from "@/components/rules-list";
+import { ShareRulesList } from "@/components/share-rules-list";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,7 @@ export default async function SettingsPage() {
         accountsFetchedAt={fetchedAt}
       />
       <RulesList initial={rules} />
+      <ShareRulesList initial={[...db.shareRules].sort((a, b) => b.createdAt.localeCompare(a.createdAt))} />
     </div>
   );
 }

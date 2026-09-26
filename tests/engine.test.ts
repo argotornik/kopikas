@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  applyShareRules,
   balance,
   categoryOf,
   categoryTotals,
@@ -142,6 +143,27 @@ test("recordInvestments keeps one automatic LHV snapshot per day and refreshes i
   assert.equal(lhv[0].at, "2026-09-21T07:00:00Z");
   assert.equal(lhv[0].auto, true);
   assert.equal(d.snapshots[0].id, "ly");
+});
+
+test("applyShareRules shares only fresh, outgoing, unshared charges, newest rule winning", () => {
+  const telia = tx("2026-10-03", -24.29, "Telia Eesti AS", "Mobile 5512907");
+  const already = tx("2026-10-03", -24.29, "Telia Eesti AS");
+  const income = tx("2026-10-03", 24.29, "Telia Eesti AS", "Refund");
+  const other = tx("2026-10-04", -9, "Wolt");
+  const d = db({
+    transactions: [telia, already, income, other],
+    shares: [share({ txId: already.id, partnerShare: 0.25 })],
+    shareRules: [
+      { id: "a", match: "telia", partnerShare: 0.5, createdAt: "2026-09-01" },
+      { id: "b", match: "telia eesti", partnerShare: 1 / 3, createdAt: "2026-09-02" },
+    ],
+  });
+  let n = 0;
+  assert.equal(applyShareRules(d, [telia, already, income, other], "2026-10-03T05:00:00Z", () => `s${++n}`), 1);
+  const made = d.shares.find((s) => s.txId === telia.id)!;
+  assert.equal(made.paidBy, "owner");
+  assert.equal(made.partnerShare, 1 / 3);
+  assert.equal(d.shares.length, 2);
 });
 
 test("renameCategory carries rules, hand-filed tiles and quick-added shares along", () => {

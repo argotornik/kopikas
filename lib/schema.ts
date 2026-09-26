@@ -19,6 +19,8 @@ export const SCHEMA: string[] = [
     partner_share numeric(6, 5),
     created_at timestamptz not null,
     check (tx_id is not null or manual_amount is not null))`,
+  `create table if not exists share_rules (
+    id text primary key, match text not null, partner_share numeric(6, 5) not null, created_at timestamptz not null)`,
   `create table if not exists settlements (
     id text primary key, amount numeric(12, 2) not null, date date not null, tx_id text, note text)`,
   `create table if not exists subscriptions (

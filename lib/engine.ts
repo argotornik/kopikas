@@ -182,6 +182,21 @@ export function recordInvestments(
   return true;
 }
 
+// Share rules apply to charges the board has not seen before, never to the
+// past: a bill that arrived today and matches "telia" lands on Pooleks at
+// the rule's split. Newest rule wins. Returns how many shares were made.
+export function applyShareRules(db: Db, fresh: Tx[], now: string, id: () => string): number {
+  let made = 0;
+  for (const tx of fresh) {
+    if (tx.amount >= 0 || db.shares.some((s) => s.txId === tx.id)) continue;
+    const rule = db.shareRules.findLast((r) => matches(tx, r.match));
+    if (!rule) continue;
+    db.shares.push({ id: id(), paidBy: "owner", txId: tx.id, partnerShare: rule.partnerShare, createdAt: now });
+    made++;
+  }
+  return made;
+}
+
 // A rename carries everything filed under the old name along: rules,
 // hand-filed tiles, quick-added shared expenses. Validation is the caller's.
 export function renameCategory(db: Db, from: string, to: string): void {

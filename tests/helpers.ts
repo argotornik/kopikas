@@ -36,6 +36,7 @@ export const db = (o: Partial<Db> = {}): Db => ({
   rules: [],
   overrides: [],
   shares: [],
+  shareRules: [],
   settlements: [],
   subscriptions: [],
   merchants: [],
