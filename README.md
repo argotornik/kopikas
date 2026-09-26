@@ -76,16 +76,16 @@ Open http://localhost:3000. Without Clerk keys there is no sign-in and you are t
 
 ## Deploying your own
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fargotornik%2Fkopikas&project-name=kopikas&repository-name=kopikas&env=ENCRYPTION_KEY,LHV_CLIENT_ID,CRON_SECRET,OWNER_EMAIL,NEXT_PUBLIC_OWNER_NAME&envDescription=See%20the%20table%20under%20%22Deploying%20your%20own%22%20in%20the%20README&envLink=https%3A%2F%2Fgithub.com%2Fargotornik%2Fkopikas%23deploying-your-own)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fargotornik%2Fkopikas&project-name=kopikas&repository-name=kopikas&env=ENCRYPTION_KEY,CRON_SECRET,OWNER_EMAIL,NEXT_PUBLIC_OWNER_NAME&envDescription=See%20the%20table%20under%20%22Deploying%20your%20own%22%20in%20the%20README&envLink=https%3A%2F%2Fgithub.com%2Fargotornik%2Fkopikas%23deploying-your-own)
 
 You need a Vercel project pointed at the repo, a Neon database, and a Clerk application. The Neon and Clerk integrations on the Vercel Marketplace set `DATABASE_URL` and the Clerk keys for you. The app creates its tables on first start. Sign in, and an empty board walks you through connecting LHV: get a token, paste it, press Connect. The first sync runs and the board opens.
 
 | Variable | What it is |
 |---|---|
 | `DATABASE_URL` | Neon connection string. Absent means JSON files under `data/`. |
-| `ENCRYPTION_KEY` | 32 bytes, base64, seals the LHV token row. `openssl rand -base64 32`. |
-| `LHV_CLIENT_ID` | `api-access`, the public client id LHV's refresh grant requires. |
-| `CRON_SECRET` | Bearer token the sync route expects. Also set as a GitHub Actions secret. |
+| `ENCRYPTION_KEY` | A secret of your own, 16 characters or more, that seals the LHV token row. Any long passphrase works; a 32-byte base64 key is used as is. |
+| `CRON_SECRET` | A second secret of your own. The sync route expects it as a bearer token, and the GitHub Actions workflow sends it. |
+| `LHV_CLIENT_ID` | Optional. LHV's public client id for the refresh grant, `api-access` unless LHV changes it. |
 | `CLERK_SECRET_KEY` | Clerk. Absent means auth is off and everyone is the owner. |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk, client side. |
 | `OWNER_EMAIL` | The owner's sign-in email. Everything. |

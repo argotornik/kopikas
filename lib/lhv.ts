@@ -35,7 +35,9 @@ export async function refreshAccessToken(
   refreshToken: string
 ): Promise<{ accessToken: string; newRefreshToken?: string }> {
   const body = new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken });
-  if (process.env.LHV_CLIENT_ID) body.set("client_id", process.env.LHV_CLIENT_ID);
+  // LHV's public client id for the refresh grant; the env var exists only for
+  // the day LHV changes it.
+  body.set("client_id", process.env.LHV_CLIENT_ID || "api-access");
   const res = await fetch(AUTH_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -45,7 +47,7 @@ export async function refreshAccessToken(
     const body = (await res.text().catch(() => "")).slice(0, 300);
     throw new Error(
       `LHV token refresh failed: HTTP ${res.status}${body ? ` — ${body}` : ""}. ` +
-        `invalid_client → set LHV_CLIENT_ID env; invalid_grant → paste a fresh refresh token from api.lhv.ai/api-access.`
+        `invalid_client → LHV's client id changed, set LHV_CLIENT_ID; invalid_grant → paste a fresh refresh token from api.lhv.ai/api-access.`
     );
   }
   const json = (await res.json()) as { access_token?: string; refresh_token?: string };

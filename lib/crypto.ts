@@ -1,16 +1,20 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
 
-// AES-256-GCM sealing for the LHV token row. ENCRYPTION_KEY is 32 bytes,
-// base64 (openssl rand -base64 32), and lives only in Vercel env — the reason
-// tokens sit encrypted in Postgres instead of in env vars is that refresh
-// tokens may rotate on use, and env is read-only at runtime.
+// AES-256-GCM sealing for the LHV token row. ENCRYPTION_KEY lives only in
+// Vercel env — the reason tokens sit encrypted in Postgres instead of in env
+// vars is that refresh tokens may rotate on use, and env is read-only at
+// runtime. Any secret of 16+ characters works: a value that is exactly 32
+// bytes of base64 (the openssl rand -base64 32 form) is the key itself, so
+// rows sealed before passphrases were accepted still open; anything else, a
+// passphrase from a password manager, is hashed to 32 bytes.
 
 function key(): Buffer {
-  const raw = process.env.ENCRYPTION_KEY;
+  const raw = process.env.ENCRYPTION_KEY?.trim();
   if (!raw) throw new Error("ENCRYPTION_KEY is not set");
-  const buf = Buffer.from(raw, "base64");
-  if (buf.length !== 32) throw new Error("ENCRYPTION_KEY must be 32 bytes base64");
-  return buf;
+  const decoded = /^[A-Za-z0-9+/]+={0,2}$/.test(raw) ? Buffer.from(raw, "base64") : Buffer.alloc(0);
+  if (decoded.length === 32) return decoded;
+  if (raw.length < 16) throw new Error("ENCRYPTION_KEY must be at least 16 characters");
+  return createHash("sha256").update(raw, "utf8").digest();
 }
 
 export function seal(plaintext: string): string {
