@@ -49,6 +49,34 @@ type Row = { movement: number; running: number; date: string } & (
   | { kind: "settle"; settlement: SharedView["settlements"][number] }
 );
 
+type Month = { month: string; rows: Row[]; spentTogether: number; byCategory: [string, number][] };
+
+// Newest-first rows into month sections, each with what the two spent
+// together and on what.
+function groupMonths(rows: Row[]): Month[] {
+  const groups = new Map<string, Row[]>();
+  for (const r of rows) {
+    const key = r.date.slice(0, 7);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(r);
+  }
+  return [...groups.entries()].map(([month, list]) => {
+    const shares = list.filter((r) => r.kind === "share");
+    const byCategory = new Map<string, number>();
+    for (const r of shares) {
+      if (r.kind !== "share") continue;
+      const key = r.item.category ?? "unsorted";
+      byCategory.set(key, (byCategory.get(key) ?? 0) + r.item.total);
+    }
+    return {
+      month,
+      rows: list,
+      spentTogether: shares.reduce((s, r) => s + (r.kind === "share" ? r.item.total : 0), 0),
+      byCategory: [...byCategory].sort((a, b) => b[1] - a[1]),
+    };
+  });
+}
+
 const SPLIT_OPTIONS = [
   { fraction: 0.5, label: "1/2" },
   { fraction: 1 / 3, label: "1/3" },
@@ -121,8 +149,11 @@ export function Pooleks({ role }: { role: Person }) {
   const today = new Date().toISOString().slice(0, 10);
 
   // Oldest → newest to accumulate the running tab, then newest first to show.
-  const months = useMemo(() => {
-    if (!view) return [];
+  // Everything up to the last repayment is history: it folds into one line
+  // and opens on request, so the statement shows what is open between the two.
+  const [showSettled, setShowSettled] = useState(false);
+  const statement = useMemo(() => {
+    if (!view) return { open: [] as Month[], settled: [] as Month[], fold: null };
     const chronological = [
       ...view.sharedItems.map((item) => ({ kind: "share" as const, date: item.date, item })),
       ...view.settlements.map((settlement) => ({ kind: "settle" as const, date: settlement.date, settlement })),
@@ -138,29 +169,41 @@ export function Pooleks({ role }: { role: Person }) {
       running += movement;
       return { ...e, movement, running };
     });
-    rows.reverse();
-    const groups = new Map<string, Row[]>();
-    for (const r of rows) {
-      const key = r.date.slice(0, 7);
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(r);
-    }
-    return [...groups.entries()].map(([month, list]) => {
-      const shares = list.filter((r) => r.kind === "share");
-      const byCategory = new Map<string, number>();
-      for (const r of shares) {
-        if (r.kind !== "share") continue;
-        const key = r.item.category ?? "unsorted";
-        byCategory.set(key, (byCategory.get(key) ?? 0) + r.item.total);
-      }
-      return {
-        month,
-        rows: list,
-        spentTogether: shares.reduce((s, r) => s + (r.kind === "share" ? r.item.total : 0), 0),
-        byCategory: [...byCategory].sort((a, b) => b[1] - a[1]),
-      };
-    });
+    // The last repayment closes the book on everything before it, itself included.
+    const lastSettle = rows.findLastIndex((r) => r.kind === "settle");
+    const settledRows = rows.slice(0, lastSettle + 1).reverse();
+    const openRows = rows.slice(lastSettle + 1).reverse();
+    const fold =
+      lastSettle < 0
+        ? null
+        : {
+            date: rows[lastSettle].date,
+            lines: settledRows.length,
+            carried: Math.round(rows[lastSettle].running * 100) / 100,
+          };
+    return { open: groupMonths(openRows), settled: groupMonths(settledRows), fold };
   }, [view]);
+  const months = statement.open;
+  const settledMonths = statement.settled;
+  const fold = statement.fold;
+
+  const foldLine = fold && (
+    <div className={cn("px-3 py-2 text-xs text-muted-foreground", months.length > 0 && "border-t border-border/70")}>
+      <button
+        type="button"
+        onClick={() => setShowSettled((s) => !s)}
+        aria-expanded={showSettled}
+        className="flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 hover:bg-accent hover:text-foreground"
+      >
+        <span>
+          {months.length === 0 && "All square. "}
+          Settled up to {shortDate.format(new Date(fold.date))} · {fold.lines} {fold.lines === 1 ? "line" : "lines"}
+          {fold.carried !== 0 && ` · ${signed(fold.carried)} carried`}
+        </span>
+        <span className="shrink-0">{showSettled ? "Hide" : "Show"}</span>
+      </button>
+    </div>
+  );
 
   const monthLabel = (m: string) =>
     new Intl.DateTimeFormat(
@@ -255,7 +298,7 @@ export function Pooleks({ role }: { role: Person }) {
         </CardContent>
       </Card>
 
-      {months.length === 0 ? (
+      {months.length === 0 && settledMonths.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
           Nothing shared yet. On the board, drop an expense on the Pooleks zone — or add something you paid for below.
         </p>
@@ -280,8 +323,9 @@ export function Pooleks({ role }: { role: Person }) {
             {details && <span className="hidden text-right sm:block">{tabHeader}</span>}
             <span />
           </div>
-          {months.map((m, mi) => (
+          {[...months, ...(showSettled ? settledMonths : [])].map((m, mi) => (
             <div key={m.month}>
+              {fold && mi === months.length && foldLine}
               <div className={cn(GRID, "pb-1.5 pt-3", mi > 0 && "border-t border-border/70")}>
                 <span className="col-span-2 font-heading text-xs uppercase tracking-wide text-muted-foreground">
                   {monthLabel(m.month)}
@@ -384,6 +428,7 @@ export function Pooleks({ role }: { role: Person }) {
               )}
             </div>
           ))}
+          {fold && !showSettled && foldLine}
         </div>
       )}
 
