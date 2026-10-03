@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
+import { motion, MotionConfig } from "motion/react";
 import { cn, shareLabel } from "@/lib/utils";
 import { OWNER_NAME, PARTNER_NAME } from "@/lib/names";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { CoinMark } from "@/components/coin-mark";
+import { useRollingNumber } from "@/components/rolling-number";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 
@@ -120,6 +122,9 @@ export function Pooleks({ role }: { role: Person }) {
   const GRID = details ? GRID_FULL : GRID_CLEAN;
   const [settleAmount, setSettleAmount] = useState("");
   const [settleNote, setSettleNote] = useState("");
+  // The balance rolls to its new value rather than jumping: after a repayment
+  // the number winds down to zero and only then reads "All square".
+  const shownBalance = useRollingNumber(view ? view.balance : null);
 
   const refetch = useCallback(async () => {
     const res = await fetch("/api/shared", { cache: "no-store" });
@@ -187,8 +192,22 @@ export function Pooleks({ role }: { role: Person }) {
   const settledMonths = statement.settled;
   const fold = statement.fold;
 
+  // The fold line as last seen, so a repayment recorded while watching slides
+  // its line in while the one already there on load just renders.
+  const foldKey = fold ? `${fold.date}:${fold.lines}` : null;
+  const [knownFold, setKnownFold] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (view) setKnownFold(foldKey);
+  }, [view, foldKey]);
+
   const foldLine = fold && (
-    <div className={cn("px-3 py-2 text-xs text-muted-foreground", months.length > 0 && "border-t border-border/70")}>
+    <motion.div
+      key={foldKey}
+      initial={knownFold !== undefined && knownFold !== foldKey ? { opacity: 0, y: -6 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className={cn("px-3 py-2 text-xs text-muted-foreground", months.length > 0 && "border-t border-border/70")}
+    >
       <button
         type="button"
         onClick={() => setShowSettled((s) => !s)}
@@ -202,7 +221,7 @@ export function Pooleks({ role }: { role: Person }) {
         </span>
         <span className="shrink-0">{showSettled ? "Hide" : "Show"}</span>
       </button>
-    </div>
+    </motion.div>
   );
 
   const monthLabel = (m: string) =>
@@ -237,11 +256,13 @@ export function Pooleks({ role }: { role: Person }) {
 
   if (!view) return <div className="mx-auto max-w-xl px-5 py-6 text-sm text-muted-foreground">Loading…</div>;
   const bal = view.balance;
-  // Balance sentence from the viewer's side. bal > 0 means the partner owes the owner.
+  // Balance sentence from the viewer's side, following the rolling number so
+  // "All square" arrives when the amount does. bal > 0 means the partner owes the owner.
+  const flat = Math.round(shownBalance * 100) === 0;
   const balanceText =
-    bal === 0
+    flat
       ? "All square"
-      : bal > 0
+      : shownBalance > 0
         ? `${names.partner} ${owes(names.partner)} ${names.owner === "You" ? "you" : names.owner}`
         : `${names.owner} ${owes(names.owner)} ${names.partner === "You" ? "you" : names.partner}`;
   const tabHeader = role === "owner" ? `${PARTNER_NAME} owes` : "You owe";
@@ -252,6 +273,7 @@ export function Pooleks({ role }: { role: Person }) {
   const arrow = (from: string, to: string) => `${from} → ${to === "You" ? "you" : to}`;
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-5 py-6 pb-24">
       <div className="flex items-center justify-between">
         <h1 className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight">
@@ -274,7 +296,7 @@ export function Pooleks({ role }: { role: Person }) {
           <div>
             <div className="text-xl font-semibold">
               {balanceText}
-              {bal !== 0 && <span className="ml-2 font-mono tabular-nums">{eur.format(Math.abs(bal))}</span>}
+              {!flat && <span className="ml-2 font-mono tabular-nums">{eur.format(Math.abs(shownBalance))}</span>}
             </div>
             <div className="text-xs text-muted-foreground">
               {view.sharedItems.length} shared · {view.settlements.length} repayment
@@ -546,5 +568,6 @@ export function Pooleks({ role }: { role: Person }) {
         </DialogContent>
       </Dialog>
     </div>
+    </MotionConfig>
   );
 }

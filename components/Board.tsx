@@ -43,6 +43,7 @@ import { cn, shareLabel } from "@/lib/utils";
 import { PARTNER_NAME } from "@/lib/names";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CoinMark } from "@/components/coin-mark";
+import { RollingNumber } from "@/components/rolling-number";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { MerchantEditor, type MerchantSubject } from "@/components/merchant-editor";
 import { UserMenu } from "@/components/user-menu";
@@ -94,6 +95,10 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
   const [activeTx, setActiveTx] = useState<BoardTx | null>(null);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [sharePrompt, setSharePrompt] = useState<SharePrompt | null>(null);
+  // The category a drop just filed into, so its row can acknowledge the
+  // arrival once the refetch lands. The counter makes repeat filings replay.
+  const [filed, setFiled] = useState<{ category: string; n: number } | null>(null);
+  const acknowledge = (category: string) => setFiled((f) => ({ category, n: (f?.n ?? 0) + 1 }));
   const [snapOpen, setSnapOpen] = useState(false);
   const [catsOpen, setCatsOpen] = useState(false);
   // The merchant whose identity is being edited, from a tile or a subscription row.
@@ -148,6 +153,13 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
     });
   const showCategories = !collapsed.categories || !!activeTx;
   const showSubs = !collapsed.subs || !!activeTx;
+
+  // Subscription ids already on the board. A row whose id is new slides in;
+  // the rest, including rows re-shown when the card expands, just render.
+  const [knownSubs, setKnownSubs] = useState(() => new Set(initial.subscriptions.map((s) => s.sub.id)));
+  useEffect(() => {
+    setKnownSubs(new Set(board.subscriptions.map((s) => s.sub.id)));
+  }, [board.subscriptions]);
 
   const refetch = useCallback(async () => {
     const res = await fetch("/api/board", { cache: "no-store" });
@@ -725,6 +737,8 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                         }
                         active={filter === c.name}
                         onSelect={() => toggleFilter(c.name)}
+                        flashKey={filed?.category === c.name ? filed.n : 0}
+                        monthKey={month}
                       />
                     ))}
                     <div
@@ -798,7 +812,13 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       </div>
                       <div className="divide-y">
                         {g.subs.map((s) => (
-                      <div className="group flex items-center gap-2 py-2" key={s.sub.id}>
+                      <motion.div
+                        className="group flex items-center gap-2 py-2"
+                        key={s.sub.id}
+                        initial={knownSubs.has(s.sub.id) ? false : { opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                      >
                         <button
                           type="button"
                           className="rounded-full hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -873,7 +893,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                         >
                           ✕
                         </Button>
-                      </div>
+                      </motion.div>
                         ))}
                       </div>
                     </div>
@@ -1021,7 +1041,8 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
               variant="outline"
               onClick={() => {
                 if (!prompt) return;
-                void post({ type: "override", txId: prompt.txId, category: prompt.category });
+                const { txId, category } = prompt;
+                void post({ type: "override", txId, category }).then(() => acknowledge(category));
                 setPrompt(null);
               }}
             >
@@ -1030,9 +1051,10 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
             <Button
               onClick={() => {
                 if (!prompt) return;
-                void post({ type: "rule", txId: prompt.txId, category: prompt.category }).then(() =>
-                  post({ type: "override", txId: prompt.txId, category: prompt.category })
-                );
+                const { txId, category } = prompt;
+                void post({ type: "rule", txId, category })
+                  .then(() => post({ type: "override", txId, category }))
+                  .then(() => acknowledge(category));
                 setPrompt(null);
               }}
             >
@@ -1358,6 +1380,8 @@ function CategoryRow({
   share,
   active,
   onSelect,
+  flashKey,
+  monthKey,
 }: {
   name: string;
   total: number;
@@ -1365,12 +1389,24 @@ function CategoryRow({
   share: number; // 0..1 of the month's largest spending category
   active: boolean;
   onSelect: () => void;
+  flashKey: number; // bumps when a drop just filed into this row
+  monthKey: string; // the month shown: a change is browsing, not a crossing
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `cat:${name}` });
   // With a limit the bar is a meter against it, on a faint track so it reads
   // as one; without, it is the row's share of the month's largest category.
   const over = budget != null && total > budget;
   const fill = budget != null ? Math.min(total / budget, 1) : share;
+  // Crossing the limit while watching, after a filing or a sync, pulses the
+  // row once. Browsing to a month that is already over is not a crossing,
+  // and neither is the page loading on one.
+  const [pulse, setPulse] = useState(0);
+  const wasOver = useRef({ over, monthKey });
+  useEffect(() => {
+    const prev = wasOver.current;
+    wasOver.current = { over, monthKey };
+    if (prev.monthKey === monthKey && !prev.over && over) setPulse((p) => p + 1);
+  }, [over, monthKey]);
   return (
     <button
       type="button"
@@ -1394,13 +1430,33 @@ function CategoryRow({
           style={{ width: `${Math.round(fill * 1000) / 10}%` }}
         />
       )}
+      {flashKey > 0 && (
+        <motion.span
+          key={`flash-${flashKey}`}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 rounded-md bg-primary"
+          initial={{ opacity: 0.3 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.9, ease: "easeOut" }}
+        />
+      )}
+      {pulse > 0 && (
+        <motion.span
+          key={`pulse-${pulse}`}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 rounded-md bg-attention/30 ring-2 ring-attention ring-inset"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 1.1, ease: "easeOut" }}
+        />
+      )}
       <span className="relative">{name}</span>
       <span className={cn("relative text-muted-foreground", !isOver && "font-mono tabular-nums", over && !isOver && "text-attention")}>
         {isOver ? (
           "drop here"
         ) : (
           <>
-            {total > 0 || budget != null ? eur.format(total) : ""}
+            {total > 0 || budget != null ? <RollingNumber value={total} format={eur.format} /> : ""}
             {budget != null && <span className="text-muted-foreground/70"> / {limit(budget)}</span>}
           </>
         )}
