@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CoinMark } from "@/components/coin-mark";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -113,7 +114,14 @@ export function SettingsForm({
           </p>
           <div>
             <Button onClick={() => void syncNow()} disabled={syncing || !stored} title={stored ? undefined : "Store a token first"}>
-              {syncing ? "Syncing…" : "Sync now"}
+              {syncing ? (
+                <span className="flex items-center gap-2">
+                  <CoinMark turning className="size-4" />
+                  Syncing…
+                </span>
+              ) : (
+                "Sync now"
+              )}
             </Button>
           </div>
           {syncResult && (

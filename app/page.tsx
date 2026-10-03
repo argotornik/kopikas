@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ cat?: string; month?: string; q?: string }>;
+  searchParams: Promise<{ cat?: string; month?: string; q?: string; welcome?: string }>;
 }) {
   const role = await currentRole();
   if (role === "partner") redirect("/pooleks");

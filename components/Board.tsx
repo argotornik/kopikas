@@ -22,7 +22,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { AnimatePresence, motion, MotionConfig } from "motion/react";
+import { AnimatePresence, motion, MotionConfig, useReducedMotion } from "motion/react";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import {
   CheckCircle2Icon,
@@ -88,7 +88,7 @@ type CategoryAction =
   | { type: "category-budget"; name: string; budget: number | null };
 
 // View state carried in the URL (?cat=&month=&q=) so filtered views deep-link.
-type ViewParams = { cat?: string; month?: string; q?: string };
+type ViewParams = { cat?: string; month?: string; q?: string; welcome?: string };
 
 export default function Board({ initial, view }: { initial: BoardData; view?: ViewParams }) {
   const [board, setBoard] = useState(initial);
@@ -101,6 +101,24 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
   const acknowledge = (category: string) => setFiled((f) => ({ category, n: (f?.n ?? 0) + 1 }));
   const [snapOpen, setSnapOpen] = useState(false);
   const [catsOpen, setCatsOpen] = useState(false);
+  // The first fill after connecting LHV: the feed cascades in once, so "the
+  // board fills from your statement" is something you watch. Off again after,
+  // so later re-sorts are not staggered.
+  const [firstFill, setFirstFill] = useState(view?.welcome === "1");
+  useEffect(() => {
+    if (!firstFill) return;
+    const t = setTimeout(() => setFirstFill(false), 1800);
+    return () => clearTimeout(t);
+  }, [firstFill]);
+  // The inbox hitting zero while you watch: the check draws itself. A page
+  // that loads already clear just shows it.
+  const [inboxCleared, setInboxCleared] = useState(false);
+  const lastInbox = useRef(initial.uncategorizedCount);
+  useEffect(() => {
+    if (lastInbox.current > 0 && board.uncategorizedCount === 0) setInboxCleared(true);
+    if (board.uncategorizedCount > 0) setInboxCleared(false);
+    lastInbox.current = board.uncategorizedCount;
+  }, [board.uncategorizedCount]);
   // The merchant whose identity is being edited, from a tile or a subscription row.
   const [merchantSubject, setMerchantSubject] = useState<MerchantSubject | null>(null);
   // Category filter: a category name, "Uncategorized", or null for the full feed.
@@ -566,13 +584,14 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
               // its rows. relative + overflow-hidden keep popped-out exits
               // inside the sheet, sliding off its edge.
               <div className="relative overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
-              <AnimatePresence initial={false} mode="popLayout">
+              <AnimatePresence initial={firstFill} mode="popLayout">
                 {days.flatMap(([date, txs], dayIndex) => {
                   const visible = txs.filter((t) => !t.micro);
                   const micro = txs.filter((t) => t.micro);
                   const microOut = micro.filter((t) => t.amount < 0);
                   const microTotal = microOut.reduce((s, t) => s + Math.abs(t.amount), 0);
                   const delayOf = (id: string) => Math.min((visibleOrder.get(id) ?? 0) * 0.03, 0.4);
+                  const fillDelay = (id: string) => (firstFill ? Math.min((visibleOrder.get(id) ?? 0) * 0.04, 1.2) : 0);
                   return [
                     <motion.div
                       key={`day-${date}`}
@@ -583,7 +602,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                         opacity: 0,
                         transition: { duration: 0.12, delay: visible[0] ? delayOf(visible[0].id) : 0 },
                       }}
-                      transition={{ duration: 0.18, ease: "easeOut" }}
+                      transition={{ duration: 0.18, ease: "easeOut", delay: visible[0] ? fillDelay(visible[0].id) : 0 }}
                       className={cn(
                         "px-3 pb-1 pt-3 text-xs text-muted-foreground",
                         dayIndex > 0 && "border-t border-border/70"
@@ -602,7 +621,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                           x: 32,
                           transition: { duration: 0.15, delay: delayOf(tx.id) },
                         }}
-                        transition={{ duration: 0.18, ease: "easeOut" }}
+                        transition={{ duration: firstFill ? 0.3 : 0.18, ease: "easeOut", delay: fillDelay(tx.id) }}
                         className={cn(i > 0 && "border-t border-border/70")}
                       >
                         <Tile
@@ -700,28 +719,38 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-0.5 px-1.5">
-                {board.uncategorizedCount > 0 ? (
-                  <button
-                    className={cn(
-                      "flex w-full justify-between rounded-md bg-attention/15 px-2.5 py-1.5 text-left text-sm font-medium text-attention",
-                      filter === "Uncategorized" && "ring-2 ring-attention"
-                    )}
-                    onClick={() => toggleFilter("Uncategorized")}
-                  >
-                    <span>Uncategorized</span>
-                    <span>
-                      {board.uncategorizedCount === 1
-                        ? "1 tile — drag it"
-                        : `${board.uncategorizedCount} tiles — drag them`}
-                    </span>
-                  </button>
-                ) : (
-                  <div className="flex items-baseline gap-1.5 px-2.5 py-1.5 text-sm text-muted-foreground">
-                    <CheckCircle2Icon className="size-4 self-center text-gain" />
-                    Everything filed
-                    <span className="text-xs italic opacity-70">· iga kopikas loeb</span>
-                  </div>
-                )}
+                <AnimatePresence mode="wait" initial={false}>
+                  {board.uncategorizedCount > 0 ? (
+                    <motion.button
+                      key="todo"
+                      exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                      className={cn(
+                        "flex w-full justify-between rounded-md bg-attention/15 px-2.5 py-1.5 text-left text-sm font-medium text-attention",
+                        filter === "Uncategorized" && "ring-2 ring-attention"
+                      )}
+                      onClick={() => toggleFilter("Uncategorized")}
+                    >
+                      <span>Uncategorized</span>
+                      <span>
+                        {board.uncategorizedCount === 1
+                          ? "1 tile — drag it"
+                          : `${board.uncategorizedCount} tiles — drag them`}
+                      </span>
+                    </motion.button>
+                  ) : (
+                    <motion.div
+                      key="done"
+                      initial={inboxCleared ? { opacity: 0 } : false}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.25 }}
+                      className="flex items-baseline gap-1.5 px-2.5 py-1.5 text-sm text-muted-foreground"
+                    >
+                      <FiledCheck draw={inboxCleared} />
+                      Everything filed
+                      <span className="text-xs italic opacity-70">· iga kopikas loeb</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 {showCategories && (
                   <>
                     {board.categories.map((c) => (
@@ -1462,6 +1491,40 @@ function CategoryRow({
         )}
       </span>
     </button>
+  );
+}
+
+// The check beside "Everything filed". When the last tile has just been
+// filed it draws itself, ring first, then the tick; otherwise it is simply there.
+function FiledCheck({ draw }: { draw: boolean }) {
+  const reduce = useReducedMotion();
+  const drawn = draw && !reduce;
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="size-4 shrink-0 self-center text-gain"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <motion.circle
+        cx="12"
+        cy="12"
+        r="10"
+        initial={drawn ? { pathLength: 0 } : false}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+      />
+      <motion.path
+        d="m9 12 2 2 4-4"
+        initial={drawn ? { pathLength: 0 } : false}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 0.3, delay: 0.3, ease: "easeOut" }}
+      />
+    </svg>
   );
 }
 

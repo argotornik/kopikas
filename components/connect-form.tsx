@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion, MotionConfig } from "motion/react";
+import { cn } from "@/lib/utils";
+import { CoinMark } from "@/components/coin-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -43,7 +46,8 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
       });
     }
     setPhase({ step: "opening", rows });
-    router.refresh();
+    // The board opens on its first fill: the feed cascades in once.
+    router.replace("/?welcome=1");
   };
 
   const connect = async () => {
@@ -61,7 +65,23 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
     await sync();
   };
 
+  // One line says where the connection is. It slides between states, and a
+  // failure takes the board's amber so it reads as the thing to deal with.
+  const status =
+    phase.step === "saving"
+      ? { key: "saving", text: "Storing the token…" }
+      : phase.step === "syncing"
+        ? { key: "syncing", text: "Fetching the last 90 days from LHV…" }
+        : phase.step === "opening"
+          ? { key: "opening", text: `Fetched ${phase.rows} transactions. Opening your board…` }
+          : phase.step === "failed"
+            ? { key: `failed:${phase.message}`, text: phase.message, failed: true }
+            : stored
+              ? { key: "stored", text: "A token is already stored, but nothing has synced yet." }
+              : null;
+
   return (
+    <MotionConfig reducedMotion="user">
     <div className="flex flex-col gap-2">
       <div className="flex gap-2">
         <Input
@@ -86,11 +106,24 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
         </Button>
       </div>
       <p className="min-h-4 text-sm text-muted-foreground" aria-live="polite">
-        {phase.step === "saving" && "Storing the token…"}
-        {phase.step === "syncing" && "Fetching the last 90 days from LHV…"}
-        {phase.step === "opening" && `Fetched ${phase.rows} transactions. Opening your board…`}
-        {phase.step === "failed" && <span className="text-foreground">{phase.message}</span>}
-        {phase.step === "idle" && stored && "A token is already stored, but nothing has synced yet."}
+        <AnimatePresence mode="wait" initial={false}>
+          {status && (
+            <motion.span
+              key={status.key}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className={cn(
+                "flex items-center gap-2",
+                status.failed && "rounded-md bg-attention/15 px-2.5 py-1.5 text-attention"
+              )}
+            >
+              {busy && <CoinMark turning className="size-4" />}
+              <span>{status.text}</span>
+            </motion.span>
+          )}
+        </AnimatePresence>
       </p>
       {phase.step === "failed" && phase.detail && (
         <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs">{phase.detail}</pre>
@@ -103,5 +136,6 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
         </div>
       )}
     </div>
+    </MotionConfig>
   );
 }

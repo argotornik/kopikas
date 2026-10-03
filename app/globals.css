@@ -50,6 +50,12 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+    /* The coin mark spinning on its edge while a sync runs. */
+    --animate-coin-turn: coin-turn 1.4s linear infinite;
+    @keyframes coin-turn {
+        from { transform: rotateY(0deg); }
+        to { transform: rotateY(360deg); }
+    }
 }
 
 /* Theme: "Tangerine" preset lifted from arhamkhnz/next-shadcn-admin-dashboard (MIT),
