@@ -307,7 +307,8 @@ export function Pooleks({ role }: { role: Person }) {
             <Button onClick={() => setAddOpen(true)}>Add expense</Button>
             <Button
               variant="outline"
-              disabled={bal === 0}
+              // Greys out when the rolling amount reaches zero, in step with "All square".
+              disabled={flat}
               onClick={() => {
                 setSettleAmount(Math.abs(bal).toFixed(2));
                 setSettleNote("");
