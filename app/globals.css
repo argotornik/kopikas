@@ -9,6 +9,10 @@
     --font-heading: var(--font-heading-var), "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
     --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", monospace;
     --color-gain: var(--gain);
+    /* Text tier of two colours that are also fills: the copper of buttons and
+       bars, the amber of tints. Text needs 4.5:1 where a fill does not. */
+    --color-primary-ink: var(--primary-ink);
+    --color-attention-ink: var(--attention-ink);
     --color-loss: var(--loss);
     --color-shared: var(--shared);
     --color-attention: var(--attention);
@@ -70,18 +74,21 @@
     --card-foreground: oklch(0.32 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.32 0 0);
-    --primary: oklch(0.60 0.11 55);
+    /* Copper a step deeper than the preset's, so white on it reads at 4.6:1. */
+    --primary: oklch(0.57 0.11 55);
     --primary-foreground: oklch(1 0 0);
+    --primary-ink: oklch(0.57 0.11 55);
     --secondary: oklch(0.97 0 264.54);
     --secondary-foreground: oklch(0.45 0.03 256.8);
     --muted: oklch(0.98 0 247.84);
-    --muted-foreground: oklch(0.55 0.02 264.36);
+    --muted-foreground: oklch(0.52 0.02 264.36);
     --accent: oklch(0.91 0.02 243.82);
     --accent-foreground: oklch(0.38 0.14 265.52);
-    --destructive: oklch(0.64 0.21 25.33);
+    --destructive: oklch(0.588 0.21 25.33);
     --border: oklch(0.9 0.01 247.88);
-    --input: oklch(0.97 0 264.54);
-    --ring: oklch(0.60 0.11 55);
+    /* A field's edge at 3:1 against the card, so the field can be found. */
+    --input: oklch(0.62 0.01 247.88);
+    --ring: oklch(0.57 0.11 55);
     --chart-1: oklch(0.72 0.06 248.68);
     --chart-2: oklch(0.79 0.09 35.96);
     --chart-3: oklch(0.58 0.08 254.16);
@@ -90,17 +97,20 @@
     --radius: 0.625rem;
     --sidebar: oklch(0.9 0 258.33);
     --sidebar-foreground: oklch(0.32 0 0);
-    --sidebar-primary: oklch(0.60 0.11 55);
+    --sidebar-primary: oklch(0.57 0.11 55);
     --sidebar-primary-foreground: oklch(1 0 0);
     --sidebar-accent: oklch(0.91 0.02 243.82);
     --sidebar-accent-foreground: oklch(0.38 0.14 265.52);
     --sidebar-border: oklch(0.93 0.01 264.53);
-    --sidebar-ring: oklch(0.60 0.11 55);
+    --sidebar-ring: oklch(0.57 0.11 55);
     /* Semantic money colors: gain/loss direction, shared-with-partner, needs-attention. */
-    --gain: oklch(0.596 0.145 163.225);
+    /* Darker than the preset's so incoming amounts read at 4.6:1 on white. */
+    --gain: oklch(0.536 0.145 163.225);
     --loss: oklch(0.577 0.245 27.325);
     --shared: oklch(0.541 0.281 293.009);
     --attention: oklch(0.646 0.222 41.116);
+    /* Amber as text: deep enough for its own tint and for white. */
+    --attention-ink: oklch(0.52 0.2 45);
 }
 
 .dark {
@@ -111,18 +121,20 @@
     --card-foreground: oklch(0.92 0 0);
     --popover: oklch(0.29 0.02 268.4);
     --popover-foreground: oklch(0.92 0 0);
-    --primary: oklch(0.60 0.11 55);
+    --primary: oklch(0.57 0.11 55);
     --primary-foreground: oklch(1 0 0);
+    /* Copper as text on the dark card has to be lighter than the button fill. */
+    --primary-ink: oklch(0.7 0.11 55);
     --secondary: oklch(0.31 0.03 266.71);
     --secondary-foreground: oklch(0.92 0 0);
     --muted: oklch(0.31 0.03 266.71);
     --muted-foreground: oklch(0.72 0 0);
     --accent: oklch(0.34 0.06 267.59);
     --accent-foreground: oklch(0.88 0.06 254.13);
-    --destructive: oklch(0.64 0.21 25.33);
+    --destructive: oklch(0.74 0.17 25.33);
     --border: oklch(0.38 0.03 269.73);
     --input: oklch(0.38 0.03 269.73);
-    --ring: oklch(0.60 0.11 55);
+    --ring: oklch(0.57 0.11 55);
     --chart-1: oklch(0.72 0.06 248.68);
     --chart-2: oklch(0.77 0.09 34.19);
     --chart-3: oklch(0.58 0.08 254.16);
@@ -130,16 +142,18 @@
     --chart-5: oklch(0.42 0.1 264.03);
     --sidebar: oklch(0.31 0.03 267.74);
     --sidebar-foreground: oklch(0.92 0 0);
-    --sidebar-primary: oklch(0.60 0.11 55);
+    --sidebar-primary: oklch(0.57 0.11 55);
     --sidebar-primary-foreground: oklch(1 0 0);
     --sidebar-accent: oklch(0.34 0.06 267.59);
     --sidebar-accent-foreground: oklch(0.88 0.06 254.13);
     --sidebar-border: oklch(0.38 0.03 269.73);
-    --sidebar-ring: oklch(0.60 0.11 55);
+    --sidebar-ring: oklch(0.57 0.11 55);
     --gain: oklch(0.765 0.177 163.223);
     --loss: oklch(0.704 0.191 22.216);
-    --shared: oklch(0.702 0.183 293.541);
+    /* Lighter, so the selected split chip reads on its own tint. */
+    --shared: oklch(0.79 0.15 293.541);
     --attention: oklch(0.75 0.183 55.934);
+    --attention-ink: oklch(0.8 0.16 60);
 }
 
 @layer base {

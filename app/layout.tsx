@@ -5,11 +5,14 @@ import { ThemeProvider } from "next-themes";
 import { cn } from "@/lib/utils";
 import { authEnabled } from "@/lib/auth";
 import { ClerkThemed } from "@/components/clerk-themed";
+import { Toaster } from "@/components/toaster";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono-var" });
 // Display face: wordmark and card titles only — body and amounts stay Geist.
-const bricolage = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-heading-var" });
+// With its optical-size axis, so a 16px heading and the 20px wordmark each
+// get the cut drawn for their size (font-optical-sizing is auto).
+const bricolage = Bricolage_Grotesque({ subsets: ["latin"], axes: ["opsz"], variable: "--font-heading-var" });
 
 export const metadata: Metadata = {
   title: "Kopikas",
@@ -21,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const content = (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       {authEnabled ? <ClerkThemed>{children}</ClerkThemed> : children}
+      <Toaster />
     </ThemeProvider>
   );
   return (

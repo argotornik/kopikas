@@ -5,6 +5,7 @@ import { matches } from "@/lib/engine";
 import { SettingsForm } from "@/components/settings-form";
 import { RulesList } from "@/components/rules-list";
 import { ShareRulesList } from "@/components/share-rules-list";
+import { HeaderLink, PageHeader } from "@/components/page-header";
 
 export const dynamic = "force-dynamic";
 
@@ -24,21 +25,45 @@ export default async function SettingsPage() {
       matches: db.transactions.filter((t) => matches(t, r.match)).length,
     }));
 
+  const shareRules = [...db.shareRules].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 py-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
-        <a href="/" className="text-sm text-muted-foreground hover:text-foreground">
-          ← board
-        </a>
-      </div>
+      {/* The same header as every page: the account button means signing out works here too. */}
+      <PageHeader title="Settings" heading>
+        <HeaderLink href="/" back>
+          board
+        </HeaderLink>
+      </PageHeader>
+      <main className="flex flex-col gap-4">
+      {/* The rule lists can run to a hundred rows; the second one should not
+          be a guess at the bottom of the page. */}
+      <nav aria-label="Settings sections" className="-mt-2 flex flex-wrap gap-x-1 text-sm">
+        {(
+          [
+            ["#connection", "Connection", null],
+            ["#filing-rules", "Filing rules", rules.length],
+            ["#pooleks-rules", "Pooleks rules", shareRules.length],
+          ] as const
+        ).map(([href, label, n]) => (
+          <a
+            key={href}
+            href={href}
+            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-muted-foreground hover:bg-accent hover:text-foreground pointer-coarse:min-h-11"
+          >
+            {label}
+            {n !== null && <span className="font-mono text-xs tabular-nums">{n}</span>}
+          </a>
+        ))}
+      </nav>
       <SettingsForm
         tokenUpdatedAt={tokens?.updatedAt ?? null}
         accountCount={accounts.length}
         accountsFetchedAt={fetchedAt}
+        encrypted={!!process.env.DATABASE_URL}
       />
-      <RulesList initial={rules} />
-      <ShareRulesList initial={[...db.shareRules].sort((a, b) => b.createdAt.localeCompare(a.createdAt))} />
+      <RulesList initial={rules} categories={db.categories.map((c) => c.name)} />
+      <ShareRulesList initial={shareRules} />
+      </main>
     </div>
   );
 }

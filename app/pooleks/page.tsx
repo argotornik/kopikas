@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { currentRole } from "@/lib/auth";
 import { Pooleks } from "@/components/pooleks";
+import { readDb } from "@/lib/storage";
+import { sharedView } from "@/lib/shared-view";
 
 export const dynamic = "force-dynamic";
 
@@ -8,5 +10,6 @@ export const dynamic = "force-dynamic";
 export default async function PooleksPage() {
   const role = await currentRole();
   if (!role) redirect("/");
-  return <Pooleks role={role} />;
+  // Rendered with its statement, not fetched after the page arrives.
+  return <Pooleks role={role} initial={sharedView(await readDb(), role)} />;
 }

@@ -22,8 +22,8 @@ export default async function Home({
     if (!ownerConfigured && email) return <SetupOwner email={email} />;
     return <NotOnBoard email={email} />;
   }
-  const [db, { accounts }, view, tokens] = await Promise.all([readDb(), getAccounts(), searchParams, getLhvTokens()]);
+  const [db, { accounts, fetchedAt }, view, tokens] = await Promise.all([readDb(), getAccounts(), searchParams, getLhvTokens()]);
   // Nothing synced yet: a fresh deployment, with or without a stored token. Walk them in.
-  if (db.transactions.length === 0) return <FirstRun hasToken={!!tokens} />;
-  return <Board initial={buildBoard(db, new Date(), accounts)} view={view} />;
+  if (db.transactions.length === 0) return <FirstRun hasToken={!!tokens} encrypted={!!process.env.DATABASE_URL} />;
+  return <Board initial={buildBoard(db, new Date(), accounts)} view={view} syncedAt={fetchedAt} />;
 }

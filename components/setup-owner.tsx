@@ -7,7 +7,8 @@ export function SetupOwner({ email }: { email: string }) {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 py-6">
       <PageHeader />
-      <h1 className="mt-4 text-xl font-semibold tracking-tight">Who owns this board?</h1>
+      <main className="flex flex-col gap-4">
+      <h1 className="mt-4 font-heading text-2xl font-semibold tracking-tight">Who owns this board?</h1>
       <p className="text-sm text-muted-foreground">
         You are signed in as <span className="font-medium text-foreground">{email}</span>, and this deployment has
         not been told who its owner is yet. Three steps, once.
@@ -22,6 +23,7 @@ export function SetupOwner({ email }: { email: string }) {
         <li>Redeploy from the Deployments tab so the new variables take effect.</li>
         <li>Reload this page. The next screen connects your LHV account.</li>
       </ol>
+      </main>
     </div>
   );
 }
@@ -32,14 +34,17 @@ export function NotOnBoard({ email }: { email: string | null }) {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 py-6">
       <PageHeader />
-      <div className="flex flex-col gap-2 py-10 text-center text-sm text-muted-foreground">
-        <p>This account isn&apos;t on the board. Ask {OWNER_NAME}.</p>
+      <main className="flex flex-col gap-2 py-10 text-center text-sm text-muted-foreground">
+        <p>
+          This account isn&apos;t one of the two on this board. Ask{" "}
+          {OWNER_NAME === "Owner" ? "whoever set it up" : OWNER_NAME} to add it.
+        </p>
         {email && (
           <p className="text-xs">
             Signed in as {email}. Your own deployment? Then <Var>OWNER_EMAIL</Var> does not match this address.
           </p>
         )}
-      </div>
+      </main>
     </div>
   );
 }
