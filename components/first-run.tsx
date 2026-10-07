@@ -8,6 +8,7 @@ export function FirstRun({ hasToken, encrypted }: { hasToken: boolean; encrypted
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 py-6">
       <PageHeader />
+      <main className="flex flex-col gap-4">
       <h1 className="mt-4 font-heading text-2xl font-semibold tracking-tight">Connect your LHV account</h1>
       <p className="text-sm text-muted-foreground">
         Nothing here yet. The board fills from your bank statement once LHV is connected, and from then on a
@@ -34,6 +35,7 @@ export function FirstRun({ hasToken, encrypted }: { hasToken: boolean; encrypted
         {encrypted ? "; it is kept encrypted and never shown again." : "."}
       </p>
       <ConnectForm hasToken={hasToken} />
+      </main>
     </div>
   );
 }

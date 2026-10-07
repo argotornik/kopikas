@@ -7,10 +7,9 @@ import { CircleAlertIcon } from "lucide-react";
 import { act } from "@/lib/act";
 import { runSync } from "@/lib/sync-report";
 import { cn } from "@/lib/utils";
-import { Field } from "@/components/form-status";
+import { TokenField } from "@/components/token-field";
 import { CoinMark } from "@/components/coin-mark";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 type Phase =
   | { step: "idle" }
@@ -84,34 +83,16 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
   return (
     <MotionConfig reducedMotion="user">
     <div className="flex flex-col gap-2">
-      <div className="flex items-end gap-2">
-        <div className="min-w-0 flex-1">
-          <Field label="Refresh token">
-            {(id) => (
-              <Input
-                id={id}
-                type="password"
-                name="lhv-refresh-token"
-                autoComplete="off"
-                spellCheck={false}
-                value={token}
-                disabled={busy}
-                onChange={(e) => setToken(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !busy) {
-                    e.preventDefault();
-                    void connect();
-                  }
-                }}
-              />
-            )}
-          </Field>
-        </div>
-        <Button onClick={() => void connect()} disabled={busy || !token.trim()}>
-          {busy ? "Connecting…" : "Connect"}
-        </Button>
-      </div>
-      <p className="min-h-4 text-sm text-muted-foreground" aria-live="polite">
+      <TokenField
+        value={token}
+        onChange={setToken}
+        onSubmit={() => void connect()}
+        busy={busy}
+        label="Connect"
+        busyLabel="Connecting…"
+        describedBy="connect-status"
+      />
+      <p id="connect-status" className="min-h-4 text-sm text-muted-foreground" aria-live="polite">
         <AnimatePresence mode="wait" initial={false}>
           {status && (
             <motion.span

@@ -6,10 +6,10 @@ import { CircleAlertIcon } from "lucide-react";
 import { act } from "@/lib/act";
 import { runSync, type SyncOutcome } from "@/lib/sync-report";
 import { cn } from "@/lib/utils";
-import { Field, Pending } from "@/components/form-status";
+import { Pending } from "@/components/form-status";
+import { TokenField } from "@/components/token-field";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const when = (iso: string | null) => (iso ? dateFmt.format(new Date(iso)) : "never");
@@ -144,33 +144,15 @@ export function SettingsForm({
               payments. The token renews itself with every sync and lapses only after 30 days without one
               {encrypted ? "; it is kept encrypted and never shown again." : "."}
             </p>
-            <form
-              className="flex items-end gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void saveToken();
-              }}
-            >
-              <div className="min-w-0 flex-1">
-                <Field label="Refresh token">
-                  {(id) => (
-                    <Input
-                      id={id}
-                      type="password"
-                      aria-describedby="token-status"
-                      name="lhv-refresh-token"
-                      autoComplete="off"
-                      spellCheck={false}
-                      value={token}
-                      onChange={(e) => setToken(e.target.value)}
-                    />
-                  )}
-                </Field>
-              </div>
-              <Button type="submit" disabled={saving}>
-                <Pending on={saving}>{saving ? "Checking with LHV…" : "Save"}</Pending>
-              </Button>
-            </form>
+            <TokenField
+              value={token}
+              onChange={setToken}
+              onSubmit={() => void saveToken()}
+              busy={saving}
+              label="Save"
+              busyLabel="Checking with LHV…"
+              describedBy="token-status"
+            />
           </div>
         </details>
         {/* Outside the fold: a saved token closes it, and the word "Saved" must still show. */}

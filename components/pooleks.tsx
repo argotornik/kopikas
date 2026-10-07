@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ReceiptTextIcon, XIcon } from "lucide-react";
+import { ArrowRightIcon, ReceiptTextIcon, UsersIcon, XIcon } from "lucide-react";
 import { motion, MotionConfig } from "motion/react";
 import { amountInput, cn, parseAmount, shareLabel } from "@/lib/utils";
 import { act, focusAfterRemoval } from "@/lib/act";
@@ -17,10 +17,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { CoinMark } from "@/components/coin-mark";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useRollingNumber } from "@/components/rolling-number";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { UserMenu } from "@/components/user-menu";
+import { HeaderLink, PageHeader } from "@/components/page-header";
 import { announceError, announceUndoable } from "@/components/toaster";
 import { Field, FormError, Pending } from "@/components/form-status";
 import { SplitPicker } from "@/components/split-picker";
@@ -339,7 +338,7 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
         ? `${names.partner} ${owes(names.partner)} ${names.owner === "You" ? "you" : names.owner}`
         : `${names.owner} ${owes(names.owner)} ${names.partner === "You" ? "you" : names.partner}`;
   // "Partner → you" / "You → Owner": from whoever owes (or paid) to whoever is owed.
-  const arrow = (from: string, to: string) => `${from} → ${lower(to)}`;
+  const arrow = (from: string, to: string) => <Flow from={from} to={lower(to)} />;
   // Lines open since the last repayment, for the line under the headline.
   const openLines = months.reduce((n, m) => n + m.rows.length, 0);
 
@@ -375,25 +374,15 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
   return (
     <MotionConfig reducedMotion="user">
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-5 py-6 pb-24">
-      <div className="flex items-center justify-between">
-        <h1 className="flex items-center gap-2 font-heading text-xl font-bold tracking-tight">
-          <CoinMark />
-          Pooleks
-        </h1>
-        <div className="flex items-center gap-1.5">
-          {role === "owner" && (
-            <a
-              href="/"
-              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:px-2"
-            >
-              ← board
-            </a>
-          )}
-          <ThemeToggle />
-          <UserMenu />
-        </div>
-      </div>
+      <PageHeader title="Pooleks" heading>
+        {role === "owner" && (
+          <HeaderLink href="/" back>
+            board
+          </HeaderLink>
+        )}
+      </PageHeader>
 
+      <main className="flex flex-col gap-4">
       <Card className="gap-3 py-4">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 px-4">
           <div>
@@ -438,11 +427,20 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
       </Card>
 
       {months.length === 0 && settledMonths.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          {role === "owner"
-            ? `Nothing shared yet. On the board, file a charge with "Split with ${PARTNER_NAME}", or use Add expense for something you paid in cash.`
-            : `Nothing shared yet. Use Add expense for something you paid for; ${OWNER_NAME}'s shared costs arrive from the bank.`}
-        </p>
+        // The same empty state as the board's, said from the reader's side.
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <UsersIcon />
+            </EmptyMedia>
+            <EmptyTitle>Nothing shared yet</EmptyTitle>
+            <EmptyDescription>
+              {role === "owner"
+                ? `On the board, file a charge with "Split with ${PARTNER_NAME}", or use Add expense for something you paid in cash.`
+                : `Use Add expense for something you paid for; ${OWNER_NAME}'s shared costs arrive from the bank.`}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         // The statement: one sheet, ruled rows, month headers as section rules.
         <div className="overflow-hidden rounded-xl bg-card pb-2 ring-1 ring-foreground/10 outline-none" data-list>
@@ -582,6 +580,7 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
           {fold && !showSettled && foldLine}
         </div>
       )}
+      </main>
 
       <Dialog open={addOpen} onOpenChange={(o) => !o && setAddOpen(false)}>
         <DialogContent className="sm:max-w-sm" finalFocus={addButton}>
@@ -734,7 +733,7 @@ function Amount({
   children,
 }: {
   value: number;
-  label: string;
+  label: React.ReactNode;
   strong?: boolean;
   children?: React.ReactNode;
 }) {
@@ -771,7 +770,7 @@ function MonthNet({
   flow,
 }: {
   net: number;
-  arrow: (from: string, to: string) => string;
+  arrow: (from: string, to: string) => React.ReactNode;
   flow: (toOwner: boolean) => [string, string];
 }) {
   const r = Math.round(net * 100) / 100;
@@ -788,5 +787,18 @@ function MonthNet({
         </>
       )}
     </span>
+  );
+}
+
+// Who to whom, with the arrow drawn: the arrow character is not in Geist and
+// would fall back to another face. A screen reader hears "Partner to you".
+function Flow({ from, to }: { from: string; to: string }) {
+  return (
+    <>
+      {from}
+      <ArrowRightIcon aria-hidden className="mx-0.5 inline size-3 align-[-1px]" />
+      <span className="sr-only"> to </span>
+      {to}
+    </>
   );
 }

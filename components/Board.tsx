@@ -30,6 +30,7 @@ import { Menu } from "@base-ui/react/menu";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import {
   ArrowDownIcon,
+  ArrowRightIcon,
   CheckCircle2Icon,
   CheckIcon,
   ChevronDownIcon,
@@ -51,16 +52,14 @@ import { announceError, announceUndoable } from "@/components/toaster";
 import { Field, FormError, Pending } from "@/components/form-status";
 import { SplitPicker } from "@/components/split-picker";
 import { PARTNER_NAME } from "@/lib/names";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { CoinMark } from "@/components/coin-mark";
+import { HeaderLink, PageHeader } from "@/components/page-header";
 import { RollingNumber } from "@/components/rolling-number";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { MerchantEditor, type MerchantSubject } from "@/components/merchant-editor";
-import { UserMenu } from "@/components/user-menu";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
@@ -631,33 +630,19 @@ export default function Board({
         >
           Skip to categories
         </a>
-        <div className="mb-5 flex items-center justify-between">
-          <div className="flex flex-col">
-            <h1 className="flex items-center gap-2 font-heading text-xl font-bold tracking-tight">
-              <CoinMark />
-              Kopikas
-            </h1>
-            <SyncStatus at={syncedAt} />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <a
-              href="/pooleks"
-              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:px-2"
-            >
-              Pooleks →
-            </a>
-            <ThemeToggle />
-            <a
-              href="/settings"
-              title="Settings"
-              aria-label="Settings"
-              className="flex size-8 items-center justify-center text-muted-foreground hover:text-foreground pointer-coarse:size-11"
-            >
-              <SettingsIcon className="size-4" />
-            </a>
-            <UserMenu />
-          </div>
-        </div>
+        <PageHeader heading sub={<SyncStatus at={syncedAt} />} className="mb-5">
+          <HeaderLink href="/pooleks">Pooleks</HeaderLink>
+          <a
+            href="/settings"
+            title="Settings"
+            aria-label="Settings"
+            className="flex size-8 items-center justify-center text-muted-foreground hover:text-foreground pointer-coarse:size-11"
+          >
+            <SettingsIcon className="size-4" />
+          </a>
+        </PageHeader>
+
+        <main>
 
         {/* On a phone the tiles are one row you swipe, the next one peeking
             in, so the ledger starts on the first screen; a grid from md up. */}
@@ -857,16 +842,15 @@ export default function Board({
           >
             <Card id="categories" tabIndex={-1} className="shrink-0 scroll-mt-4 gap-3 py-4 outline-none">
               <CardHeader className="border-b px-4">
-                <CardTitle className="flex items-center justify-between">
-                  {/* On a phone the four controls need the room, so the month
-                      alone heads the card; the rows say what it is. */}
-                  <span className="min-w-0 truncate">
-                    <span className="max-sm:hidden">Categories </span>
-                    <span className="font-sans text-sm font-normal tracking-normal text-muted-foreground max-sm:font-heading max-sm:text-base max-sm:font-semibold max-sm:tracking-tight max-sm:text-foreground">
-                      {fmtMonth(month)}
-                    </span>
+                {/* On a phone the four controls need the room, so the month
+                    alone heads the card; the rows say what it is. */}
+                <CardTitle className="min-w-0 self-center truncate">
+                  <span className="max-sm:hidden">Categories </span>
+                  <span className="font-sans text-sm font-normal tracking-normal text-muted-foreground max-sm:font-heading max-sm:text-base max-sm:font-semibold max-sm:tracking-tight max-sm:text-foreground">
+                    {fmtMonth(month)}
                   </span>
-                  <span className="flex items-center gap-0.5 text-muted-foreground">
+                </CardTitle>
+                <CardAction className="flex items-center gap-0.5 self-center text-muted-foreground">
                     <button
                       aria-label="Edit categories"
                       title="Rename or add categories"
@@ -899,8 +883,7 @@ export default function Board({
                     >
                       <ChevronDownIcon className={cn("size-3.5 transition-transform", !showCategories && "-rotate-90")} />
                     </button>
-                  </span>
-                </CardTitle>
+                </CardAction>
               </CardHeader>
               <CardContent className="flex flex-col gap-0.5 px-1.5">
                 <AnimatePresence mode="wait" initial={false}>
@@ -913,6 +896,7 @@ export default function Board({
                         filter === "Uncategorized" && "ring-2 ring-attention"
                       )}
                       onClick={() => toggleFilter("Uncategorized")}
+                      aria-pressed={filter === "Uncategorized"}
                     >
                       <span>Uncategorized</span>
                       <span>{board.uncategorizedCount} to file</span>
@@ -975,6 +959,7 @@ export default function Board({
                     <button
                       type="button"
                       onClick={() => toggleFilter("Incoming")}
+                      aria-pressed={filter === "Incoming"}
                       title={`Money that came in during ${fmtMonth(month)}. Shows who sent it`}
                       className={cn(
                         "flex w-full cursor-pointer justify-between rounded-md px-2.5 py-1 text-left text-sm hover:bg-accent/50 pointer-coarse:py-3",
@@ -1000,8 +985,8 @@ export default function Board({
             <>
             <Card id="subscriptions" className="shrink-0 scroll-mt-4 gap-3 py-4">
               <CardHeader className="border-b px-4">
-                <CardTitle className="flex items-center justify-between">
-                  <span>Subscriptions</span>
+                <CardTitle className="self-center">Subscriptions</CardTitle>
+                <CardAction className="self-center">
                   <button
                     aria-label={showSubs ? "Collapse subscriptions" : "Expand subscriptions"}
                     aria-expanded={showSubs}
@@ -1010,7 +995,7 @@ export default function Board({
                   >
                     <ChevronDownIcon className={cn("size-3.5 transition-transform", !showSubs && "-rotate-90")} />
                   </button>
-                </CardTitle>
+                </CardAction>
               </CardHeader>
               <CardContent className="px-4">
                 {showSubs && board.subscriptions.filter((s) => s.sub.active).length === 0 && (
@@ -1202,7 +1187,8 @@ export default function Board({
                     href="/pooleks"
                     className="inline-flex shrink-0 items-center text-xs text-muted-foreground hover:text-foreground pointer-coarse:min-h-11"
                   >
-                    Open Pooleks →
+                    Open Pooleks
+                    <ArrowRightIcon aria-hidden className="ml-1 size-3" />
                   </a>
                 </div>
               </CardContent>
@@ -1216,8 +1202,15 @@ export default function Board({
               </CardHeader>
               <CardContent className="px-4">
                 {board.investments.series.length >= 2 ? (
-                  <ChartContainer config={INVESTMENTS_CHART} className="aspect-[2/1] w-full">
+                  // Described in words for a screen reader; the hover tooltip stays for the mouse.
+                  <ChartContainer
+                    config={INVESTMENTS_CHART}
+                    className="aspect-[2/1] w-full"
+                    role="img"
+                    aria-label={`Investments over time, ${shortDate.format(new Date(board.investments.series[0].at))} to ${shortDate.format(new Date(board.investments.series[board.investments.series.length - 1].at))}${board.investments.total != null ? `, now ${eur.format(board.investments.total)}` : ""}`}
+                  >
                     <AreaChart
+                      accessibilityLayer={false}
                       data={board.investments.series.map((p) => ({
                         date: p.at.slice(0, 10),
                         lightyear: p.lightyear ?? 0,
@@ -1279,6 +1272,7 @@ export default function Board({
             )}
           </div>
         </div>
+        </main>
       </div>
       {/* dnd-kit sizes the overlay to the dragged row; a pill should be as wide as
           its words, or it runs off the screen when the drop zone is in the rail. */}
@@ -1656,7 +1650,14 @@ const MicroRollup = memo(
         <span className="min-w-0 flex-1 truncate">
           Mikroinvesteering · {n} transfer{n === 1 ? "" : "s"}
         </span>
-        {microTotal > 0 && <span className="font-mono tabular-nums">−{eur.format(microTotal)} → Savings</span>}
+        {microTotal > 0 && (
+          <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+            −{eur.format(microTotal)}
+            <ArrowRightIcon aria-hidden className="size-3" />
+            <span className="sr-only">to</span>
+            <span className="font-sans">Savings</span>
+          </span>
+        )}
       </motion.div>
     );
   },
@@ -2101,6 +2102,8 @@ function CategoryRow({
       type="button"
       ref={setNodeRef}
       onClick={onSelect}
+      // A filter toggle: pressed while the ledger shows only this category.
+      aria-pressed={active}
       title={budget != null ? `${eur.format(Math.abs(budget - total))} ${over ? "over the limit" : "left this month"}` : undefined}
       className={cn(
         "relative flex w-full cursor-pointer justify-between overflow-hidden rounded-md border border-dashed border-transparent px-2.5 py-1.5 text-left text-sm hover:bg-accent/50 pointer-coarse:py-3",

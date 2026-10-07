@@ -62,7 +62,7 @@ export function RulesList({ initial, categories }: { initial: RuleRow[]; categor
     if (!result.ok) return announceError(`Couldn't forget that rule. ${result.error}`);
     setRules((rs) => rs.filter((x) => x.id !== r.id));
     refocus();
-    announceUndoable(`Forgot “${r.match}” → ${r.category}.`, result.undo, () =>
+    announceUndoable(`Forgot “${r.match}”, which filed as ${r.category}.`, result.undo, () =>
       setRules((rs) => [...rs.filter((x) => x.id !== r.id), r].sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
     );
   };

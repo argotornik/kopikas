@@ -33,9 +33,11 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+// A real heading (h2 under each page's h1), so a screen reader can move
+// between sections. Controls belong in CardAction beside it, not inside it.
+function CardTitle({ className, ...props }: React.ComponentProps<"h2">) {
   return (
-    <div
+    <h2
       data-slot="card-title"
       className={cn(
         // A section heading, as on a statement: the display face at a size
