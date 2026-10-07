@@ -1,0 +1,822 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-07T20:00:45+00:00",
+  "title": "Design System: Kopikas",
+  "extensions": {
+    "colorMeta": {
+      "page-white": {
+        "role": "neutral",
+        "displayName": "Page White",
+        "canonical": "oklch(100.0% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(25% 0.000 89.9)",
+          "oklch(35% 0.000 89.9)",
+          "oklch(48% 0.000 89.9)",
+          "oklch(60% 0.000 89.9)",
+          "oklch(72% 0.000 89.9)",
+          "oklch(84% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "night": {
+        "role": "neutral",
+        "displayName": "Night",
+        "canonical": "oklch(17.4% 0.010 276.4)",
+        "tonalRamp": [
+          "oklch(15% 0.010 276.4)",
+          "oklch(25% 0.010 276.4)",
+          "oklch(35% 0.010 276.4)",
+          "oklch(48% 0.010 276.4)",
+          "oklch(60% 0.010 276.4)",
+          "oklch(72% 0.010 276.4)",
+          "oklch(84% 0.010 276.4)",
+          "oklch(95% 0.010 276.4)"
+        ]
+      },
+      "oat-paper": {
+        "role": "neutral",
+        "displayName": "Oat Paper",
+        "canonical": "oklch(94.1% 0.012 84.6)",
+        "tonalRamp": [
+          "oklch(15% 0.012 84.6)",
+          "oklch(25% 0.012 84.6)",
+          "oklch(35% 0.012 84.6)",
+          "oklch(48% 0.012 84.6)",
+          "oklch(60% 0.012 84.6)",
+          "oklch(72% 0.012 84.6)",
+          "oklch(84% 0.012 84.6)",
+          "oklch(95% 0.012 84.6)"
+        ]
+      },
+      "oat-paper-night": {
+        "role": "neutral",
+        "displayName": "Oat Paper Night",
+        "canonical": "oklch(23.5% 0.010 303.7)",
+        "tonalRamp": [
+          "oklch(15% 0.010 303.7)",
+          "oklch(25% 0.010 303.7)",
+          "oklch(35% 0.010 303.7)",
+          "oklch(48% 0.010 303.7)",
+          "oklch(60% 0.010 303.7)",
+          "oklch(72% 0.010 303.7)",
+          "oklch(84% 0.010 303.7)",
+          "oklch(95% 0.010 303.7)"
+        ]
+      },
+      "mist": {
+        "role": "neutral",
+        "displayName": "Mist",
+        "canonical": "oklch(97.0% 0.003 264.5)",
+        "tonalRamp": [
+          "oklch(15% 0.003 264.5)",
+          "oklch(25% 0.003 264.5)",
+          "oklch(35% 0.003 264.5)",
+          "oklch(48% 0.003 264.5)",
+          "oklch(60% 0.003 264.5)",
+          "oklch(72% 0.003 264.5)",
+          "oklch(84% 0.003 264.5)",
+          "oklch(95% 0.003 264.5)"
+        ]
+      },
+      "mist-night": {
+        "role": "neutral",
+        "displayName": "Mist Night",
+        "canonical": "oklch(22.3% 0.014 272.7)",
+        "tonalRamp": [
+          "oklch(15% 0.014 272.7)",
+          "oklch(25% 0.014 272.7)",
+          "oklch(35% 0.014 272.7)",
+          "oklch(48% 0.014 272.7)",
+          "oklch(60% 0.014 272.7)",
+          "oklch(72% 0.014 272.7)",
+          "oklch(84% 0.014 272.7)",
+          "oklch(95% 0.014 272.7)"
+        ]
+      },
+      "card-night": {
+        "role": "neutral",
+        "displayName": "Card Night",
+        "canonical": "oklch(26.6% 0.017 275.3)",
+        "tonalRamp": [
+          "oklch(15% 0.017 275.3)",
+          "oklch(25% 0.017 275.3)",
+          "oklch(35% 0.017 275.3)",
+          "oklch(48% 0.017 275.3)",
+          "oklch(60% 0.017 275.3)",
+          "oklch(72% 0.017 275.3)",
+          "oklch(84% 0.017 275.3)",
+          "oklch(95% 0.017 275.3)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(20.6% 0.010 276.5)",
+        "tonalRamp": [
+          "oklch(15% 0.010 276.5)",
+          "oklch(25% 0.010 276.5)",
+          "oklch(35% 0.010 276.5)",
+          "oklch(48% 0.010 276.5)",
+          "oklch(60% 0.010 276.5)",
+          "oklch(72% 0.010 276.5)",
+          "oklch(84% 0.010 276.5)",
+          "oklch(95% 0.010 276.5)"
+        ]
+      },
+      "chalk": {
+        "role": "neutral",
+        "displayName": "Chalk",
+        "canonical": "oklch(96.1% 0.005 95.1)",
+        "tonalRamp": [
+          "oklch(15% 0.005 95.1)",
+          "oklch(25% 0.005 95.1)",
+          "oklch(35% 0.005 95.1)",
+          "oklch(48% 0.005 95.1)",
+          "oklch(60% 0.005 95.1)",
+          "oklch(72% 0.005 95.1)",
+          "oklch(84% 0.005 95.1)",
+          "oklch(95% 0.005 95.1)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "canonical": "oklch(51.1% 0.015 271.1)",
+        "tonalRamp": [
+          "oklch(15% 0.015 271.1)",
+          "oklch(25% 0.015 271.1)",
+          "oklch(35% 0.015 271.1)",
+          "oklch(48% 0.015 271.1)",
+          "oklch(60% 0.015 271.1)",
+          "oklch(72% 0.015 271.1)",
+          "oklch(84% 0.015 271.1)",
+          "oklch(95% 0.015 271.1)"
+        ]
+      },
+      "muted-night": {
+        "role": "neutral",
+        "displayName": "Muted Night",
+        "canonical": "oklch(73.7% 0.016 277.8)",
+        "tonalRamp": [
+          "oklch(15% 0.016 277.8)",
+          "oklch(25% 0.016 277.8)",
+          "oklch(35% 0.016 277.8)",
+          "oklch(48% 0.016 277.8)",
+          "oklch(60% 0.016 277.8)",
+          "oklch(72% 0.016 277.8)",
+          "oklch(84% 0.016 277.8)",
+          "oklch(95% 0.016 277.8)"
+        ]
+      },
+      "copper": {
+        "role": "primary",
+        "displayName": "Kopikas Copper",
+        "canonical": "oklch(65.4% 0.126 54.1)",
+        "tonalRamp": [
+          "oklch(15% 0.126 54.1)",
+          "oklch(25% 0.126 54.1)",
+          "oklch(35% 0.126 54.1)",
+          "oklch(48% 0.126 54.1)",
+          "oklch(60% 0.126 54.1)",
+          "oklch(72% 0.126 54.1)",
+          "oklch(84% 0.126 54.1)",
+          "oklch(95% 0.126 54.1)"
+        ]
+      },
+      "copper-edge": {
+        "role": "primary",
+        "displayName": "Copper Edge",
+        "canonical": "oklch(54.6% 0.114 50.5)",
+        "tonalRamp": [
+          "oklch(15% 0.114 50.5)",
+          "oklch(25% 0.114 50.5)",
+          "oklch(35% 0.114 50.5)",
+          "oklch(48% 0.114 50.5)",
+          "oklch(60% 0.114 50.5)",
+          "oklch(72% 0.114 50.5)",
+          "oklch(84% 0.114 50.5)",
+          "oklch(95% 0.114 50.5)"
+        ]
+      },
+      "copper-ring": {
+        "role": "primary",
+        "displayName": "Copper Ring",
+        "canonical": "oklch(75.1% 0.112 58.7)",
+        "tonalRamp": [
+          "oklch(15% 0.112 58.7)",
+          "oklch(25% 0.112 58.7)",
+          "oklch(35% 0.112 58.7)",
+          "oklch(48% 0.112 58.7)",
+          "oklch(60% 0.112 58.7)",
+          "oklch(72% 0.112 58.7)",
+          "oklch(84% 0.112 58.7)",
+          "oklch(95% 0.112 58.7)"
+        ]
+      },
+      "copper-k": {
+        "role": "primary",
+        "displayName": "Copper K",
+        "canonical": "oklch(43.8% 0.097 47.5)",
+        "tonalRamp": [
+          "oklch(15% 0.097 47.5)",
+          "oklch(25% 0.097 47.5)",
+          "oklch(35% 0.097 47.5)",
+          "oklch(48% 0.097 47.5)",
+          "oklch(60% 0.097 47.5)",
+          "oklch(72% 0.097 47.5)",
+          "oklch(84% 0.097 47.5)",
+          "oklch(95% 0.097 47.5)"
+        ]
+      },
+      "brass": {
+        "role": "primary",
+        "displayName": "Brass",
+        "canonical": "oklch(79.0% 0.139 85.2)",
+        "tonalRamp": [
+          "oklch(15% 0.139 85.2)",
+          "oklch(25% 0.139 85.2)",
+          "oklch(35% 0.139 85.2)",
+          "oklch(48% 0.139 85.2)",
+          "oklch(60% 0.139 85.2)",
+          "oklch(72% 0.139 85.2)",
+          "oklch(84% 0.139 85.2)",
+          "oklch(95% 0.139 85.2)"
+        ]
+      },
+      "nickel": {
+        "role": "primary",
+        "displayName": "Nickel",
+        "canonical": "oklch(79.8% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(25% 0.000 89.9)",
+          "oklch(35% 0.000 89.9)",
+          "oklch(48% 0.000 89.9)",
+          "oklch(60% 0.000 89.9)",
+          "oklch(72% 0.000 89.9)",
+          "oklch(84% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "crayon-blue": {
+        "role": "secondary",
+        "displayName": "Crayon Blue",
+        "canonical": "oklch(57.6% 0.176 267.6)",
+        "tonalRamp": [
+          "oklch(15% 0.176 267.6)",
+          "oklch(25% 0.176 267.6)",
+          "oklch(35% 0.176 267.6)",
+          "oklch(48% 0.176 267.6)",
+          "oklch(60% 0.176 267.6)",
+          "oklch(72% 0.176 267.6)",
+          "oklch(84% 0.176 267.6)",
+          "oklch(95% 0.176 267.6)"
+        ]
+      },
+      "face-navy": {
+        "role": "secondary",
+        "displayName": "Face Navy",
+        "canonical": "oklch(38.9% 0.136 272.2)",
+        "tonalRamp": [
+          "oklch(15% 0.136 272.2)",
+          "oklch(25% 0.136 272.2)",
+          "oklch(35% 0.136 272.2)",
+          "oklch(48% 0.136 272.2)",
+          "oklch(60% 0.136 272.2)",
+          "oklch(72% 0.136 272.2)",
+          "oklch(84% 0.136 272.2)",
+          "oklch(95% 0.136 272.2)"
+        ]
+      },
+      "face-cream": {
+        "role": "secondary",
+        "displayName": "Face Cream",
+        "canonical": "oklch(96.2% 0.011 84.6)",
+        "tonalRamp": [
+          "oklch(15% 0.011 84.6)",
+          "oklch(25% 0.011 84.6)",
+          "oklch(35% 0.011 84.6)",
+          "oklch(48% 0.011 84.6)",
+          "oklch(60% 0.011 84.6)",
+          "oklch(72% 0.011 84.6)",
+          "oklch(84% 0.011 84.6)",
+          "oklch(95% 0.011 84.6)"
+        ]
+      },
+      "limb-brown": {
+        "role": "neutral",
+        "displayName": "Limb Brown",
+        "canonical": "oklch(30.1% 0.030 53.3)",
+        "tonalRamp": [
+          "oklch(15% 0.030 53.3)",
+          "oklch(25% 0.030 53.3)",
+          "oklch(35% 0.030 53.3)",
+          "oklch(48% 0.030 53.3)",
+          "oklch(60% 0.030 53.3)",
+          "oklch(72% 0.030 53.3)",
+          "oklch(84% 0.030 53.3)",
+          "oklch(95% 0.030 53.3)"
+        ]
+      },
+      "limb-sand": {
+        "role": "neutral",
+        "displayName": "Limb Sand",
+        "canonical": "oklch(83.9% 0.033 68.9)",
+        "tonalRamp": [
+          "oklch(15% 0.033 68.9)",
+          "oklch(25% 0.033 68.9)",
+          "oklch(35% 0.033 68.9)",
+          "oklch(48% 0.033 68.9)",
+          "oklch(60% 0.033 68.9)",
+          "oklch(72% 0.033 68.9)",
+          "oklch(84% 0.033 68.9)",
+          "oklch(95% 0.033 68.9)"
+        ]
+      },
+      "tongue-pink": {
+        "role": "secondary",
+        "displayName": "Tongue Pink",
+        "canonical": "oklch(71.8% 0.146 11.8)",
+        "tonalRamp": [
+          "oklch(15% 0.146 11.8)",
+          "oklch(25% 0.146 11.8)",
+          "oklch(35% 0.146 11.8)",
+          "oklch(48% 0.146 11.8)",
+          "oklch(60% 0.146 11.8)",
+          "oklch(72% 0.146 11.8)",
+          "oklch(84% 0.146 11.8)",
+          "oklch(95% 0.146 11.8)"
+        ]
+      },
+      "received-green": {
+        "role": "neutral",
+        "displayName": "Received Green",
+        "canonical": "oklch(55.7% 0.139 153.1)",
+        "tonalRamp": [
+          "oklch(15% 0.139 153.1)",
+          "oklch(25% 0.139 153.1)",
+          "oklch(35% 0.139 153.1)",
+          "oklch(48% 0.139 153.1)",
+          "oklch(60% 0.139 153.1)",
+          "oklch(72% 0.139 153.1)",
+          "oklch(84% 0.139 153.1)",
+          "oklch(95% 0.139 153.1)"
+        ]
+      },
+      "received-green-night": {
+        "role": "neutral",
+        "displayName": "Received Green Night",
+        "canonical": "oklch(77.1% 0.153 156.2)",
+        "tonalRamp": [
+          "oklch(15% 0.153 156.2)",
+          "oklch(25% 0.153 156.2)",
+          "oklch(35% 0.153 156.2)",
+          "oklch(48% 0.153 156.2)",
+          "oklch(60% 0.153 156.2)",
+          "oklch(72% 0.153 156.2)",
+          "oklch(84% 0.153 156.2)",
+          "oklch(95% 0.153 156.2)"
+        ]
+      },
+      "wrapper-cornflower": {
+        "role": "tertiary",
+        "displayName": "Wrapper Cornflower",
+        "canonical": "oklch(66.3% 0.142 267.2)",
+        "tonalRamp": [
+          "oklch(15% 0.142 267.2)",
+          "oklch(25% 0.142 267.2)",
+          "oklch(35% 0.142 267.2)",
+          "oklch(48% 0.142 267.2)",
+          "oklch(60% 0.142 267.2)",
+          "oklch(72% 0.142 267.2)",
+          "oklch(84% 0.142 267.2)",
+          "oklch(95% 0.142 267.2)"
+        ]
+      },
+      "wrapper-tomato": {
+        "role": "tertiary",
+        "displayName": "Wrapper Tomato",
+        "canonical": "oklch(63.3% 0.181 32.6)",
+        "tonalRamp": [
+          "oklch(15% 0.181 32.6)",
+          "oklch(25% 0.181 32.6)",
+          "oklch(35% 0.181 32.6)",
+          "oklch(48% 0.181 32.6)",
+          "oklch(60% 0.181 32.6)",
+          "oklch(72% 0.181 32.6)",
+          "oklch(84% 0.181 32.6)",
+          "oklch(95% 0.181 32.6)"
+        ]
+      },
+      "wrapper-pink": {
+        "role": "tertiary",
+        "displayName": "Wrapper Pink",
+        "canonical": "oklch(79.5% 0.093 4.9)",
+        "tonalRamp": [
+          "oklch(15% 0.093 4.9)",
+          "oklch(25% 0.093 4.9)",
+          "oklch(35% 0.093 4.9)",
+          "oklch(48% 0.093 4.9)",
+          "oklch(60% 0.093 4.9)",
+          "oklch(72% 0.093 4.9)",
+          "oklch(84% 0.093 4.9)",
+          "oklch(95% 0.093 4.9)"
+        ]
+      },
+      "wrapper-grass": {
+        "role": "tertiary",
+        "displayName": "Wrapper Grass",
+        "canonical": "oklch(61.4% 0.135 148.9)",
+        "tonalRamp": [
+          "oklch(15% 0.135 148.9)",
+          "oklch(25% 0.135 148.9)",
+          "oklch(35% 0.135 148.9)",
+          "oklch(48% 0.135 148.9)",
+          "oklch(60% 0.135 148.9)",
+          "oklch(72% 0.135 148.9)",
+          "oklch(84% 0.135 148.9)",
+          "oklch(95% 0.135 148.9)"
+        ]
+      },
+      "wrapper-brown": {
+        "role": "tertiary",
+        "displayName": "Wrapper Brown",
+        "canonical": "oklch(43.1% 0.061 51.2)",
+        "tonalRamp": [
+          "oklch(15% 0.061 51.2)",
+          "oklch(25% 0.061 51.2)",
+          "oklch(35% 0.061 51.2)",
+          "oklch(48% 0.061 51.2)",
+          "oklch(60% 0.061 51.2)",
+          "oklch(72% 0.061 51.2)",
+          "oklch(84% 0.061 51.2)",
+          "oklch(95% 0.061 51.2)"
+        ]
+      },
+      "wrapper-sky": {
+        "role": "tertiary",
+        "displayName": "Wrapper Sky",
+        "canonical": "oklch(82.6% 0.072 257.6)",
+        "tonalRamp": [
+          "oklch(15% 0.072 257.6)",
+          "oklch(25% 0.072 257.6)",
+          "oklch(35% 0.072 257.6)",
+          "oklch(48% 0.072 257.6)",
+          "oklch(60% 0.072 257.6)",
+          "oklch(72% 0.072 257.6)",
+          "oklch(84% 0.072 257.6)",
+          "oklch(95% 0.072 257.6)"
+        ]
+      },
+      "wrapper-lime": {
+        "role": "tertiary",
+        "displayName": "Wrapper Lime",
+        "canonical": "oklch(89.3% 0.164 114.9)",
+        "tonalRamp": [
+          "oklch(15% 0.164 114.9)",
+          "oklch(25% 0.164 114.9)",
+          "oklch(35% 0.164 114.9)",
+          "oklch(48% 0.164 114.9)",
+          "oklch(60% 0.164 114.9)",
+          "oklch(72% 0.164 114.9)",
+          "oklch(84% 0.164 114.9)",
+          "oklch(95% 0.164 114.9)"
+        ]
+      },
+      "wrapper-lavender": {
+        "role": "tertiary",
+        "displayName": "Wrapper Lavender",
+        "canonical": "oklch(61.1% 0.162 295.0)",
+        "tonalRamp": [
+          "oklch(15% 0.162 295.0)",
+          "oklch(25% 0.162 295.0)",
+          "oklch(35% 0.162 295.0)",
+          "oklch(48% 0.162 295.0)",
+          "oklch(60% 0.162 295.0)",
+          "oklch(72% 0.162 295.0)",
+          "oklch(84% 0.162 295.0)",
+          "oklch(95% 0.162 295.0)"
+        ]
+      },
+      "wrapper-yolk": {
+        "role": "tertiary",
+        "displayName": "Wrapper Yolk",
+        "canonical": "oklch(83.4% 0.141 85.4)",
+        "tonalRamp": [
+          "oklch(15% 0.141 85.4)",
+          "oklch(25% 0.141 85.4)",
+          "oklch(35% 0.141 85.4)",
+          "oklch(48% 0.141 85.4)",
+          "oklch(60% 0.141 85.4)",
+          "oklch(72% 0.141 85.4)",
+          "oklch(84% 0.141 85.4)",
+          "oklch(95% 0.141 85.4)"
+        ]
+      },
+      "wrapper-grey": {
+        "role": "tertiary",
+        "displayName": "Wrapper Grey",
+        "canonical": "oklch(78.3% 0.000 89.9)",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(25% 0.000 89.9)",
+          "oklch(35% 0.000 89.9)",
+          "oklch(48% 0.000 89.9)",
+          "oklch(60% 0.000 89.9)",
+          "oklch(72% 0.000 89.9)",
+          "oklch(84% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "wrapper-brick": {
+        "role": "tertiary",
+        "displayName": "Wrapper Brick",
+        "canonical": "oklch(56.7% 0.172 31.4)",
+        "tonalRamp": [
+          "oklch(15% 0.172 31.4)",
+          "oklch(25% 0.172 31.4)",
+          "oklch(35% 0.172 31.4)",
+          "oklch(48% 0.172 31.4)",
+          "oklch(60% 0.172 31.4)",
+          "oklch(72% 0.172 31.4)",
+          "oklch(84% 0.172 31.4)",
+          "oklch(95% 0.172 31.4)"
+        ]
+      },
+      "wrapper-mint": {
+        "role": "tertiary",
+        "displayName": "Wrapper Mint",
+        "canonical": "oklch(78.8% 0.092 150.1)",
+        "tonalRamp": [
+          "oklch(15% 0.092 150.1)",
+          "oklch(25% 0.092 150.1)",
+          "oklch(35% 0.092 150.1)",
+          "oklch(48% 0.092 150.1)",
+          "oklch(60% 0.092 150.1)",
+          "oklch(72% 0.092 150.1)",
+          "oklch(84% 0.092 150.1)",
+          "oklch(95% 0.092 150.1)"
+        ]
+      },
+      "wrapper-apricot": {
+        "role": "tertiary",
+        "displayName": "Wrapper Apricot",
+        "canonical": "oklch(76.4% 0.120 63.5)",
+        "tonalRamp": [
+          "oklch(15% 0.120 63.5)",
+          "oklch(25% 0.120 63.5)",
+          "oklch(35% 0.120 63.5)",
+          "oklch(48% 0.120 63.5)",
+          "oklch(60% 0.120 63.5)",
+          "oklch(72% 0.120 63.5)",
+          "oklch(84% 0.120 63.5)",
+          "oklch(95% 0.120 63.5)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The month's total, the biggest thing on the board (44px on a phone)."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The month's name on the stage (34px on a phone)."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "Kopikas in the header, beside the coin."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section heads: Every charge, To file."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Merchants, amounts in lists, the speech bubble, navigation."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Category chips, roll names, captions."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floor-oval",
+        "value": "ellipse filled rgb(0 0 0 / 0.12); rgb(0 0 0 / 0.35) in dark",
+        "purpose": "What every character and roll stands on; shrinks and fades as it leaves the ground."
+      },
+      {
+        "name": "bubble-lift",
+        "value": "0 10px 30px -14px rgb(0 0 0 / 0.3)",
+        "purpose": "The speech bubble only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "spring-ui",
+        "value": "spring(stiffness 260, damping 18)",
+        "purpose": "Default for coins, rolls and the pile."
+      },
+      {
+        "name": "spring-roll",
+        "value": "spring(stiffness 200, damping 20)",
+        "purpose": "A roll growing to its new height."
+      },
+      {
+        "name": "gulp",
+        "value": "scaleY 1 → 0.9 → 1.04 → 1 over 0.6s",
+        "purpose": "A roll swallowing a coin."
+      },
+      {
+        "name": "hop",
+        "value": "0.7s arc, ease-out up and ease-in down",
+        "purpose": "A coin flying into its roll."
+      },
+      {
+        "name": "rise",
+        "value": "1.1s cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Rolls rising on load."
+      },
+      {
+        "name": "float",
+        "value": "±7px and ±7° alternate, ease-in-out",
+        "purpose": "Coins and confetti drifting behind the stage."
+      },
+      {
+        "name": "bubble-exit",
+        "value": "0.15s fade and scale to 0.9",
+        "purpose": "The speech bubble leaving."
+      },
+      {
+        "name": "settle",
+        "value": "0.4s",
+        "purpose": "The drawn Kopikas settles into an idle pose before its animation takes over."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "phone",
+        "value": "639px and below: rolls lie down as bars, Kopikas in the stage corner"
+      },
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px: the 380px to-file column beside the ledger"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Stage",
+      "kind": "custom",
+      "refersTo": "stage-panel",
+      "description": "The month as one picture: name, total, and the rolls on one floor.",
+      "html": "<section class=\"ds-stage\"><h2 class=\"ds-stage-month\">September</h2><p class=\"ds-stage-total\">883,46 €</p><div class=\"ds-stage-floor\"><div class=\"ds-roll\"><svg width=\"64\" height=\"66\" viewBox=\"0 0 64 66\" aria-hidden=\"true\"><ellipse cx=\"32\" cy=\"60\" rx=\"26\" ry=\"4\" fill=\"rgb(0 0 0 / 0.12)\"/><rect x=\"6\" y=\"2\" width=\"52\" height=\"52\" rx=\"18\" fill=\"#6C8EEA\"/><g transform=\"translate(12 12)\"><ellipse cx=\"14\" cy=\"10.4\" rx=\"2.6\" ry=\"3\" fill=\"#2E3A8C\"/><ellipse cx=\"26\" cy=\"9.8\" rx=\"2.4\" ry=\"2.8\" fill=\"#2E3A8C\"/><path d=\"M13 17.5 Q20 24.5 27 17\" stroke=\"#2E3A8C\" stroke-width=\"2.4\" fill=\"none\" stroke-linecap=\"round\"/></g></svg><span class=\"ds-roll-name\">Groceries</span><span class=\"ds-roll-amount\">51,20 €</span></div><div class=\"ds-roll\"><svg width=\"64\" height=\"94\" viewBox=\"0 0 64 94\" aria-hidden=\"true\"><ellipse cx=\"32\" cy=\"88\" rx=\"26\" ry=\"4\" fill=\"rgb(0 0 0 / 0.12)\"/><rect x=\"6\" y=\"2\" width=\"52\" height=\"80\" rx=\"18\" fill=\"#E2553B\"/><g transform=\"translate(12 12)\"><ellipse cx=\"14\" cy=\"10.4\" rx=\"2.6\" ry=\"3\" fill=\"#F6F2EA\"/><ellipse cx=\"26\" cy=\"9.8\" rx=\"2.4\" ry=\"2.8\" fill=\"#F6F2EA\"/><path d=\"M13 17.5 Q20 24.5 27 17\" stroke=\"#F6F2EA\" stroke-width=\"2.4\" fill=\"none\" stroke-linecap=\"round\"/></g></svg><span class=\"ds-roll-name\">Eating out</span><span class=\"ds-roll-amount\">159,16 €</span></div><div class=\"ds-roll\"><svg width=\"64\" height=\"134\" viewBox=\"0 0 64 134\" aria-hidden=\"true\"><ellipse cx=\"32\" cy=\"128\" rx=\"26\" ry=\"4\" fill=\"rgb(0 0 0 / 0.12)\"/><rect x=\"6\" y=\"2\" width=\"52\" height=\"120\" rx=\"18\" fill=\"#3F9A55\"/><g transform=\"translate(12 12)\"><ellipse cx=\"14\" cy=\"10.4\" rx=\"2.6\" ry=\"3\" fill=\"#F6F2EA\"/><ellipse cx=\"26\" cy=\"9.8\" rx=\"2.4\" ry=\"2.8\" fill=\"#F6F2EA\"/><path d=\"M13 17.5 Q20 24.5 27 17\" stroke=\"#F6F2EA\" stroke-width=\"2.4\" fill=\"none\" stroke-linecap=\"round\"/></g></svg><span class=\"ds-roll-name\">Home</span><span class=\"ds-roll-amount\">588,70 €</span></div></div></section>",
+      "css": ".ds-stage{background:#EFEBE3;color:#16171C;border-radius:28px;padding:32px 32px 24px;font-family:Rubik,system-ui,sans-serif}.ds-stage-month{margin:0;font-family:Fredoka,ui-rounded,system-ui,sans-serif;font-weight:600;font-size:40px;line-height:1}.ds-stage-total{margin:8px 0 20px;font-family:Fredoka,ui-rounded,system-ui,sans-serif;font-weight:600;font-size:52px;line-height:1.25;font-variant-numeric:tabular-nums}.ds-stage-floor{display:flex;align-items:flex-end;gap:20px}.ds-roll{display:flex;flex-direction:column;align-items:center;width:84px}.ds-roll-name{font-size:13px;font-weight:500;margin-top:6px}.ds-roll-amount{font-size:13px;color:#63666F;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Roll",
+      "kind": "custom",
+      "refersTo": "roll",
+      "description": "A category as a character, its height its amount; it bobs while a coin is held and gulps on a drop.",
+      "html": "<button class=\"ds-roll-btn\" type=\"button\"><div class=\"ds-roll\"><svg width=\"64\" height=\"104\" viewBox=\"0 0 64 104\" aria-hidden=\"true\"><ellipse cx=\"32\" cy=\"98\" rx=\"26\" ry=\"4\" fill=\"rgb(0 0 0 / 0.12)\"/><rect x=\"6\" y=\"2\" width=\"52\" height=\"90\" rx=\"18\" fill=\"#8C6BD9\"/><g transform=\"translate(12 12)\"><ellipse cx=\"14\" cy=\"10.4\" rx=\"2.6\" ry=\"3\" fill=\"#F6F2EA\"/><ellipse cx=\"26\" cy=\"9.8\" rx=\"2.4\" ry=\"2.8\" fill=\"#F6F2EA\"/><path d=\"M13 17.5 Q20 24.5 27 17\" stroke=\"#F6F2EA\" stroke-width=\"2.4\" fill=\"none\" stroke-linecap=\"round\"/></g></svg><span class=\"ds-roll-name\">Transport</span><span class=\"ds-roll-amount\">25,78 €</span></div></button>",
+      "css": ".ds-roll-btn{background:none;border:0;padding:6px;border-radius:22px;cursor:pointer;font-family:Rubik,system-ui,sans-serif;color:#16171C;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}.ds-roll-btn:hover{transform:translateY(-4px)}.ds-roll-btn:focus-visible{outline:2px solid #16171C;outline-offset:2px}.ds-roll{display:flex;flex-direction:column;align-items:center;width:84px}.ds-roll-name{font-size:13px;font-weight:500;margin-top:6px}.ds-roll-amount{font-size:13px;color:#63666F;font-variant-numeric:tabular-nums}"
+    },
+    {
+      "name": "Coin",
+      "kind": "custom",
+      "refersTo": "copper",
+      "description": "A charge as a coin: copper, brass or nickel with a face; pick it, then tap a roll.",
+      "html": "<button class=\"ds-coin\" type=\"button\" aria-label=\"Pesumaja Puhas OÜ, 24,00 €. Pick up to file\"><svg width=\"48\" height=\"48\" viewBox=\"0 0 48 48\" aria-hidden=\"true\"><ellipse cx=\"25\" cy=\"44\" rx=\"15\" ry=\"3\" fill=\"rgb(0 0 0 / 0.12)\"/><circle cx=\"26\" cy=\"24\" r=\"18\" fill=\"#A45A2B\"/><circle cx=\"23\" cy=\"22\" r=\"18\" fill=\"#CB793E\"/><circle cx=\"23\" cy=\"22\" r=\"14.5\" fill=\"none\" stroke=\"#E39C63\" stroke-width=\"1.2\"/><g transform=\"translate(3 12)\"><ellipse cx=\"14\" cy=\"10.4\" rx=\"2.6\" ry=\"3\" fill=\"#4C6FE0\"/><ellipse cx=\"26\" cy=\"9.8\" rx=\"2.4\" ry=\"2.8\" fill=\"#4C6FE0\"/><path d=\"M13 17.5 Q20 24.5 27 17\" stroke=\"#4C6FE0\" stroke-width=\"2.4\" fill=\"none\" stroke-linecap=\"round\"/></g></svg></button>",
+      "css": ".ds-coin{background:none;border:0;padding:4px;border-radius:9999px;cursor:pointer;transition:transform .3s cubic-bezier(.34,1.56,.64,1)}.ds-coin:hover{transform:rotate(-8deg) translateY(-3px)}.ds-coin:focus-visible{outline:2px solid #16171C;outline-offset:2px}"
+    },
+    {
+      "name": "Speech Bubble",
+      "kind": "custom",
+      "refersTo": "speech-bubble",
+      "description": "Kopikas's voice: progress first, never shaming.",
+      "html": "<div class=\"ds-bubble\">Hi! 2 coins to sort in September.</div>",
+      "css": ".ds-bubble{position:relative;display:inline-block;max-width:260px;background:#FFFFFF;color:#16171C;border-radius:16px;padding:12px 16px;font:400 15px/1.375 Rubik,system-ui,sans-serif;box-shadow:0 10px 30px -14px rgb(0 0 0 / .3)}.ds-bubble::after{content:'';position:absolute;right:-6px;top:24px;width:12px;height:12px;background:#FFFFFF;transform:rotate(45deg)}"
+    },
+    {
+      "name": "Pill Toggle",
+      "kind": "button",
+      "refersTo": "pill-toggle-active",
+      "description": "A small choice; the active option is an Ink pill.",
+      "html": "<div class=\"ds-toggle\" role=\"group\" aria-label=\"Look\"><button class=\"ds-toggle-opt ds-toggle-on\" type=\"button\" aria-pressed=\"true\">Painted</button><button class=\"ds-toggle-opt\" type=\"button\" aria-pressed=\"false\">Goofy</button></div>",
+      "css": ".ds-toggle{display:inline-flex;gap:4px;font:500 13px/1.25 Rubik,system-ui,sans-serif}.ds-toggle-opt{border:0;background:none;color:#63666F;border-radius:9999px;padding:2px 8px;cursor:pointer}.ds-toggle-opt:hover{color:#16171C}.ds-toggle-opt:focus-visible{outline:2px solid #16171C;outline-offset:2px}.ds-toggle-on,.ds-toggle-on:hover{background:#16171C;color:#FFFFFF}"
+    },
+    {
+      "name": "Navigation",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Header links as pills that fill with Mist on hover.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Pages\"><a class=\"ds-nav-link\" href=\"#\">Pooleks</a><a class=\"ds-nav-link\" href=\"#\">Settings</a></nav>",
+      "css": ".ds-nav{display:flex;gap:6px;font:500 15px/1.375 Rubik,system-ui,sans-serif}.ds-nav-link{color:#16171C;text-decoration:none;border-radius:9999px;padding:8px 14px;transition:background .15s}.ds-nav-link:hover{background:#F4F5F7}.ds-nav-link:focus-visible{outline:2px solid #16171C;outline-offset:2px}"
+    },
+    {
+      "name": "Select Pill",
+      "kind": "input",
+      "refersTo": "select-pill",
+      "description": "Choosing a category in the to-file queue.",
+      "html": "<label class=\"ds-select-wrap\"><span class=\"ds-sr\">File under</span><select class=\"ds-select\"><option>File under…</option><option>Groceries</option><option>Home</option></select></label>",
+      "css": ".ds-select-wrap{display:block;max-width:280px}.ds-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}.ds-select{width:100%;height:40px;appearance:none;background:#F4F5F7;color:#16171C;border:2px solid rgb(22 23 28 / .1);border-radius:9999px;padding:0 36px 0 16px;font:500 15px/1 Rubik,system-ui,sans-serif;cursor:pointer}.ds-select:hover{border-color:rgb(22 23 28 / .25)}.ds-select:focus-visible{outline:2px solid #16171C;outline-offset:2px}"
+    },
+    {
+      "name": "Category Chip",
+      "kind": "chip",
+      "refersTo": "category-chip",
+      "description": "A category in a list: its wrapper as a dot, its name in Label type; dashed when unfiled.",
+      "html": "<span class=\"ds-chip\"><span class=\"ds-chip-dot\" style=\"background:#6C8EEA\"></span>Groceries</span> <span class=\"ds-chip ds-chip-unfiled\">To file</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;gap:6px;background:#FFFFFF;color:#16171C;border-radius:9999px;padding:4px 10px;font:500 13px/1.25 Rubik,system-ui,sans-serif}.ds-chip-dot{width:10px;height:10px;border-radius:9999px}.ds-chip-unfiled{background:none;border:2px dashed rgb(22 23 28 / .2);padding:2px 10px}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A white card on Oat Paper, no border, no shadow: a queue row.",
+      "html": "<div class=\"ds-card-ground\"><div class=\"ds-card\"><div class=\"ds-card-title\">Pesumaja Puhas OÜ</div><div class=\"ds-card-meta\">2 Sept · 24,00 €</div></div></div>",
+      "css": ".ds-card-ground{background:#EFEBE3;padding:20px;border-radius:28px}.ds-card{background:#FFFFFF;color:#16171C;border-radius:16px;padding:12px;font:400 15px/1.375 Rubik,system-ui,sans-serif}.ds-card-title{font-weight:500}.ds-card-meta{font-size:13px;color:#63666F;font-variant-numeric:tabular-nums}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Picture-Book Ledger",
+    "overview": "Kopikas is a household's statement drawn as a picture book. Every page is painted in the manner of KAIA (@saiakuubik), credited in the README: flat matte shapes with gently uneven edges, round characters with faces of two dots and a curve, a white page with a warm Oat Paper stage. Underneath the storybook is a ledger, and the ledger never fudges: amounts are always text in tabular figures, and a drawing may decorate a number but never stand in for it or bend it.\n\nThe mood is warm, playful and tidy. Warm comes from Oat Paper, copper and the painted wrapper colours. Playful comes from the cast, the coin rolls and Kopikas the coin, who blink, gulp, hop and narrate in plain, progress-first sentences. Tidy is the point of the product: filing a coin into its roll is a small satisfying act, and the layout stays orderly so the fun never gets in the way of reading the month. Density is relaxed on the stage and plain in the lists.\n\nThe world is built on the board's coin tray (`/coins`): every charge is a coin, every category a roll with a face, the month a row of rolls on one shared scale. It replaces the current board at `/` and its finance-dashboard vocabulary of stat cards, sparklines and grey cards, and refuses the cold bank register. A goofy alternative look (googly eyes, tongues, a boiling line) still sits one click away on the prototype; it was judged too goofy and is not to be extended.",
+    "keyCharacteristics": [
+      "Painted characters with vector-smooth, gently wobbled edges; faces of two dots and a curve.",
+      "A white page, an Oat Paper stage, and bright-but-matte wrapper colours, one per category.",
+      "Fredoka for the voice (wordmark, month, total, section heads), Rubik for everything that is read.",
+      "Flat paper cut-outs: depth only from the oval each character stands on and the speech bubble's lift.",
+      "Springy, small motion that rewards filing, and that keeps every state when motion is reduced."
+    ],
+    "rules": [
+      {
+        "name": "The One Wrapper Rule",
+        "body": "A category owns one wrapper colour, given by its place in the list, everywhere it appears. Never pick a wrapper for looks.",
+        "section": "colors"
+      },
+      {
+        "name": "The Oat Paper Rule",
+        "body": "Oat Paper is where characters live: the stage and its sibling panels. The page itself stays Page White, so the stage reads as a place.",
+        "section": "colors"
+      },
+      {
+        "name": "The Face Is Decoration Rule",
+        "body": "Crayon Blue on copper is 1.4:1. A face may show a mood but never carries meaning on its own; every state it shows is also said in words.",
+        "section": "colors"
+      },
+      {
+        "name": "The Rounded Voice Rule",
+        "body": "Fredoka speaks, Rubik informs. Fredoka is for the wordmark, the month, the total and section heads only; every list, label and sentence is Rubik.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Every amount that sits above or beside another amount uses tabular figures, in Estonian format (comma decimals, space thousands: 10 700,40 €).",
+        "section": "typography"
+      },
+      {
+        "name": "The Clear Air Rule",
+        "body": "Nothing decorative overlaps a figure. Floaters and confetti live where no number is.",
+        "section": "layout"
+      },
+      {
+        "name": "The Paper Cut-Out Rule",
+        "body": "Nothing casts a drop shadow except the speech bubble. Stack with tone, not with shadows.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Wobble, Not Filter Rule",
+        "body": "Edges stay vector-smooth at any zoom. No displacement or turbulence filters: they read as hairy or pixelated.",
+        "section": "shapes"
+      },
+      {
+        "name": "The Two Dots and a Curve Rule",
+        "body": "Every face is two dots and a curve (open when glad, round when surprised, shut arcs for joy). No googly eyes, teeth or tongues on categories.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do keep every amount as text beside its drawing, in tabular figures and Estonian format, on the stage and in every list.",
+      "Do give each category its wrapper by its place in the list, the same in every look and on every screen.",
+      "Do keep decoration in clear air: floaters, confetti and dashes never overlap a number.",
+      "Do draw faces as two dots and a curve in Crayon Blue, or Face Navy and Face Cream on wrappers, and say every state in words as well.",
+      "Do stack depth with tone: Page White, then Oat Paper, then white cards; the only shadows are the floor oval and the bubble's lift.",
+      "Do keep text at 4.5:1 or better on its ground in both themes, including Received Green on Oat Paper.",
+      "Do honour reduced motion by keeping every state and dropping the movement."
+    ],
+    "donts": [
+      "Don't use stat cards, sparklines or grey dashboard cards; the month is shown by the stage, not by tiles.",
+      "Don't let a character's minimum size set a number's size: a roll's height is its amount.",
+      "Don't use SVG filters for the handmade edge; the wobble is in the path.",
+      "Don't extend the goofy look: no googly eyes, teeth, tongues or boiling lines on categories.",
+      "Don't drop a shadow on cards or panels.",
+      "Don't use Fredoka for lists, labels or running text."
+    ]
+  }
+}

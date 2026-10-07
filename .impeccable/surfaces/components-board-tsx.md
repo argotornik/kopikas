@@ -17,7 +17,7 @@ Unresolved: Whether KAIA draws the cast herself is not settled. The display face
 
 THESIS: Every charge is a coin and every category a coin roll with a face. The month stands as a row of rolls whose heights are what was paid out, the loose change waits to be filed, and filing hops a coin into its roll. Refuses the finance dashboard of stat cards, sparklines and grey cards, and refuses the cold bank register: this is money as something you want to open.
 
-OWN-WORLD: The coin tray drawn in Family's register: a clean white ground (ink-night in dark), bright saturated wrapper colours, one per category, copper, brass and nickel coins, flat geometric characters with dot eyes and small smiles, soft rounded panels, coins, stars and hearts floating behind the stage. Fredoka, rounded and bold, for headings and big figures; Rubik for text; tabular figures wherever amounts line up.
+OWN-WORLD: The coin tray in "The Picture-Book Ledger" (DESIGN.md): a white page with a warm Oat Paper stage (Night and Oat Paper Night in dark), matte painted wrapper colours, one per category, copper, brass and nickel coins, painted characters with faces of two dots and a curve, soft rounded panels, coins and fine dashes floating behind the stage. Fredoka, rounded and bold, for headings and big figures; Rubik for text; tabular figures wherever amounts line up. The palette is recorded as built (2026-10-07), not the brighter white-and-saturated one first sketched.
 
 STORY: The household opens the month, sees its rolls standing at their heights and the loose change still to file, picks a coin, drops it in a roll, and is cheered when everything is sorted.
 
