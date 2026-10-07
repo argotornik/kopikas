@@ -40,17 +40,21 @@ export function KopikasAnimated(props: ComponentProps<typeof KopikasMascot>) {
     };
   }, []);
 
-  // The file's own light or dark theme, when it carries one.
+  // The moment's animation and the file's own light or dark theme. This
+  // player version ignores animationId at start-up and loads the file's first
+  // animation, so the right one is picked once the file has loaded.
   const theme = resolvedTheme === "dark" ? "dark" : "light";
   useEffect(() => {
     if (!player) return;
     const apply = () => {
+      if (!player.isLoaded) return;
+      if (player.activeAnimationId !== paintedPose) player.loadAnimation(paintedPose);
       if (player.manifest?.themes?.some((t) => t.id === theme)) player.setTheme(theme);
     };
     apply();
     player.addEventListener("load", apply);
     return () => player.removeEventListener("load", apply);
-  }, [player, theme]);
+  }, [player, theme, paintedPose]);
 
   if (!(ready && !reduce && look === "painted" && SET_PIECES.includes(paintedPose))) return <KopikasMascot {...props} />;
   // The Lottie artboard carries a margin round the figure (148 by 156 units
