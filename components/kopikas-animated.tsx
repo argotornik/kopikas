@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ComponentProps } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { useTheme } from "next-themes";
 import { useReducedMotion } from "motion/react";
 import { DotLottieReact, setWasmUrl, type DotLottie } from "@lottiefiles/dotlottie-react";
@@ -11,8 +11,9 @@ import type { PaintedPose } from "@/components/kopikas-painted";
 // install), so no visitor's browser asks a public CDN for it.
 setWasmUrl("/dotlottie-player.wasm");
 
-// The hand-animated file from Lottie Creator: one .lottie, one animation per
-// pose, named as in design/kopikas/README.md, with light and dark themes.
+// The animated set pieces: one .lottie, one animation per pose, named as in
+// design/kopikas/README.md, with light and dark themes. Built by
+// npm run kopikas:lottie from the same data as the code-drawn Kopikas.
 const SRC = "/kopikas.lottie";
 // The set pieces play from that file; idle moments stay code-drawn, so the
 // eyes keep following the pointer. One-shots hold their last frame.
@@ -31,7 +32,6 @@ export function KopikasAnimated(props: ComponentProps<typeof KopikasMascot>) {
   const reduce = useReducedMotion();
   const { resolvedTheme } = useTheme();
   const [ready, setReady] = useState(false);
-  const [player, setPlayer] = useState<DotLottie | null>(null);
   useEffect(() => {
     let on = true;
     hasFile().then((ok) => on && setReady(ok));
@@ -40,35 +40,65 @@ export function KopikasAnimated(props: ComponentProps<typeof KopikasMascot>) {
     };
   }, []);
 
-  // The moment's animation and the file's own light or dark theme. This
-  // player version ignores animationId at start-up and loads the file's first
-  // animation, so the right one is picked once the file has loaded.
-  const theme = resolvedTheme === "dark" ? "dark" : "light";
-  useEffect(() => {
-    if (!player) return;
-    const apply = () => {
-      if (!player.isLoaded) return;
-      if (player.activeAnimationId !== paintedPose) player.loadAnimation(paintedPose);
-      if (player.manifest?.themes?.some((t) => t.id === theme)) player.setTheme(theme);
-    };
-    apply();
-    player.addEventListener("load", apply);
-    return () => player.removeEventListener("load", apply);
-  }, [player, theme, paintedPose]);
+  const drawn = <KopikasMascot {...props} />;
+  if (!(ready && !reduce && look === "painted" && SET_PIECES.includes(paintedPose))) return drawn;
+  return <SetPiece key={paintedPose} pose={paintedPose} size={size} theme={resolvedTheme === "dark" ? "dark" : "light"} underneath={drawn} />;
+}
 
-  if (!(ready && !reduce && look === "painted" && SET_PIECES.includes(paintedPose))) return <KopikasMascot {...props} />;
+// One set piece from the file, in a player of its own. The code-drawn figure
+// stays underneath until the player has painted its first frame, so Kopikas
+// never blinks out while the file loads.
+function SetPiece({ pose, size, theme, underneath }: { pose: PaintedPose; size: number; theme: "light" | "dark"; underneath: ReactNode }) {
+  const [player, setPlayer] = useState<DotLottie | null>(null);
+  const [painted, setPainted] = useState(false);
+  const under = useRef<HTMLSpanElement>(null);
+  const themeNow = useRef(theme);
+
+  // Wired the moment the player is created, before its file has loaded, so
+  // nothing is painted until the right animation and theme are in place.
+  const wire = useCallback(
+    (p: DotLottie | null) => {
+      setPlayer(p);
+      if (!p) return;
+      // The drawn figure goes in the same frame the player first paints, so
+      // the two never overlap.
+      const shown = () => {
+        if (under.current) under.current.style.visibility = "hidden";
+        setPainted(true);
+      };
+      // This player version ignores animationId at start-up and loads the
+      // file's first animation, so the right one is picked as the file loads.
+      // The player paints its first frame straight after this, in the same task.
+      p.addEventListener("load", () => {
+        if (p.activeAnimationId !== pose) p.loadAnimation(pose);
+        if (p.manifest?.themes?.some((t) => t.id === themeNow.current)) p.setTheme(themeNow.current);
+        shown();
+      });
+    },
+    [pose],
+  );
+  // Light or dark mode changing while the set piece plays.
+  useEffect(() => {
+    themeNow.current = theme;
+    if (player?.isLoaded && player.manifest?.themes?.some((t) => t.id === theme)) player.setTheme(theme);
+  }, [player, theme]);
+
   // The Lottie artboard carries a margin round the figure (148 by 156 units
   // against the figure's 124 by 150), so it sits offset by that margin.
   const unit = size / 124;
   return (
     <span className="relative block" style={{ width: size, height: 150 * unit }} aria-hidden>
+      {!painted && (
+        <span ref={under} className="absolute inset-0">
+          {underneath}
+        </span>
+      )}
       <DotLottieReact
-        key={paintedPose}
         src={SRC}
-        animationId={paintedPose}
+        animationId={pose}
         autoplay
-        loop={!ONCE.includes(paintedPose)}
-        dotLottieRefCallback={setPlayer}
+        loop={!ONCE.includes(pose)}
+        dotLottieRefCallback={wire}
         style={{ position: "absolute", left: -12 * unit, top: -6 * unit, width: 148 * unit, height: 156 * unit }}
       />
     </span>
