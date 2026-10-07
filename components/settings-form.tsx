@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CircleAlertIcon } from "lucide-react";
 import { act } from "@/lib/act";
@@ -70,84 +70,115 @@ export function SettingsForm({
     if (outcome.tone !== "error") router.refresh();
   };
 
-  return (
-    <>
-      <Card className="gap-3 py-4">
-        <CardHeader className="px-4">
-          <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">LHV connection</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 px-4">
-          <p className="text-xs text-muted-foreground">
-            Sign in at{" "}
-            <a href="https://api.lhv.ai/api-access" className="underline" target="_blank" rel="noreferrer">
-              api.lhv.ai/api-access
-              <span className="sr-only"> (opens in a new tab)</span>
-            </a>{" "}
-            with Smart-ID, Mobile-ID or ID-card, allow the two read-only permissions (accounts and transactions),
-            and paste the refresh token it shows. Kopikas can see balances and transactions; it cannot make
-            payments. The token renews itself with every sync and lapses only after 30 days without one
-            {encrypted ? "; it is kept encrypted and never shown again." : "."}
-          </p>
-          <form
-            className="flex items-end gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void saveToken();
-            }}
-          >
-            <div className="min-w-0 flex-1">
-              <Field label="Refresh token">
-                {(id) => (
-                  <Input
-                    id={id}
-                    type="password"
-                    aria-describedby="token-status"
-                    name="lhv-refresh-token"
-                    autoComplete="off"
-                    spellCheck={false}
-                    value={token}
-                    onChange={(e) => setToken(e.target.value)}
-                  />
-                )}
-              </Field>
-            </div>
-            <Button type="submit" disabled={saving}>
-              <Pending on={saving}>{saving ? "Checking with LHV…" : "Save"}</Pending>
-            </Button>
-          </form>
-          <p className="text-xs text-muted-foreground">
-            Token last renewed <span className="font-mono">{when(tokenUpdatedAt)}</span> ·{" "}
-            <span className="font-mono tabular-nums">{accountCount}</span> {accountCount === 1 ? "account" : "accounts"} · last
-            synced <span className="font-mono">{when(accountsFetchedAt)}</span>
-          </p>
-          <div id="token-status" aria-live="polite">
-            <StatusLine status={saveStatus} />
-          </div>
-        </CardContent>
-      </Card>
+  // Overdue past the daily cron's day plus slack. Read after mount, since the
+  // server's clock is not the reader's.
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => setNow(Date.now()), []);
+  const overdue = now !== null && accountsFetchedAt !== null && now - Date.parse(accountsFetchedAt) > 26 * 3600_000;
+  const state = !stored ? "none" : !accountsFetchedAt ? "unsynced" : overdue ? "overdue" : "ok";
 
-      <Card className="gap-3 py-4">
-        <CardHeader className="px-4">
-          <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Sync</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2 px-4">
-          <p className="text-xs text-muted-foreground">
-            Runs by itself every morning at {cronTime()} (Tallinn time), and every hour if the GitHub workflow
-            from the README is set up. Running it now is safe: nothing is fetched twice.
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => void syncNow()} disabled={syncing || !stored}>
+  // One block for the connection: its state first, with the action that
+  // changes it beside it; the setup, needed once, folded beneath.
+  return (
+    <Card id="connection" className="scroll-mt-4 gap-3 py-4">
+      <CardHeader className="px-4">
+        <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">LHV connection</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 px-4">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-sm font-medium">
+              <span
+                aria-hidden
+                className={cn(
+                  "size-2 shrink-0 rounded-full",
+                  state === "ok" ? "bg-gain" : state === "none" ? "bg-muted-foreground/40" : "bg-attention"
+                )}
+              />
+              {state === "none"
+                ? "Not connected yet"
+                : state === "unsynced"
+                  ? "Connected, not synced yet"
+                  : state === "overdue"
+                    ? "Connected, but the last sync is overdue"
+                    : "Connected"}
+            </p>
+            {stored && (
+              <p className="text-xs text-muted-foreground">
+                <span className="font-mono tabular-nums">{accountCount}</span> {accountCount === 1 ? "account" : "accounts"} ·
+                last synced <span className="font-mono">{when(accountsFetchedAt)}</span> · token renewed{" "}
+                <span className="font-mono">{when(tokenUpdatedAt)}</span>
+              </p>
+            )}
+          </div>
+          {stored && (
+            <Button onClick={() => void syncNow()} disabled={syncing}>
               <Pending on={syncing}>{syncing ? "Syncing…" : "Sync now"}</Pending>
             </Button>
-            {/* Said in words, since a disabled button's tooltip never shows. */}
-            {!stored && <span className="text-xs text-muted-foreground">Store a token first.</span>}
+          )}
+        </div>
+        <div aria-live="polite">
+          <StatusLine status={syncStatus} />
+        </div>
+        {stored && (
+          <p className="text-xs text-muted-foreground">
+            Syncs by itself every morning at {cronTime()} (Tallinn time), and every hour if the GitHub workflow from
+            the README is set up. Running it now is safe: nothing is fetched twice.
+          </p>
+        )}
+
+        {/* Open until a token is stored; afterwards only for replacing it. */}
+        <details open={!stored} className="border-t pt-3">
+          <summary className="cursor-pointer select-none text-sm font-medium hover:text-foreground pointer-coarse:py-2">
+            {stored ? "Replace the token" : "Connect LHV"}
+          </summary>
+          <div className="mt-2 flex flex-col gap-2">
+            <p className="text-xs text-muted-foreground">
+              Sign in at{" "}
+              <a href="https://api.lhv.ai/api-access" className="underline" target="_blank" rel="noreferrer">
+                api.lhv.ai/api-access
+                <span className="sr-only"> (opens in a new tab)</span>
+              </a>{" "}
+              with Smart-ID, Mobile-ID or ID-card, allow the two read-only permissions (accounts and transactions),
+              and paste the refresh token it shows. Kopikas can see balances and transactions; it cannot make
+              payments. The token renews itself with every sync and lapses only after 30 days without one
+              {encrypted ? "; it is kept encrypted and never shown again." : "."}
+            </p>
+            <form
+              className="flex items-end gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void saveToken();
+              }}
+            >
+              <div className="min-w-0 flex-1">
+                <Field label="Refresh token">
+                  {(id) => (
+                    <Input
+                      id={id}
+                      type="password"
+                      aria-describedby="token-status"
+                      name="lhv-refresh-token"
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={token}
+                      onChange={(e) => setToken(e.target.value)}
+                    />
+                  )}
+                </Field>
+              </div>
+              <Button type="submit" disabled={saving}>
+                <Pending on={saving}>{saving ? "Checking with LHV…" : "Save"}</Pending>
+              </Button>
+            </form>
           </div>
-          <div aria-live="polite">
-            <StatusLine status={syncStatus} />
-          </div>
-        </CardContent>
-      </Card>
-    </>
+        </details>
+        {/* Outside the fold: a saved token closes it, and the word "Saved" must still show. */}
+        <div id="token-status" aria-live="polite">
+          <StatusLine status={saveStatus} />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

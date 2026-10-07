@@ -6,6 +6,7 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
+  MeasuringStrategy,
   MouseSensor,
   PointerSensor,
   pointerWithin,
@@ -28,6 +29,7 @@ import { AnimatePresence, motion, MotionConfig, useReducedMotion } from "motion/
 import { Menu } from "@base-ui/react/menu";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import {
+  ArrowDownIcon,
   CheckCircle2Icon,
   CheckIcon,
   ChevronDownIcon,
@@ -189,8 +191,11 @@ export default function Board({
       } catch {}
       return next;
     });
-  const showCategories = !collapsed.categories || !!activeTx;
-  const showSubs = !collapsed.subs || !!activeTx;
+  // Mid-drag the rail is only targets: categories stay open, the reading
+  // cards below the drop strip fold away, so the rail shrinks at pickup.
+  const dragging = !!activeTx;
+  const showCategories = !collapsed.categories || dragging;
+  const showSubs = !collapsed.subs;
 
   // Subscription ids already on the board. A row whose id is new slides in;
   // the rest, including rows re-shown when the card expands, just render.
@@ -289,8 +294,11 @@ export default function Board({
     onDragCancel: ({ active }) => `Put ${txLabel(active.id)} back.`,
   };
 
+  // The rail scrolls back to its top at pickup: every target is up there.
+  const railRef = useRef<HTMLDivElement>(null);
   const onDragStart = (e: DragStartEvent) => {
     setActiveTx(board.txs.find((t) => t.id === e.active.id) ?? null);
+    railRef.current?.scrollTo({ top: 0 });
   };
 
   const onDragEnd = (e: DragEndEvent) => {
@@ -573,6 +581,10 @@ export default function Board({
       autoScroll={false}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      onDragCancel={() => setActiveTx(null)}
+      // The rail changes shape at pickup (reading cards fold, it scrolls to
+      // the top), so targets are measured throughout, not only at the start.
+      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
       accessibility={{ announcements }}
     >
       <MotionConfig reducedMotion="user">
@@ -612,9 +624,12 @@ export default function Board({
           </div>
         </div>
 
+        {/* On a phone the tiles are one row you swipe, the next one peeking
+            in, so the ledger starts on the first screen; a grid from md up. */}
         <div
           className={cn(
-            "mb-6 grid grid-cols-2 gap-3",
+            "-mx-5 mb-6 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            "md:mx-0 md:grid md:overflow-visible md:px-0 md:pb-0",
             board.accounts.length >= 2 ? "md:grid-cols-4" : "md:grid-cols-3"
           )}
         >
@@ -626,7 +641,7 @@ export default function Board({
             sub={`last month ${eur.format(board.spentLastMonth)}`}
             spark={board.sparks.spent}
             hero
-            className="col-span-2 md:col-span-1"
+            className={TILE}
           />
           {board.accounts.map((a) => (
             <Stat
@@ -635,12 +650,11 @@ export default function Board({
               value={eur.format(a.balance)}
               sub={`···${a.iban.slice(-4)}`}
               spark={a.spark}
+              className={TILE}
             />
           ))}
           <button
-            // On phones the tiles pair up; with an even number of accounts this
-            // one would sit alone in a half-width column, so it takes the row.
-            className={cn("h-full text-left", board.accounts.length % 2 === 0 && "col-span-2 md:col-span-1")}
+            className={cn("h-full text-left", TILE)}
             onClick={() => setSnapOpen(true)}
             title="Update the investment snapshot"
           >
@@ -662,6 +676,26 @@ export default function Board({
             />
           </button>
         </div>
+
+        {/* On one column the rail is a thousand rows down; these jump there. */}
+        <nav aria-label="Board sections" className="-mt-3 mb-2 flex flex-wrap gap-1 text-xs md:hidden">
+          {(
+            [
+              ["#categories", "Categories"],
+              ["#subscriptions", "Subscriptions"],
+              ["#pooleks-summary", "Pooleks"],
+            ] as const
+          ).map(([href, label]) => (
+            <a
+              key={href}
+              href={href}
+              className="inline-flex min-h-11 items-center gap-1 rounded-md px-2.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              {label}
+              <ArrowDownIcon aria-hidden className="size-3" />
+            </a>
+          ))}
+        </nav>
 
         <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
           <div id="ledger" className="min-w-0 scroll-mt-4">
@@ -851,8 +885,14 @@ export default function Board({
 
           {/* Cards must not flex-shrink: Card is overflow-hidden, so a squeezed
               card silently clips its bottom rows instead of overflowing. */}
-          <div className="flex min-w-0 flex-col gap-4 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start md:overflow-y-auto">
-            <Card id="categories" tabIndex={-1} className="shrink-0 gap-3 py-4 outline-none">
+          <div
+            ref={railRef}
+            className={cn(
+              "flex min-w-0 flex-col md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start md:overflow-y-auto",
+              dragging ? "gap-2" : "gap-4"
+            )}
+          >
+            <Card id="categories" tabIndex={-1} className="shrink-0 scroll-mt-4 gap-3 py-4 outline-none">
               <CardHeader className="px-4">
                 <CardTitle className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
                   {/* On a phone the four controls need the room; the rows say what the card is. */}
@@ -927,7 +967,7 @@ export default function Board({
                 </AnimatePresence>
                 {/* The count is every month's, not the card's month; and how
                     to file follows the hand: a finger taps, a mouse drags. */}
-                {board.uncategorizedCount > 0 && (
+                {board.uncategorizedCount > 0 && !dragging && (
                   <p className="px-2.5 pb-1 pt-0.5 text-xs text-muted-foreground">
                     From all months.{" "}
                     {coarse
@@ -952,8 +992,13 @@ export default function Board({
                         onSelect={() => toggleFilter(c.name)}
                         flashKey={filed?.category === c.name ? filed.n : 0}
                         monthKey={month}
+                        dragging={dragging}
                       />
                     ))}
+                  </>
+                )}
+                {showCategories && !dragging && (
+                  <>
                     <div className="mt-1 border-t px-2.5 pt-2">
                       <div className="flex justify-between text-sm font-medium">
                         <span>Paid out</span>
@@ -978,7 +1023,16 @@ export default function Board({
               </CardContent>
             </Card>
 
-            <Card className="shrink-0 gap-3 py-4">
+            {/* Where else a charge can go, right under the categories: the
+                whole set of targets sits together at the top of the rail. A
+                finger files through the sheet, so touch has no strip. */}
+            {!coarse && <DropStrip share={partnerShare} onShareChange={setPartnerShare} dragging={dragging} />}
+
+            {/* Below the targets, what is only for reading. Folded away while
+                a charge is in the air, so the targets are all on screen. */}
+            {!dragging && (
+            <>
+            <Card id="subscriptions" className="shrink-0 scroll-mt-4 gap-3 py-4">
               <CardHeader className="px-4">
                 <CardTitle className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
                   <span>Subscriptions</span>
@@ -993,7 +1047,6 @@ export default function Board({
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4">
-                {showSubs && <SubsZone coarse={coarse} />}
                 {showSubs && board.subscriptions.filter((s) => s.sub.active).length === 0 && (
                   <Empty className="p-4">
                     <EmptyHeader>
@@ -1002,7 +1055,9 @@ export default function Board({
                       </EmptyMedia>
                       <EmptyTitle className="text-sm">No subscriptions tracked</EmptyTitle>
                       <EmptyDescription>
-                        Drag a recurring charge into the zone above — the board watches its price and due date for you.
+                        {coarse
+                          ? "Tap a recurring charge and choose Subscriptions: the board watches its price and due date for you."
+                          : "Drag a recurring charge onto “Track as a subscription” above: the board watches its price and due date for you."}
                       </EmptyDescription>
                     </EmptyHeader>
                   </Empty>
@@ -1152,14 +1207,16 @@ export default function Board({
               </CardContent>
             </Card>
 
-            <Card className="shrink-0 gap-3 py-4">
+            <Card id="pooleks-summary" className="shrink-0 scroll-mt-4 gap-3 py-4">
               <CardHeader className="px-4">
                 <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Pooleks · with {PARTNER_NAME}</CardTitle>
               </CardHeader>
               <CardContent className="px-4">
-                <PartnerZone share={partnerShare} onShareChange={setPartnerShare} coarse={coarse} />
-                {/* The full shared ledger lives on /pooleks; here: the zone,
-                    the live balance, and the way there. */}
+                {coarse && (
+                  <p className="mb-2 text-xs text-muted-foreground">Tap an expense and choose Split with {PARTNER_NAME}.</p>
+                )}
+                {/* The full shared ledger lives on /pooleks; here: the live
+                    balance and the way there. The zone is in the drop strip. */}
                 <div className="flex items-baseline justify-between gap-2">
                   <div className="text-base font-semibold">
                     {board.sharedItems.length === 0 ? (
@@ -1250,6 +1307,8 @@ export default function Board({
                 )}
               </CardContent>
             </Card>
+            </>
+            )}
           </div>
         </div>
       </div>
@@ -1403,6 +1462,10 @@ export default function Board({
     </DndContext>
   );
 }
+
+// A stat tile's width: most of a phone's width in the swipe row, the grid's
+// column from md up.
+const TILE = "w-[78%] max-w-72 shrink-0 snap-start md:w-auto md:max-w-none";
 
 const SPARK_COLORS = { green: "var(--gain)", red: "var(--loss)", neutral: "var(--muted-foreground)" };
 
@@ -1883,6 +1946,7 @@ function CategoryRow({
   onSelect,
   flashKey,
   monthKey,
+  dragging,
 }: {
   name: string;
   total: number;
@@ -1892,6 +1956,7 @@ function CategoryRow({
   onSelect: () => void;
   flashKey: number; // bumps when a drop just filed into this row
   monthKey: string; // the month shown: a change is browsing, not a crossing
+  dragging: boolean; // a charge is in the air: every row shows it is a target
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `cat:${name}` });
   // With a limit the bar is a meter against it, on a faint track so it reads
@@ -1916,6 +1981,9 @@ function CategoryRow({
       title={budget != null ? `${eur.format(Math.abs(budget - total))} ${over ? "over the limit" : "left this month"}` : undefined}
       className={cn(
         "relative flex w-full cursor-pointer justify-between overflow-hidden rounded-md border border-dashed border-transparent px-2.5 py-1.5 text-left text-sm hover:bg-accent/50 pointer-coarse:py-3",
+        // Rows tighten mid-drag so the strip under them fits a short screen.
+        dragging && "py-1",
+        dragging && !isOver && "border-foreground/20",
         isOver && "border-primary bg-accent",
         active && "bg-accent font-medium"
       )}
@@ -2000,48 +2068,39 @@ function FiledCheck({ draw }: { draw: boolean }) {
   );
 }
 
-function SubsZone({ coarse }: { coarse: boolean }) {
-  const { setNodeRef, isOver } = useDroppable({ id: "subs" });
-  // A finger can't drag here; the sheet's Subscriptions does the same thing.
-  if (coarse) return <p className="mb-2 text-xs text-muted-foreground">Tap a recurring charge and choose Subscriptions to track it.</p>;
-  return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        "mb-2 rounded-lg border-2 border-dashed p-2.5 text-center text-xs text-muted-foreground",
-        isOver && "border-primary bg-accent text-foreground"
-      )}
-    >
-      {isOver ? "Drop to register subscription" : "Drag a recurring charge here"}
-    </div>
-  );
-}
-
-function PartnerZone({
+// The two targets that aren't categories, side by side under them: track a
+// charge as a subscription, or split it with the partner at the chosen part.
+// Outlined like the category rows while a charge is in the air.
+function DropStrip({
   share,
   onShareChange,
-  coarse,
+  dragging,
 }: {
   share: number;
   onShareChange: (f: number) => void;
-  coarse: boolean;
+  dragging: boolean;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: "partner" });
-  // On touch the split is chosen in the share prompt itself.
-  if (coarse) return <p className="mb-2 text-xs text-muted-foreground">Tap an expense and choose Split with {PARTNER_NAME}.</p>;
+  const subs = useDroppable({ id: "subs" });
+  const partner = useDroppable({ id: "partner" });
+  const zone = (isOver: boolean) =>
+    cn(
+      "flex min-h-11 items-center justify-center rounded-lg border-2 border-dashed px-2 py-2 text-center text-xs text-muted-foreground transition-colors",
+      dragging && !isOver && "border-foreground/25 text-foreground",
+      isOver && "border-primary bg-accent text-foreground"
+    );
   return (
-    <div className="mb-2">
-      <SplitPicker label={`${PARTNER_NAME} pays`} value={share} onChange={onShareChange} className="mb-1.5" />
-      <div
-        ref={setNodeRef}
-        className={cn(
-          "rounded-lg border-2 border-dashed p-2.5 text-center text-xs text-muted-foreground",
-          isOver && "border-primary bg-accent text-foreground"
-        )}
-      >
-        {isOver ? `Drop to split — ${PARTNER_NAME} pays ${shareLabel(share)}` : `Drag an expense here to split with ${PARTNER_NAME}`}
+    <Card className="shrink-0 gap-2 px-3 py-3">
+      <div className="grid grid-cols-2 gap-2">
+        <div ref={subs.setNodeRef} className={zone(subs.isOver)}>
+          {subs.isOver ? "Drop to track it" : "Track as a subscription"}
+        </div>
+        <div ref={partner.setNodeRef} className={zone(partner.isOver)}>
+          {partner.isOver ? `Drop to split, ${PARTNER_NAME} pays ${shareLabel(share)}` : `Split with ${PARTNER_NAME}`}
+        </div>
       </div>
-    </div>
+      {/* Not clickable mid-drag anyway, and the zone's own label says the split then. */}
+      {!dragging && <SplitPicker label={`${PARTNER_NAME}'s part on a split`} value={share} onChange={onShareChange} />}
+    </Card>
   );
 }
 

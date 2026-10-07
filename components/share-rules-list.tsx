@@ -47,7 +47,7 @@ export function ShareRulesList({ initial }: { initial: ShareRuleRow[] }) {
   };
 
   return (
-    <Card className="gap-3 py-4">
+    <Card id="pooleks-rules" className="scroll-mt-4 gap-3 py-4">
       <CardHeader className="px-4">
         <CardTitle className="flex items-baseline justify-between text-xs uppercase tracking-wide text-muted-foreground">
           <span>Pooleks rules</span>
@@ -64,19 +64,24 @@ export function ShareRulesList({ initial }: { initial: ShareRuleRow[] }) {
             No Pooleks rules yet. Choose Always while splitting a charge with {PARTNER_NAME} and it appears here.
           </p>
         )}
-        <div className="divide-y outline-none" data-list>
+        {/* Same row shape as the filing rules: one line wide, the detail under the pattern on a phone. */}
+        <ul className="divide-y outline-none" data-list>
           {rules.map((r) => (
-            <div className="flex items-center gap-3 py-2" key={r.id} data-row>
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-mono text-sm">{r.match}</div>
-                <div className="text-xs text-muted-foreground">
-                  {PARTNER_NAME}&apos;s part {shareLabel(r.partnerShare)} · added {taught(r.createdAt)}
-                </div>
-              </div>
+            <li
+              className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-1.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+              key={r.id}
+              data-row
+            >
+              <span className="truncate font-mono text-sm" title={r.match}>
+                {r.match}
+              </span>
+              <span className="hidden text-xs text-muted-foreground sm:block">
+                {PARTNER_NAME}&apos;s part {shareLabel(r.partnerShare)} · added {taught(r.createdAt)}
+              </span>
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-6 shrink-0 text-muted-foreground"
+                className="row-span-2 size-6 shrink-0 text-muted-foreground sm:row-span-1"
                 title="Stop sharing new charges from this merchant"
                 aria-label={`Stop sharing ${r.match} automatically`}
                 data-focus-key="stop"
@@ -85,9 +90,12 @@ export function ShareRulesList({ initial }: { initial: ShareRuleRow[] }) {
               >
                 <XIcon className="size-3.5" />
               </Button>
-            </div>
+              <span className="text-xs text-muted-foreground sm:hidden">
+                {PARTNER_NAME}&apos;s part {shareLabel(r.partnerShare)} · added {taught(r.createdAt)}
+              </span>
+            </li>
           ))}
-        </div>
+        </ul>
       </CardContent>
     </Card>
   );
