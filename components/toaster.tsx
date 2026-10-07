@@ -67,7 +67,8 @@ export function Toaster() {
   return (
     <Toast.Provider toastManager={toasts} limit={3}>
       <Toast.Portal>
-        <Toast.Viewport className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-50 mx-auto w-[calc(100vw-2rem)] max-w-sm">
+        {/* --bottom-bar: the board's phone inbox bar, which notices sit above. */}
+        <Toast.Viewport className="fixed inset-x-0 bottom-[calc(max(1rem,env(safe-area-inset-bottom))+var(--bottom-bar,0px))] z-50 mx-auto w-[calc(100vw-2rem)] max-w-sm md:bottom-[max(1rem,env(safe-area-inset-bottom))]">
           <ToastList />
         </Toast.Viewport>
       </Toast.Portal>
@@ -97,10 +98,10 @@ function ToastList() {
       <Toast.Content className="flex items-center gap-2.5 overflow-hidden py-2 pl-3.5 pr-2 transition-opacity duration-200 data-behind:opacity-0 data-expanded:opacity-100">
         {toast.type === "error" && <CircleAlertIcon aria-hidden className="size-4 shrink-0 text-destructive" />}
         <Toast.Title className="min-w-0 flex-1 text-sm leading-snug" />
-        {toast.actionProps && <Toast.Action className="h-8 shrink-0 rounded-lg px-2.5 text-sm font-medium text-foreground underline decoration-primary decoration-2 underline-offset-4 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />}
+        {toast.actionProps && <Toast.Action className="h-8 shrink-0 rounded-lg px-2.5 pointer-coarse:h-11 pointer-coarse:px-3.5 text-sm font-medium text-foreground underline decoration-primary decoration-2 underline-offset-4 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />}
         <Toast.Close
           aria-label="Dismiss"
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:size-11"
         >
           <XIcon className="size-4" />
         </Toast.Close>

@@ -28,7 +28,10 @@ export default async function SettingsPage() {
     <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 py-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
-        <a href="/" className="text-sm text-muted-foreground hover:text-foreground">
+        <a
+          href="/"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:px-2"
+        >
           ← board
         </a>
       </div>

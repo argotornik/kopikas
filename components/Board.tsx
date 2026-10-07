@@ -6,6 +6,7 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
+  MouseSensor,
   PointerSensor,
   pointerWithin,
   useDraggable,
@@ -256,9 +257,13 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
     [tryPost]
   );
 
-  // Pointer only: the keyboard files through the category menu on each row,
-  // which every target can be reached from without steering an overlay.
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  // Mouse only. The keyboard files through the category menu on each row;
+  // a finger taps the row and files through the File sheet, because on a
+  // phone the drop targets are screens away and a swipe must scroll.
+  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 5 } }));
+  const coarse = useCoarsePointer();
+  // The transaction whose File sheet is open (touch only).
+  const [sheetTx, setSheetTx] = useState<BoardTx | null>(null);
 
   // What a screen reader hears while a pointer drags: names, not row ids.
   const txLabel = (id: unknown) => {
@@ -329,6 +334,31 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
     });
   const unshare = (tx: BoardTx, from?: HTMLElement | null) =>
     tx.shareId && void oneClick(`unshare:${tx.shareId}`, { type: "unshare", shareId: tx.shareId }, `Took ${tx.name} off Pooleks.`, from);
+
+  // The phone's filing queue: the ledger narrowed to what needs filing, from
+  // the top. Each filed row leaves, so the next one is where the thumb is.
+  const startQueue = () => {
+    setQuery("");
+    setFilter("Uncategorized");
+    document.getElementById("ledger")?.scrollIntoView({ block: "start" });
+  };
+  // "Everything filed" stays on the bar a moment, then the bar goes.
+  const [barGone, setBarGone] = useState(false);
+  useEffect(() => {
+    if (board.uncategorizedCount > 0) return setBarGone(false);
+    if (!inboxCleared) return;
+    const t = setTimeout(() => setBarGone(true), 3200);
+    return () => clearTimeout(t);
+  }, [board.uncategorizedCount, inboxCleared]);
+  const barVisible = board.uncategorizedCount > 0 || (inboxCleared && !barGone);
+  // Notices rise above the bar instead of landing on it.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--bottom-bar", barVisible ? "4.5rem" : "0px");
+    return () => {
+      root.style.removeProperty("--bottom-bar");
+    };
+  }, [barVisible]);
 
   // The two prompts' answer, in flight: which button was pressed, and why
   // the server said no if it did.
@@ -536,7 +566,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
       accessibility={{ announcements }}
     >
       <MotionConfig reducedMotion="user">
-      <div className="mx-auto max-w-6xl px-5 py-6 pb-20">
+      <div className="mx-auto max-w-6xl px-5 py-6 pb-28 md:pb-20">
         {/* The ledger can run to a thousand rows; the rail is after it. */}
         <a
           href="#categories"
@@ -550,7 +580,10 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
             Kopikas
           </h1>
           <div className="flex items-center gap-1.5">
-            <a href="/pooleks" className="text-sm text-muted-foreground hover:text-foreground">
+            <a
+              href="/pooleks"
+              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:px-2"
+            >
               Pooleks →
             </a>
             <ThemeToggle />
@@ -558,7 +591,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
               href="/settings"
               title="Settings"
               aria-label="Settings"
-              className="flex size-8 items-center justify-center text-muted-foreground hover:text-foreground"
+              className="flex size-8 items-center justify-center text-muted-foreground hover:text-foreground pointer-coarse:size-11"
             >
               <SettingsIcon className="size-4" />
             </a>
@@ -616,11 +649,11 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
         </div>
 
         <div className="grid items-start gap-5 md:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-          <div className="min-w-0">
+          <div id="ledger" className="min-w-0 scroll-mt-4">
             <div className="relative mb-2">
               <SearchIcon className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                className="pl-8 pr-8"
+                className="pl-8 pr-8 pointer-coarse:pr-12"
                 placeholder="Search transactions…"
                 aria-label="Search transactions"
                 name="search"
@@ -629,7 +662,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
               />
               {query && (
                 <button
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-1 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded text-muted-foreground hover:text-foreground pointer-coarse:size-11"
                   onClick={() => setQuery("")}
                   aria-label="Clear search"
                 >
@@ -651,10 +684,11 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                 transition={{ duration: 0.15 }}
                 className="mb-2 rounded-lg border bg-card px-3 py-2 text-sm"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                   <span className="font-medium">{filter}</span>
                   <span className="font-mono tabular-nums">{eur.format(filterStats.total)}</span>
-                  <span className="text-xs text-muted-foreground">
+                  {/* On a phone the counts take their own line instead of a squeezed column. */}
+                  <span className="text-xs text-muted-foreground max-sm:order-last max-sm:basis-full">
                     {filterStats.count} transactions · {eur.format(filterStats.monthTotal)} in {fmtMonth(month)}
                   </span>
                   <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => setFilter(null)}>
@@ -757,6 +791,8 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       >
                         <Tile
                           tx={tx}
+                          coarse={coarse}
+                          onOpenSheet={setSheetTx}
                           onUnshare={unshare}
                           unsharing={!!tx.shareId && busy.has(`unshare:${tx.shareId}`)}
                           onEditMerchant={editMerchant}
@@ -803,13 +839,17 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
             <Card id="categories" tabIndex={-1} className="shrink-0 gap-3 py-4 outline-none">
               <CardHeader className="px-4">
                 <CardTitle className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
-                  <span>Categories · {fmtMonth(month)}</span>
+                  {/* On a phone the four controls need the room; the rows say what the card is. */}
+                  <span className="min-w-0 truncate">
+                    <span className="max-sm:hidden">Categories · </span>
+                    {fmtMonth(month)}
+                  </span>
                   <span className="flex items-center gap-0.5">
                     <button
                       aria-label="Edit categories"
                       title="Rename or add categories"
                       onClick={() => setCatsOpen(true)}
-                      className="mr-1 flex size-5 items-center justify-center rounded-md hover:bg-accent hover:text-foreground"
+                      className="mr-1 flex size-6 items-center justify-center rounded-md hover:bg-accent hover:text-foreground pointer-coarse:size-11"
                     >
                       <SettingsIcon className="size-3.5" />
                     </button>
@@ -817,7 +857,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       aria-label="Previous month"
                       disabled={month <= earliestMonth}
                       onClick={() => setMonth((m) => shiftMonth(m, -1))}
-                      className="flex size-5 items-center justify-center rounded-md hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+                      className="flex size-6 items-center justify-center rounded-md hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30 pointer-coarse:size-11"
                     >
                       <ChevronLeftIcon className="size-3.5" />
                     </button>
@@ -825,7 +865,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       aria-label="Next month"
                       disabled={month >= board.month}
                       onClick={() => setMonth((m) => shiftMonth(m, 1))}
-                      className="flex size-5 items-center justify-center rounded-md hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
+                      className="flex size-6 items-center justify-center rounded-md hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-30 pointer-coarse:size-11"
                     >
                       <ChevronRightIcon className="size-3.5" />
                     </button>
@@ -833,7 +873,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       aria-label={showCategories ? "Collapse categories" : "Expand categories"}
                       aria-expanded={showCategories}
                       onClick={() => toggleCollapsed("categories")}
-                      className="ml-1 flex size-5 items-center justify-center rounded-md hover:bg-accent hover:text-foreground"
+                      className="ml-1 flex size-6 items-center justify-center rounded-md hover:bg-accent hover:text-foreground pointer-coarse:size-11"
                     >
                       <ChevronDownIcon className={cn("size-3.5 transition-transform", !showCategories && "-rotate-90")} />
                     </button>
@@ -847,16 +887,17 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       key="todo"
                       exit={{ opacity: 0, transition: { duration: 0.15 } }}
                       className={cn(
-                        "flex w-full justify-between rounded-md bg-attention/15 px-2.5 py-1.5 text-left text-sm font-medium text-attention",
+                        "flex w-full justify-between rounded-md bg-attention/15 px-2.5 py-1.5 text-left text-sm font-medium text-attention pointer-coarse:py-3",
                         filter === "Uncategorized" && "ring-2 ring-attention"
                       )}
                       onClick={() => toggleFilter("Uncategorized")}
                     >
                       <span>Uncategorized</span>
+                      {/* The instruction follows the hand: a finger taps, a mouse drags. */}
                       <span>
                         {board.uncategorizedCount === 1
-                          ? "1 tile — drag it"
-                          : `${board.uncategorizedCount} tiles — drag them`}
+                          ? `1 tile — ${coarse ? "tap it" : "drag it"}`
+                          : `${board.uncategorizedCount} tiles — ${coarse ? "tap one" : "drag them"}`}
                       </span>
                     </motion.button>
                   ) : (
@@ -904,7 +945,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       onClick={() => toggleFilter("Incoming")}
                       title="Money that came in this month — click to see who sent it"
                       className={cn(
-                        "flex w-full cursor-pointer justify-between rounded-md px-2.5 py-1 text-left text-sm hover:bg-accent/50",
+                        "flex w-full cursor-pointer justify-between rounded-md px-2.5 py-1 text-left text-sm hover:bg-accent/50 pointer-coarse:py-3",
                         filter === "Incoming" && "bg-accent font-medium"
                       )}
                     >
@@ -924,14 +965,14 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                     aria-label={showSubs ? "Collapse subscriptions" : "Expand subscriptions"}
                     aria-expanded={showSubs}
                     onClick={() => toggleCollapsed("subs")}
-                    className="flex size-5 items-center justify-center rounded-md hover:bg-accent hover:text-foreground"
+                    className="flex size-6 items-center justify-center rounded-md hover:bg-accent hover:text-foreground pointer-coarse:size-11"
                   >
                     <ChevronDownIcon className={cn("size-3.5 transition-transform", !showSubs && "-rotate-90")} />
                   </button>
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4">
-                {showSubs && <SubsZone />}
+                {showSubs && <SubsZone coarse={coarse} />}
                 {showSubs && board.subscriptions.filter((s) => s.sub.active).length === 0 && (
                   <Empty className="p-4">
                     <EmptyHeader>
@@ -973,7 +1014,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       >
                         <button
                           type="button"
-                          className="rounded-full hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="rounded-full hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:-m-2.5 pointer-coarse:p-2.5"
                           title="Change name or icon"
                           aria-label={`Change the name or icon of ${s.label}`}
                           onClick={() =>
@@ -1003,7 +1044,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                             {s.priceChanged && s.lastCharge && (
                               <Badge
                                 render={<button type="button" disabled={busy.has(`price:${s.sub.id}`)} />}
-                                className="cursor-pointer bg-attention/15 font-mono tabular-nums text-attention hover:bg-attention/25 disabled:cursor-default disabled:opacity-60"
+                                className="relative cursor-pointer bg-attention/15 font-mono tabular-nums text-attention hover:bg-attention/25 disabled:cursor-default disabled:opacity-60 pointer-coarse:after:absolute pointer-coarse:after:-inset-3 pointer-coarse:after:content-['']"
                                 title={`Price changed — click to accept ${eur.format(s.lastCharge.amount)} as the new price`}
                                 aria-label={`Accept ${eur.format(s.lastCharge.amount)} as the new price for ${s.label}`}
                                 onClick={() =>
@@ -1088,7 +1129,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                 <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Pooleks · with {PARTNER_NAME}</CardTitle>
               </CardHeader>
               <CardContent className="px-4">
-                <PartnerZone share={partnerShare} onShareChange={setPartnerShare} />
+                <PartnerZone share={partnerShare} onShareChange={setPartnerShare} coarse={coarse} />
                 {/* The full shared ledger lives on /pooleks; here: the zone,
                     the live balance, and the way there. */}
                 <div className="flex items-baseline justify-between gap-2">
@@ -1104,7 +1145,10 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       </>
                     )}
                   </div>
-                  <a href="/pooleks" className="shrink-0 text-xs text-muted-foreground hover:text-foreground">
+                  <a
+                    href="/pooleks"
+                    className="inline-flex shrink-0 items-center text-xs text-muted-foreground hover:text-foreground pointer-coarse:min-h-11"
+                  >
                     Open Pooleks →
                   </a>
                 </div>
@@ -1196,7 +1240,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
           stays open, coin turning, until the server has filed it: a refusal
           is shown here, where the choice was made. */}
       <Dialog open={!!prompt} onOpenChange={(o) => !o && closePrompt()}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent sheet className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>File under {prompt?.category}?</DialogTitle>
             <DialogDescription>
@@ -1221,7 +1265,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
       </Dialog>
 
       <Dialog open={!!sharePrompt} onOpenChange={(o) => !o && closeSharePrompt()}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent sheet className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Share with {PARTNER_NAME}?</DialogTitle>
             <DialogDescription>
@@ -1262,6 +1306,50 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
         onUnshare={unshare}
         onEditMerchant={editMerchant}
       />
+      <FileSheet
+        tx={sheetTx}
+        categories={board.categories.map((c) => c.name)}
+        onClose={() => setSheetTx(null)}
+        onFile={fileUnder}
+        onShare={shareWithPartner}
+        onUnshare={unshare}
+        onEditMerchant={editMerchant}
+      />
+
+      {/* The phone's inbox: on one column the Uncategorized row is a thousand
+          rows down, so what needs filing sits at the foot of the screen, in
+          thumb reach. Tapping it narrows the ledger to that queue. */}
+      {barVisible && (
+        <div className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
+          <div
+            className="mx-auto flex min-h-14 max-w-md items-center gap-3 rounded-2xl bg-popover py-2 pl-4 pr-2 text-sm text-popover-foreground shadow-[0_8px_30px_-8px_rgb(0_0_0/0.35)] ring-1 ring-foreground/10"
+            aria-live="polite"
+          >
+            {board.uncategorizedCount > 0 ? (
+              <>
+                <span aria-hidden className="size-2 shrink-0 rounded-full bg-attention" />
+                <span className="min-w-0 flex-1 truncate">
+                  <span className="font-mono font-semibold tabular-nums">{board.uncategorizedCount}</span>{" "}
+                  {filter === "Uncategorized" ? "left · tap one to file it" : "to file"}
+                </span>
+                {filter === "Uncategorized" ? (
+                  <Button variant="outline" onClick={() => setFilter(null)}>
+                    Done
+                  </Button>
+                ) : (
+                  <Button onClick={startQueue}>File them</Button>
+                )}
+              </>
+            ) : (
+              <span className="flex flex-1 items-baseline gap-1.5 py-2 text-muted-foreground">
+                <FiledCheck draw />
+                Everything filed
+                <span className="text-xs italic opacity-70">· iga kopikas loeb</span>
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       <MerchantEditor
         subject={merchantSubject}
@@ -1367,29 +1455,34 @@ function Stat({
 // for meaning — uncategorized (attention), incoming (gain), the partner's share.
 function Tile({
   tx,
+  coarse,
+  onOpenSheet,
   onUnshare,
   unsharing,
   onEditMerchant,
 }: {
   tx: BoardTx;
+  coarse: boolean;
+  onOpenSheet: (tx: BoardTx) => void;
   onUnshare: (tx: BoardTx, from: HTMLElement) => void;
   unsharing: boolean;
   onEditMerchant: (tx: BoardTx) => void;
 }) {
   const draggable = tx.amount < 0;
-  // The row is a drag surface for the pointer and nothing more: no button
-  // role, no tab stop. Its one keyboard stop is the category, which opens
-  // the File menu; the avatar and the split chip are reachable from there.
+  // The row is a drag surface for the mouse and nothing more: no button
+  // role, no tab stop, and no touch-action override, so a swipe scrolls.
+  // Its one keyboard stop is the category, which opens the File menu; on
+  // touch that category stretches over the whole row and opens the sheet.
   const { listeners, setNodeRef, isDragging } = useDraggable({
     id: tx.id,
     disabled: !draggable,
   });
-  const category = tx.amount >= 0 ? null : <FileTrigger tx={tx} />;
+  const category = tx.amount >= 0 ? null : <FileTrigger tx={tx} coarse={coarse} onOpenSheet={onOpenSheet} />;
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        "grid touch-none select-none grid-cols-[1.75rem_minmax(0,1fr)_5.5rem] items-center gap-x-3 px-3 py-2 sm:grid-cols-[1.75rem_minmax(0,1fr)_7rem_5.5rem]",
+        "relative grid select-none grid-cols-[1.75rem_minmax(0,1fr)_5.5rem] items-center gap-x-3 px-3 py-2 sm:grid-cols-[1.75rem_minmax(0,1fr)_7rem_5.5rem]",
         // Offscreen rows skip render work — the full feed is ~1,000 rows.
         "[contain-intrinsic-size:auto_52px] [content-visibility:auto]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
@@ -1405,7 +1498,12 @@ function Tile({
           site, emoji. It swallows pointerdown so a click does not start a drag. */}
       <button
         type="button"
-        className="rounded-full hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className={cn(
+          "relative z-10 rounded-full hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          // On touch the whole row is one tap, to the File sheet, which has
+          // "Name and icon…" in it; incoming rows have no sheet and keep theirs.
+          draggable && "pointer-coarse:pointer-events-none"
+        )}
         title="Change name or icon"
         aria-label={`Change the name or icon of ${tx.name}`}
         // Incoming rows have no File menu, so the avatar keeps its tab stop there.
@@ -1421,7 +1519,9 @@ function Tile({
           {tx.shared && tx.shareId && (
             <button
               type="button"
-              className="shrink-0 font-medium text-shared hover:underline disabled:opacity-60"
+              // On touch a tap here would unshare when the hand meant to open
+              // the row; the sheet has "Take off Pooleks" instead.
+              className="relative z-10 shrink-0 font-medium text-shared hover:underline disabled:opacity-60 pointer-coarse:pointer-events-none"
               title={`Shared with ${PARTNER_NAME}, who pays ${shareLabel(tx.partnerShare)}. Click to unshare`}
               aria-label={`Unshare — ${PARTNER_NAME} pays ${shareLabel(tx.partnerShare)} of this`}
               tabIndex={-1}
@@ -1453,24 +1553,136 @@ function Tile({
 // A row's category, as the way to file it: click, tap or Enter opens the
 // File menu for this transaction. Uncategorized reads in amber, as before;
 // a dotted underline still marks one filed by hand.
-function FileTrigger({ tx }: { tx: BoardTx }) {
+function FileTrigger({
+  tx,
+  coarse,
+  onOpenSheet,
+}: {
+  tx: BoardTx;
+  coarse: boolean;
+  onOpenSheet: (tx: BoardTx) => void;
+}) {
   const label = tx.category ?? "uncategorized";
+  const shared = {
+    "aria-label": `${label}: file ${tx.name}, ${eur.format(Math.abs(tx.amount))}`,
+    className: cn(
+      "-mx-1 max-w-[calc(100%+0.5rem)] cursor-pointer truncate rounded px-1 text-left text-xs outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-accent data-popup-open:text-foreground",
+      tx.category ? "text-muted-foreground" : "font-medium text-attention",
+      tx.categorySource === "override" && "underline decoration-dotted underline-offset-2"
+    ),
+  };
+  if (coarse) {
+    // The whole row is the target: the label's ::after covers it, and a
+    // press shows on the row the finger is on.
+    return (
+      <button
+        type="button"
+        {...shared}
+        className={cn(
+          shared.className,
+          "[-webkit-tap-highlight-color:transparent] after:absolute after:inset-0 after:content-[''] active:after:bg-foreground/[0.06]"
+        )}
+        onClick={() => onOpenSheet(tx)}
+      >
+        {label}
+      </button>
+    );
+  }
   return (
     <Menu.Trigger
       handle={fileMenu}
       payload={tx.id}
       // A click files; it must not also start a drag of the row.
       onPointerDown={(e) => e.stopPropagation()}
-      aria-label={`${label}: file ${tx.name}, ${eur.format(Math.abs(tx.amount))}`}
       title={tx.categorySource === "override" ? "Filed by hand. Click to file it elsewhere" : "File under…"}
-      className={cn(
-        "-mx-1 max-w-[calc(100%+0.5rem)] cursor-pointer truncate rounded px-1 text-left text-xs outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-accent data-popup-open:text-foreground",
-        tx.category ? "text-muted-foreground" : "font-medium text-attention",
-        tx.categorySource === "override" && "underline decoration-dotted underline-offset-2"
-      )}
+      {...shared}
     >
       {label}
     </Menu.Trigger>
+  );
+}
+
+// The File menu for a finger: the same choices, as large buttons in a sheet
+// that rises from the bottom of a phone (a dialog on a wider touch screen).
+function FileSheet({
+  tx,
+  categories,
+  onClose,
+  onFile,
+  onShare,
+  onUnshare,
+  onEditMerchant,
+}: {
+  tx: BoardTx | null;
+  categories: string[];
+  onClose: () => void;
+  onFile: (tx: BoardTx, category: string) => void;
+  onShare: (tx: BoardTx) => void;
+  onUnshare: (tx: BoardTx) => void;
+  onEditMerchant: (tx: BoardTx) => void;
+}) {
+  // Close first, then open what comes next, so focus and the two sheets'
+  // animations hand over instead of overlapping.
+  const then = (next: (t: BoardTx) => void) => {
+    if (!tx) return;
+    const t = tx;
+    onClose();
+    setTimeout(() => next(t), 0);
+  };
+  const ACTION =
+    "flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm hover:bg-accent active:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  return (
+    <Dialog open={!!tx} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent sheet className="sm:max-w-md">
+        {tx && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex min-w-0 items-center gap-2.5 pr-10">
+                <MerchantIcon name={tx.name} domain={tx.domain} emoji={tx.emoji} />
+                <span className="truncate">{tx.name}</span>
+              </DialogTitle>
+              <DialogDescription>
+                <span className="font-mono tabular-nums">{eur.format(Math.abs(tx.amount))}</span> ·{" "}
+                {shortDate.format(new Date(tx.date))} · {tx.category ? `filed under ${tx.category}` : "not filed yet"}
+              </DialogDescription>
+            </DialogHeader>
+            <div role="group" aria-label="File under" className="grid grid-cols-2 gap-1.5">
+              {categories.map((c) => {
+                const current = c === tx.category;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    aria-current={current || undefined}
+                    onClick={() => (current ? onClose() : then((t) => onFile(t, c)))}
+                    className={cn(
+                      "flex min-h-11 items-center justify-between gap-2 rounded-lg px-3 text-left text-sm ring-1 ring-foreground/10 hover:bg-accent active:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      current && "bg-primary/10 font-medium ring-primary/40"
+                    )}
+                  >
+                    <span className="truncate">{c}</span>
+                    {current && <CheckIcon aria-hidden className="size-4 shrink-0 text-primary" />}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="-mx-1 grid gap-0.5 border-t pt-2">
+              <button type="button" className={ACTION} onClick={() => then(onShare)}>
+                {tx.shared ? `Change the split with ${PARTNER_NAME}…` : `Split with ${PARTNER_NAME}…`}
+              </button>
+              {tx.shared && (
+                <button type="button" className={ACTION} onClick={() => then(onUnshare)}>
+                  Take off Pooleks
+                </button>
+              )}
+              <button type="button" className={ACTION} onClick={() => then(onEditMerchant)}>
+                Name and icon…
+              </button>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1675,7 +1887,7 @@ function CategoryRow({
       onClick={onSelect}
       title={budget != null ? `${eur.format(Math.abs(budget - total))} ${over ? "over the limit" : "left this month"}` : undefined}
       className={cn(
-        "relative flex w-full cursor-pointer justify-between overflow-hidden rounded-md border border-dashed border-transparent px-2.5 py-1.5 text-left text-sm hover:bg-accent/50",
+        "relative flex w-full cursor-pointer justify-between overflow-hidden rounded-md border border-dashed border-transparent px-2.5 py-1.5 text-left text-sm hover:bg-accent/50 pointer-coarse:py-3",
         isOver && "border-primary bg-accent",
         active && "bg-accent font-medium"
       )}
@@ -1760,8 +1972,10 @@ function FiledCheck({ draw }: { draw: boolean }) {
   );
 }
 
-function SubsZone() {
+function SubsZone({ coarse }: { coarse: boolean }) {
   const { setNodeRef, isOver } = useDroppable({ id: "subs" });
+  // A finger can't drag here; the sheet's Subscriptions does the same thing.
+  if (coarse) return <p className="mb-2 text-xs text-muted-foreground">Tap a recurring charge and choose Subscriptions to track it.</p>;
   return (
     <div
       ref={setNodeRef}
@@ -1775,8 +1989,18 @@ function SubsZone() {
   );
 }
 
-function PartnerZone({ share, onShareChange }: { share: number; onShareChange: (f: number) => void }) {
+function PartnerZone({
+  share,
+  onShareChange,
+  coarse,
+}: {
+  share: number;
+  onShareChange: (f: number) => void;
+  coarse: boolean;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: "partner" });
+  // On touch the split is chosen in the share prompt itself.
+  if (coarse) return <p className="mb-2 text-xs text-muted-foreground">Tap an expense and choose Split with {PARTNER_NAME}.</p>;
   return (
     <div className="mb-2">
       <SplitPicker label={`${PARTNER_NAME} pays`} value={share} onChange={onShareChange} className="mb-1.5" />
@@ -1922,7 +2146,7 @@ function SortableRow({ id, children }: { id: string; children: React.ReactNode }
         {...listeners}
         aria-label={`Move ${id}`}
         title="Drag to reorder"
-        className="flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground/60 hover:bg-accent hover:text-foreground active:cursor-grabbing"
+        className="flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground/60 hover:bg-accent hover:text-foreground active:cursor-grabbing pointer-coarse:size-11"
       >
         <GripVerticalIcon className="size-4" />
       </button>
@@ -2144,4 +2368,19 @@ function SnapshotEditor({
       </DialogContent>
     </Dialog>
   );
+}
+
+// Touch first: the primary pointer is a finger. A laptop with a touchscreen
+// keeps the mouse behaviour. False on the server and the first render, so
+// the markup hydrates the same; touch devices switch a moment later.
+function useCoarsePointer(): boolean {
+  const [coarse, setCoarse] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(pointer: coarse)");
+    const update = () => setCoarse(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return coarse;
 }

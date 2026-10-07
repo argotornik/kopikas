@@ -33,7 +33,7 @@ export function SplitPicker({
               aria-pressed={on}
               onClick={() => onChange(f)}
               className={cn(
-                "min-w-8 rounded-md border border-transparent px-2 py-0.5 font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "min-w-8 rounded-md border border-transparent px-2 py-0.5 font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11 pointer-coarse:min-w-11",
                 on ? "border-shared/40 bg-shared/15 font-semibold text-shared" : "hover:bg-accent hover:text-foreground"
               )}
             >

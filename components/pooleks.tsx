@@ -87,16 +87,16 @@ function groupMonths(rows: Row[]): Month[] {
 // balance, and folds the bill and the share into the row's text — a statement
 // shows what moved and where it leaves you; the working is there to read, not
 // to scan.
-const GRID_CLEAN = "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1fr)_5.5rem_1.25rem] sm:grid-cols-[3.25rem_minmax(0,1fr)_5.5rem_1.25rem]";
+const GRID_CLEAN = "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1fr)_5.5rem_1.5rem] sm:grid-cols-[3.25rem_minmax(0,1fr)_5.5rem_1.5rem]";
 // On phones the running balance stacks under the movement (one figure column),
 // so the description keeps its width.
 const GRID_FULL =
-  "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1fr)_5.5rem_1.25rem] sm:grid-cols-[3.25rem_minmax(0,1fr)_5.5rem_5.5rem_1.25rem]";
+  "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1fr)_5.5rem_1.5rem] sm:grid-cols-[3.25rem_minmax(0,1fr)_5.5rem_5.5rem_1.5rem]";
 
 // The quiet ✕ at the end of a row: always there on touch, revealed on hover
 // or keyboard focus where there is a pointer.
 const REMOVE =
-  "flex size-5 items-center justify-center justify-self-end rounded text-muted-foreground hover:text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100";
+  "relative flex size-6 items-center justify-center justify-self-end rounded text-muted-foreground hover:text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100 pointer-coarse:after:absolute pointer-coarse:after:-inset-2.5 pointer-coarse:after:content-['']";
 
 // Pooleks ("in half"): the couple's tab as a statement. Same page for both
 // of them; only the labels flip.
@@ -248,7 +248,7 @@ export function Pooleks({ role }: { role: Person }) {
         type="button"
         onClick={() => setShowSettled((s) => !s)}
         aria-expanded={showSettled}
-        className="flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 hover:bg-accent hover:text-foreground"
+        className="flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 hover:bg-accent hover:text-foreground pointer-coarse:py-3.5"
       >
         <span>
           {months.length === 0 && "All square. "}
@@ -363,7 +363,10 @@ export function Pooleks({ role }: { role: Person }) {
         </h1>
         <div className="flex items-center gap-1.5">
           {role === "owner" && (
-            <a href="/" className="text-sm text-muted-foreground hover:text-foreground">
+            <a
+              href="/"
+              className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:px-2"
+            >
               ← board
             </a>
           )}
@@ -426,7 +429,7 @@ export function Pooleks({ role }: { role: Person }) {
                 type="button"
                 onClick={toggleDetails}
                 aria-pressed={details}
-                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs normal-case tracking-normal text-muted-foreground hover:bg-accent hover:text-foreground"
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs normal-case tracking-normal text-muted-foreground hover:bg-accent hover:text-foreground pointer-coarse:py-3.5"
                 title={details ? "Hide amounts and running balance" : "Show amounts and running balance"}
               >
                 {details ? <EyeOffIcon className="size-3.5" /> : <EyeIcon className="size-3.5" />}
@@ -615,7 +618,7 @@ export function Pooleks({ role }: { role: Person }) {
             name="category"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground pointer-coarse:h-11 pointer-coarse:text-base"
           >
             <option value="">Category (optional)</option>
             {(view?.categories ?? []).map((c) => (

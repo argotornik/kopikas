@@ -151,7 +151,7 @@ function StatusLine({ status }: { status: Status }) {
       </p>
       {status.detail && (
         <details className="text-xs text-muted-foreground">
-          <summary className="cursor-pointer select-none hover:text-foreground">Technical details</summary>
+          <summary className="cursor-pointer select-none hover:text-foreground pointer-coarse:py-3">Technical details</summary>
           <pre className="mt-1.5 overflow-x-auto rounded-md bg-muted p-3 font-mono">{status.detail}</pre>
         </details>
       )}
