@@ -53,8 +53,11 @@ const SHADES: Record<Metal, { light: string; mid: string; dark: string; edge: st
 
 const MUTED = "text-[#63666F] dark:text-[#A7A9B4]";
 const PANEL = "rounded-[28px] bg-[#F4F5F7] dark:bg-[#191B22]";
+// In Tailwind 4 both outline-none and outline-hidden also cancel a later
+// outline's style, so focus sets it back (outline-solid); without that, no
+// control showed its focus. outline-hidden keeps a ring in forced colours.
 const FOCUS =
-  "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17181D] dark:focus-visible:outline-[#F3F2EE]";
+  "outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17181D] dark:focus-visible:outline-[#F3F2EE]";
 const DISPLAY = "coins-display";
 const SPRING = { type: "spring" as const, stiffness: 260, damping: 18 };
 
@@ -566,6 +569,7 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
   // queue row that took its place.
   const selects = useRef<(HTMLSelectElement | null)[]>([]);
   const refocus = useRef<number | null>(null);
+  const monthHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (refocus.current == null) return;
     const i = Math.min(refocus.current, selects.current.length - 1);
@@ -626,6 +630,12 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
     if (!category || flight) return;
     setPicked(null);
     if (queueIndex !== undefined) refocus.current = queueIndex;
+    else {
+      // Filing on the stage disables the rolls, so the roll just pressed would
+      // drop focus to the page: hand it to the next loose coin, or the month.
+      const next = [...document.querySelectorAll<HTMLElement>("[data-coin]")].find((el) => el.dataset.coin !== tx.id && el.getBoundingClientRect().width > 0);
+      (next ?? monthHeading.current)?.focus();
+    }
     const src = document.querySelector(`[data-coin="${tx.id}"]`) ?? document.querySelector(`[data-queue="${tx.id}"]`);
     const dst = document.querySelector(`[data-roll="${CSS.escape(category)}"]`);
     if (reduce || !src || !dst) return commit(tx, category);
@@ -742,7 +752,7 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                   >
                     <ChevronLeftIcon className="size-5" aria-hidden />
                   </button>
-                  <h2 id="month-heading" className={cn(DISPLAY, "text-[34px] font-semibold leading-none sm:text-[40px]")}>
+                  <h2 id="month-heading" ref={monthHeading} tabIndex={-1} className={cn(DISPLAY, "rounded-xl text-[34px] font-semibold leading-none sm:text-[40px]", FOCUS)}>
                     {label(month)}
                   </h2>
                   <button
@@ -1071,7 +1081,7 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                             </span>
                           )}
                         </div>
-                        <div className={cn("text-right text-[15px] font-medium tabular-nums", t.amount >= 0 && "text-[#0E8A4A] dark:text-[#4FD18B]")}>
+                        <div className={cn("text-right text-[15px] font-medium tabular-nums", t.amount >= 0 && "text-[#0A763F] dark:text-[#4FD18B]")}>
                           {t.amount >= 0 ? "+" : ""}
                           {eur.format(t.amount)}
                         </div>
