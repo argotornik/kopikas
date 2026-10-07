@@ -48,7 +48,7 @@ Name each animation exactly as below; the board asks for them by these names.
 
 | Name | Moment | Plays | Length | Idea |
 |---|---|---|---|---|
-| `hello` | arriving on the board | once, then holds | ~1.6 s | pops in leaning, both arms up, sways them twice, settles |
+| `hello` | arriving on the board | once, then holds | ~1.6 s | pops in leaning, waves one arm twice with the other open wide, settles |
 | `friendly` | hovered | loops | ~1.5 s | head tilted, one small hand lift |
 | `saving` | loose change waiting | loops | ~2.4 s | gentle bob, turns the coin in its hands, eyes on it |
 | `budgeting` | filing a coin | loops | ~2.4 s | leans into the list, ticks a box |

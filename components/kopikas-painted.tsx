@@ -6,7 +6,7 @@ import { AnimatePresence, motion, type MotionValue } from "motion/react";
 // so its edge shows, the k on its forehead, a blue face, thick rounded limbs
 // with mitten hands. Each pose belongs to one moment of the product, so the
 // coin always says what is going on:
-//   hello      arriving on the board (both arms up, leaning in)
+//   hello      arriving on the board (one arm waving, one open wide, leaning in)
 //   friendly   hovered (one small hand lift, head tilted)
 //   saving     loose change waiting (holding a coin up to show you)
 //   budgeting  filing a coin (the list up by the face, eyes on it)
@@ -53,21 +53,20 @@ type Shape = {
 // The coin's edge sits on the right and hides the first part of a right arm, so
 // right arms reach about 6 further out than their left mirror to look as long.
 const STAND = { legL: "M51 103 Q50 116 49 127", footL: [46, 130] as Pt, legR: "M69 103 Q70 116 71 127", footR: [74, 130] as Pt };
-// Arrival: both arms up, swaying outwards. Hover: one small hand lift.
+// Arrival: one arm up and waving, the other open wide. Hover: one small hand lift.
 const HELLO_L: Frame[] = [["M25 78 Q12 62 14 46", [14, 43]], ["M25 78 Q9 64 7 50", [7, 47]]];
-const HELLO_R: Frame[] = [["M97 78 Q114 62 112 46", [112, 43]], ["M97 78 Q117 64 119 50", [119, 47]]];
 const HOVER_R: Frame[] = [["M97 80 Q110 74 110 64", [110, 61]], ["M97 80 Q113 76 115 67", [115, 64]]];
 
 const SHAPES: Record<PaintedPose, Shape> = {
   hello: {
     armL: HELLO_L[0][0],
     handL: HELLO_L[0][1],
-    armR: HELLO_R[0][0],
-    handR: HELLO_R[0][1],
+    armR: "M97 80 Q112 80 119 72",
+    handR: [121, 70],
     ...STAND,
     tilt: 5,
     mouth: "open",
-    wave: { l: HELLO_L, r: HELLO_R, repeat: false },
+    wave: { l: HELLO_L, repeat: false },
   },
   friendly: {
     armL: "M25 80 Q17 92 18 104",
@@ -346,7 +345,7 @@ export function PaintedKopikas({ pose, ex, ey, reduce }: { pose: PaintedPose; ex
         {pose === "hello" && (
           <motion.g key="marks" data-layer="wave-marks" initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <path d="M1 33 Q-3 40 0 47" style={{ stroke: LIMB }} strokeWidth="2" fill="none" strokeLinecap="round" opacity=".45" />
-            <path d="M127 44 Q131 51 128 58" style={{ stroke: LIMB }} strokeWidth="2" fill="none" strokeLinecap="round" opacity=".45" />
+            <path d="M25 31 Q30 38 26 45" style={{ stroke: LIMB }} strokeWidth="2" fill="none" strokeLinecap="round" opacity=".45" />
           </motion.g>
         )}
         {pose === "excited" && (
