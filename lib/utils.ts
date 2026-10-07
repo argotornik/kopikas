@@ -14,6 +14,21 @@ export function stripPeriod(s: string): string {
   return s.replace(PERIOD_SUFFIX, "").trim()
 }
 
+// An amount as people type it here: "40,40", "40.40", "1 234,56 €", or the
+// board's own "−12,00" pasted back. NaN for anything that is not one plain
+// number, so the field can say so instead of saving a guess.
+export function parseAmount(raw: string): number {
+  const s = raw.replace(/[\s  €]/g, "").replace("−", "-")
+  if (!/^[+-]?\d+(?:[.,]\d+)?$/.test(s)) return NaN
+  return Number(s.replace(",", "."))
+}
+
+// The other direction, for prefilling a field: 40.4 → "40,40", the way the
+// board writes amounts, without the currency or grouping.
+export function amountInput(n: number): string {
+  return n.toFixed(2).replace(".", ",")
+}
+
 // Display label for the partner's fraction of a shared expense. Tolerant compare:
 // thirds are stored as rounded decimals. Plain ASCII fractions — precomposed
 // glyphs (½ vs ⅓) come from different fonts and render inconsistently.

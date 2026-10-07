@@ -4,6 +4,8 @@ import { useState } from "react";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { act, focusAfterRemoval } from "@/lib/act";
+import { announceError, announceUndoable } from "@/components/toaster";
 
 const taughtFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
@@ -19,20 +21,26 @@ export interface RuleRow {
 // Zero-match rules are the duds worth pruning.
 export function RulesList({ initial }: { initial: RuleRow[] }) {
   const [rules, setRules] = useState(initial);
-  const [error, setError] = useState("");
+  const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
 
-  const forget = async (id: string) => {
-    const res = await fetch("/api/action", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "unrule", ruleId: id }),
+  // One click forgets; Undo puts the rule back where it stood in the order,
+  // so nothing it filed changes hands. Focus moves to the next row's ✕.
+  const forget = async (r: RuleRow, from: HTMLElement) => {
+    if (busy.has(r.id)) return;
+    setBusy((b) => new Set(b).add(r.id));
+    const refocus = focusAfterRemoval(from);
+    const result = await act({ type: "unrule", ruleId: r.id });
+    setBusy((b) => {
+      const next = new Set(b);
+      next.delete(r.id);
+      return next;
     });
-    if (!res.ok) {
-      setError("Couldn't forget that rule — try again.");
-      return;
-    }
-    setError("");
-    setRules((rs) => rs.filter((r) => r.id !== id));
+    if (!result.ok) return announceError(`Couldn't forget that rule. ${result.error}`);
+    setRules((rs) => rs.filter((x) => x.id !== r.id));
+    refocus();
+    announceUndoable(`Forgot “${r.match}” → ${r.category}.`, result.undo, () =>
+      setRules((rs) => [...rs.filter((x) => x.id !== r.id), r].sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
+    );
   };
 
   return (
@@ -49,9 +57,9 @@ export function RulesList({ initial }: { initial: RuleRow[] }) {
           rule un-files what it decided — drag once more to teach it again.
         </p>
         {rules.length === 0 && <p className="py-2 text-sm text-muted-foreground">No rules yet.</p>}
-        <div className="divide-y">
+        <div className="divide-y outline-none" data-list>
           {rules.map((r) => (
-            <div className="flex items-center gap-3 py-2" key={r.id}>
+            <div className="flex items-center gap-3 py-2" key={r.id} data-row>
               <div className="min-w-0 flex-1">
                 <div className="truncate font-mono text-sm">{r.match}</div>
                 <div className="text-xs text-muted-foreground">
@@ -73,16 +81,15 @@ export function RulesList({ initial }: { initial: RuleRow[] }) {
                 className="size-6 shrink-0 text-muted-foreground"
                 title="Forget this rule"
                 aria-label={`Forget rule ${r.match} → ${r.category}`}
-                onClick={() => void forget(r.id)}
+                data-focus-key="forget"
+                disabled={busy.has(r.id)}
+                onClick={(e) => void forget(r, e.currentTarget)}
               >
                 <XIcon className="size-3.5" />
               </Button>
             </div>
           ))}
         </div>
-        <p className="min-h-4 text-xs text-destructive" aria-live="polite">
-          {error}
-        </p>
       </CardContent>
     </Card>
   );

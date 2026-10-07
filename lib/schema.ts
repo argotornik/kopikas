@@ -22,7 +22,9 @@ export const SCHEMA: string[] = [
   `create table if not exists share_rules (
     id text primary key, match text not null, partner_share numeric(6, 5) not null, created_at timestamptz not null)`,
   `create table if not exists settlements (
-    id text primary key, amount numeric(12, 2) not null, date date not null, tx_id text, note text)`,
+    id text primary key, amount numeric(12, 2) not null, date date not null, tx_id text, note text, recorded_by text)`,
+  // Tables created before repayments kept their author (Oct 2026).
+  `alter table settlements add column if not exists recorded_by text`,
   `create table if not exists subscriptions (
     id text primary key, name text not null, match text not null, expected_amount numeric(12, 2) not null,
     cadence text not null check (cadence in ('monthly', 'yearly')),

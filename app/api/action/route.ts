@@ -14,6 +14,8 @@ import {
 } from "@/lib/engine";
 import { currentRole } from "@/lib/auth";
 import { merchantOf, rulePattern } from "@/lib/icons";
+import { checkRefreshToken } from "@/lib/lhv";
+import { RESTORABLE, restoreRecord, type RestoreCollection } from "@/lib/restore";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +28,13 @@ type Action =
   | { type: "unshare-rule"; ruleId: string }
   | { type: "quickadd"; description: string; amount: number; date: string; partnerShare?: number; category?: string }
   | { type: "settle"; amount: number; date: string; txId?: string; note?: string }
+  | { type: "unsettle"; settlementId: string }
   | { type: "subscribe"; txId: string }
   | { type: "unsubscribe"; subId: string }
+  | { type: "resubscribe"; subId: string }
   | { type: "accept-price"; subId: string }
+  | { type: "set-price"; subId: string; expectedAmount: number }
+  | { type: "restore"; collection: RestoreCollection; record: unknown }
   | { type: "cadence"; subId: string; cadence: "monthly" | "yearly" }
   | { type: "snapshot"; total: number; holdings: { name: string; pct: number }[]; returnPct?: number; source?: string }
   | { type: "category-add"; name: string }
@@ -42,15 +48,24 @@ type Action =
 export async function POST(req: Request) {
   const action = (await req.json()) as Action;
 
-  // The owner: everything. The partner: adding what they paid and recording a
-  // repayment — the two moves on the shared tab that are theirs. Anyone else: nothing.
+  // The owner: everything. The partner: adding what they paid and recording,
+  // removing or putting back a repayment — the moves on the shared tab that
+  // are theirs. Anyone else: nothing.
   const role = await currentRole();
-  if (role !== "owner" && !(role === "partner" && (action.type === "quickadd" || action.type === "settle"))) {
-    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+  const partnerMove =
+    action.type === "quickadd" ||
+    action.type === "settle" ||
+    action.type === "unsettle" ||
+    (action.type === "restore" && action.collection === "settlements");
+  if (role !== "owner" && !(role === "partner" && partnerMove)) {
+    return NextResponse.json({ ok: false, error: "This account can't make that change." }, { status: 403 });
   }
 
   const db = await readDb();
   const now = new Date().toISOString();
+  // A removal answers with the action that reverses it, so the client's Undo
+  // needs no knowledge of how each thing is put back.
+  let undo: Action | undefined;
 
   switch (action.type) {
     case "rule": {
@@ -68,10 +83,12 @@ export async function POST(req: Request) {
     }
     case "unrule": {
       // Forgetting a rule un-files everything it decided; overrides and
-      // other rules still apply.
-      if (!db.rules.some((r) => r.id === action.ruleId)) return bad("unknown rule");
+      // other rules still apply. Already gone (a second click) is not an error.
+      const removed = db.rules.find((r) => r.id === action.ruleId);
+      if (!removed) break;
       db.rules = db.rules.filter((r) => r.id !== action.ruleId);
       await writeCollection("rules", db.rules);
+      undo = { type: "restore", collection: "rules", record: removed };
       break;
     }
     case "override": {
@@ -112,14 +129,19 @@ export async function POST(req: Request) {
       break;
     }
     case "unshare-rule": {
-      if (!db.shareRules.some((r) => r.id === action.ruleId)) return bad("unknown rule");
+      const removed = db.shareRules.find((r) => r.id === action.ruleId);
+      if (!removed) break;
       db.shareRules = db.shareRules.filter((r) => r.id !== action.ruleId);
       await writeCollection("shareRules", db.shareRules);
+      undo = { type: "restore", collection: "shareRules", record: removed };
       break;
     }
     case "unshare": {
+      const removed = db.shares.find((s) => s.id === action.shareId);
+      if (!removed) break;
       db.shares = db.shares.filter((s) => s.id !== action.shareId);
       await writeCollection("shares", db.shares);
+      undo = { type: "restore", collection: "shares", record: removed };
       break;
     }
     case "quickadd": {
@@ -143,15 +165,28 @@ export async function POST(req: Request) {
     case "settle": {
       // Sign is direction: positive = the partner paid the owner, negative = the owner paid the partner.
       const amount = Number(action.amount);
-      if (!Number.isFinite(amount) || amount === 0) return bad("non-zero amount required");
+      if (!Number.isFinite(amount) || amount === 0) return bad("Enter an amount other than zero.");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(action.date))) return bad("The repayment needs a date.");
+      const id = newId("stl");
       db.settlements.push({
-        id: newId("stl"),
+        id,
         amount,
         date: action.date,
         txId: action.txId,
-        note: action.note,
+        note: action.note?.trim() || undefined,
+        recordedBy: role === "partner" ? "partner" : "owner",
       });
       await writeCollection("settlements", db.settlements);
+      undo = { type: "unsettle", settlementId: id };
+      break;
+    }
+    case "unsettle": {
+      // Either of the two can take back a repayment; the row says who recorded it.
+      const removed = db.settlements.find((s) => s.id === action.settlementId);
+      if (!removed) break;
+      db.settlements = db.settlements.filter((s) => s.id !== action.settlementId);
+      await writeCollection("settlements", db.settlements);
+      undo = { type: "restore", collection: "settlements", record: removed };
       break;
     }
     case "subscribe": {
@@ -195,10 +230,22 @@ export async function POST(req: Request) {
       // The last matched charge becomes the expected price — the badge's
       // "10,99 € → 8,00 €" stops nagging once the new price is blessed.
       const sub = db.subscriptions.find((s) => s.id === action.subId);
-      if (!sub) return bad("unknown subscription");
+      if (!sub) return bad("That subscription is gone. Reload to see the latest.");
       const status = subscriptionStatus(sub, db.transactions, new Date());
-      if (!status.lastCharge) return bad("no charge to accept");
+      if (!status.lastCharge) return bad("There is no charge to take the new price from.");
+      const previous = sub.expectedAmount;
       sub.expectedAmount = status.lastCharge.amount;
+      await writeCollection("subscriptions", db.subscriptions);
+      undo = { type: "set-price", subId: sub.id, expectedAmount: previous };
+      break;
+    }
+    case "set-price": {
+      // Undo of accept-price: the expected amount as it was before.
+      const sub = db.subscriptions.find((s) => s.id === action.subId);
+      if (!sub) return bad("That subscription is gone. Reload to see the latest.");
+      const amount = Number(action.expectedAmount);
+      if (!(amount > 0 && amount < 1e6)) return bad("A positive price is needed.");
+      sub.expectedAmount = amount;
       await writeCollection("subscriptions", db.subscriptions);
       break;
     }
@@ -214,10 +261,28 @@ export async function POST(req: Request) {
     }
     case "unsubscribe": {
       const sub = db.subscriptions.find((s) => s.id === action.subId);
-      if (sub) {
+      if (sub?.active) {
         sub.active = false;
         await writeCollection("subscriptions", db.subscriptions);
+        undo = { type: "resubscribe", subId: sub.id };
       }
+      break;
+    }
+    case "resubscribe": {
+      // Undo of unsubscribe: the same record, watched again.
+      const sub = db.subscriptions.find((s) => s.id === action.subId);
+      if (!sub) return bad("That subscription is gone. Reload to see the latest.");
+      if (!sub.active) {
+        sub.active = true;
+        await writeCollection("subscriptions", db.subscriptions);
+      }
+      break;
+    }
+    case "restore": {
+      if (!RESTORABLE.includes(action.collection)) return bad("That can't be put back.");
+      const err = restoreRecord(db, action.collection, action.record);
+      if (err) return bad(`Couldn't put it back: ${err}.`);
+      await writeCollection(action.collection, db[action.collection]);
       break;
     }
     case "snapshot": {
@@ -308,16 +373,26 @@ export async function POST(req: Request) {
       break;
     }
     case "set-lhv-token": {
+      // Tried against LHV before it replaces anything: a token LHV refuses
+      // never overwrites one that works. The grant rotates the token, so
+      // what gets stored is the one LHV handed back.
       const token = action.refreshToken?.trim();
-      if (!token) return bad("refresh token required");
-      await saveLhvTokens(token);
+      if (!token) return bad("Paste the refresh token first.");
+      const check = await checkRefreshToken(token);
+      if (!check.ok) {
+        return NextResponse.json(
+          { ok: false, error: check.message, reason: check.reason, detail: check.detail },
+          { status: check.reason === "refused" ? 400 : 502 }
+        );
+      }
+      await saveLhvTokens(check.refreshToken);
       break;
     }
     default:
       return bad("unknown action");
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json(undo ? { ok: true, undo } : { ok: true });
 }
 
 // What an identity edit is about. From a tile: the pattern a rule would use,

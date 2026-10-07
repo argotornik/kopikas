@@ -178,7 +178,7 @@ async function pgReadDb(): Promise<Db> {
         created_at::text as created_at
         from shares order by created_at, id`,
     sql`select id, match, partner_share::float8 as partner_share, created_at::text as created_at from share_rules order by created_at, id`,
-    sql`select id, amount::float8 as amount, date::text as date, tx_id, note from settlements order by date, id`,
+    sql`select id, amount::float8 as amount, date::text as date, tx_id, note, recorded_by from settlements order by date, id`,
     sql`select id, name, match, expected_amount::float8 as expected_amount, cadence, cadence_by_hand, active,
         match_amount, created_at::text as created_at from subscriptions order by created_at, id`,
     sql`select id, match, name, domain, emoji, created_at::text as created_at from merchants order by created_at, id`,
@@ -221,6 +221,7 @@ async function pgReadDb(): Promise<Db> {
       date: r.date,
       txId: r.tx_id ?? undefined,
       note: r.note ?? undefined,
+      recordedBy: r.recorded_by ?? undefined,
     })),
     subscriptions: subscriptions.map((r) => ({
       id: r.id,
@@ -337,8 +338,8 @@ async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Pro
       await sql`delete from settlements`;
       for (const s of value as Db["settlements"]) {
         await sql.query(
-          `insert into settlements (id, amount, date, tx_id, note) values ($1, $2, $3, $4, $5)`,
-          [s.id, s.amount, s.date, s.txId ?? null, s.note ?? null]
+          `insert into settlements (id, amount, date, tx_id, note, recorded_by) values ($1, $2, $3, $4, $5, $6)`,
+          [s.id, s.amount, s.date, s.txId ?? null, s.note ?? null, s.recordedBy ?? null]
         );
       }
       return;

@@ -12,6 +12,7 @@ import {
   useDroppable,
   useSensor,
   useSensors,
+  type Announcements,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -23,9 +24,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { AnimatePresence, motion, MotionConfig, useReducedMotion } from "motion/react";
+import { Menu } from "@base-ui/react/menu";
 import { Area, AreaChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import {
   CheckCircle2Icon,
+  CheckIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -39,7 +42,11 @@ import {
 } from "lucide-react";
 import type { Board as BoardData, BoardTx, Spark } from "@/lib/board";
 import { FIXED_CATEGORIES, SAVINGS, SUBSCRIPTIONS } from "@/lib/engine";
-import { cn, shareLabel } from "@/lib/utils";
+import { cn, parseAmount, shareLabel } from "@/lib/utils";
+import { act, focusAfterRemoval } from "@/lib/act";
+import { announceError, announceUndoable } from "@/components/toaster";
+import { FormError, Pending } from "@/components/form-status";
+import { SplitPicker } from "@/components/split-picker";
 import { PARTNER_NAME } from "@/lib/names";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CoinMark } from "@/components/coin-mark";
@@ -77,6 +84,10 @@ const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
 type Prompt = { txId: string; name: string; pattern: string; category: string; amount: number; date: string };
+
+// The "File under…" menu: one menu for the whole ledger, opened from any
+// row's category with that row's transaction id as its payload.
+const fileMenu = Menu.createHandle<string>();
 // The Pooleks drop asks the same question a category does: this one, or always.
 type SharePrompt = { txId: string; name: string; pattern: string; amount: number; date: string; partnerShare: number };
 
@@ -179,39 +190,60 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
     setKnownSubs(new Set(board.subscriptions.map((s) => s.sub.id)));
   }, [board.subscriptions]);
 
+  // The board after a change. If the change saved but the board can't be
+  // read back, the change still stands; the page just says it is behind.
   const refetch = useCallback(async () => {
-    const res = await fetch("/api/board", { cache: "no-store" });
-    setBoard(await res.json());
+    try {
+      const res = await fetch("/api/board", { cache: "no-store" });
+      if (!res.ok) throw new Error(String(res.status));
+      setBoard(await res.json());
+    } catch {
+      announceError("The board couldn't refresh. Reload to see the latest.", () => window.location.reload());
+    }
   }, []);
 
-  const post = useCallback(
+  // Every change goes through act(): the board only moves once the server
+  // has said yes, and a no comes back as a sentence instead of silence.
+  const run = useCallback(
     async (action: object) => {
-      await fetch("/api/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(action),
-      });
-      await refetch();
+      const result = await act(action);
+      if (result.ok) await refetch();
+      return result;
     },
     [refetch]
   );
 
-  // Like post, but reports the server's reason so a dialog can show it.
+  // For dialogs that show the reason themselves: null when saved.
   const tryPost = useCallback(
     async (action: object): Promise<string | null> => {
-      const res = await fetch("/api/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(action),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        return body.error ?? "Couldn't save that";
-      }
-      await refetch();
-      return null;
+      const result = await run(action);
+      return result.ok ? null : result.error;
     },
-    [refetch]
+    [run]
+  );
+
+  // A one-click change with nowhere of its own to report: a failure becomes
+  // a notice, and a change the server can reverse offers Undo. `busyKey`
+  // keeps the control disabled while its request is out, so a double click
+  // is one change; `from` is the control, so keyboard focus survives a row
+  // that leaves.
+  const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
+  const oneClick = useCallback(
+    async (busyKey: string, action: object, done: string, from?: HTMLElement | null) => {
+      if (busy.has(busyKey)) return;
+      setBusy((b) => new Set(b).add(busyKey));
+      const refocus = focusAfterRemoval(from ?? null);
+      const result = await run(action);
+      setBusy((b) => {
+        const next = new Set(b);
+        next.delete(busyKey);
+        return next;
+      });
+      if (!result.ok) return announceError(result.error);
+      refocus();
+      announceUndoable(done, result.undo, refetch);
+    },
+    [busy, run, refetch]
   );
 
   // Renames and additions from the Categories dialog; a renamed filter follows the name.
@@ -224,10 +256,25 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
     [tryPost]
   );
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor)
-  );
+  // Pointer only: the keyboard files through the category menu on each row,
+  // which every target can be reached from without steering an overlay.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  // What a screen reader hears while a pointer drags: names, not row ids.
+  const txLabel = (id: unknown) => {
+    const t = board.txs.find((x) => x.id === id);
+    return t ? `${t.name}, ${eur.format(Math.abs(t.amount))}` : "the transaction";
+  };
+  const targetLabel = (id: unknown) =>
+    id === "partner" ? `Pooleks with ${PARTNER_NAME}` : id === "subs" ? "Subscriptions" : String(id).replace(/^cat:/, "");
+  const announcements: Announcements = {
+    onDragStart: ({ active }) => `Picked up ${txLabel(active.id)}.`,
+    onDragOver: ({ active, over }) =>
+      over ? `${txLabel(active.id)} is over ${targetLabel(over.id)}.` : `${txLabel(active.id)} is not over a target.`,
+    onDragEnd: ({ active, over }) =>
+      over ? `Dropped ${txLabel(active.id)} on ${targetLabel(over.id)}.` : `Put ${txLabel(active.id)} back.`,
+    onDragCancel: ({ active }) => `Put ${txLabel(active.id)} back.`,
+  };
 
   const onDragStart = (e: DragStartEvent) => {
     setActiveTx(board.txs.find((t) => t.id === e.active.id) ?? null);
@@ -242,14 +289,86 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
       // Re-drops included: the server updates the fraction of an existing share.
       setSharePrompt({ txId: tx.id, name: tx.name, pattern: tx.rulePattern, amount: tx.amount, date: tx.date, partnerShare });
     } else if (over === "subs" || over === `cat:${SUBSCRIPTIONS}`) {
-      // The Subscriptions row and the zone mean the same thing: track it and
-      // file it, no prompt, since a subscription always means "always".
-      void post({ type: "subscribe", txId: tx.id });
+      subscribe(tx);
     } else if (over.startsWith("cat:")) {
-      const category = over.slice(4);
-      if (category !== tx.category)
-        setPrompt({ txId: tx.id, name: tx.name, pattern: tx.rulePattern, category, amount: tx.amount, date: tx.date });
+      fileUnder(tx, over.slice(4));
     }
+  };
+
+  // Where a drop and the File menu lead: the same three outcomes.
+  // The Subscriptions row and the zone mean the same thing: track it and
+  // file it, no prompt, since a subscription always means "always".
+  const subscribe = (tx: BoardTx) => {
+    void run({ type: "subscribe", txId: tx.id }).then((r) => {
+      if (!r.ok) announceError(r.error);
+    });
+  };
+  const fileUnder = (tx: BoardTx, category: string) => {
+    if (category === SUBSCRIPTIONS) return subscribe(tx);
+    if (category !== tx.category)
+      setPrompt({ txId: tx.id, name: tx.name, pattern: tx.rulePattern, category, amount: tx.amount, date: tx.date });
+  };
+  const shareWithPartner = (tx: BoardTx) =>
+    setSharePrompt({
+      txId: tx.id,
+      name: tx.name,
+      pattern: tx.rulePattern,
+      amount: tx.amount,
+      date: tx.date,
+      partnerShare: tx.shared ? (tx.partnerShare ?? 0.5) : partnerShare,
+    });
+  const editMerchant = (t: BoardTx) =>
+    setMerchantSubject({
+      key: t.id,
+      name: t.name,
+      domain: t.domain,
+      emoji: t.emoji,
+      pattern: t.merchantPattern,
+      custom: t.customMerchant,
+      target: { txId: t.id },
+    });
+  const unshare = (tx: BoardTx, from?: HTMLElement | null) =>
+    tx.shareId && void oneClick(`unshare:${tx.shareId}`, { type: "unshare", shareId: tx.shareId }, `Took ${tx.name} off Pooleks.`, from);
+
+  // The two prompts' answer, in flight: which button was pressed, and why
+  // the server said no if it did.
+  const [filing, setFiling] = useState<"one" | "always" | null>(null);
+  const [promptErr, setPromptErr] = useState("");
+  const closePrompt = () => {
+    setPrompt(null);
+    setPromptErr("");
+  };
+  const closeSharePrompt = () => {
+    setSharePrompt(null);
+    setPromptErr("");
+  };
+  const file = async (always: boolean) => {
+    if (!prompt || filing) return;
+    const { txId, category } = prompt;
+    setFiling(always ? "always" : "one");
+    setPromptErr("");
+    // Always teaches the rule first, then pins this row, as before.
+    let result = always ? await act({ type: "rule", txId, category }) : { ok: true as const };
+    if (result.ok) result = await act({ type: "override", txId, category });
+    if (result.ok) await refetch();
+    setFiling(null);
+    if (!result.ok) return setPromptErr(result.error);
+    closePrompt();
+    acknowledge(category);
+  };
+  const share = async (always: boolean) => {
+    if (!sharePrompt || filing) return;
+    setFiling(always ? "always" : "one");
+    setPromptErr("");
+    const result = await run({
+      type: "share",
+      txId: sharePrompt.txId,
+      partnerShare: sharePrompt.partnerShare,
+      ...(always ? { always: true } : {}),
+    });
+    setFiling(null);
+    if (!result.ok) return setPromptErr(result.error);
+    closeSharePrompt();
   };
 
   const days = useMemo(() => {
@@ -264,7 +383,11 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
         )
       : board.txs;
     if (q) {
-      visible = visible.filter((t) => (t.counterparty + " " + t.description).toLowerCase().includes(q));
+      // The name on screen first: a merchant renamed on the board must be
+      // findable by that name, not only by the bank's string.
+      visible = visible.filter((t) =>
+        [t.name, t.counterparty, t.description, t.note, t.category].join(" ").toLowerCase().includes(q)
+      );
     }
     const map = new Map<string, BoardTx[]>();
     for (const tx of visible) {
@@ -410,9 +533,17 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
       autoScroll={false}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      accessibility={{ announcements }}
     >
       <MotionConfig reducedMotion="user">
       <div className="mx-auto max-w-6xl px-5 py-6 pb-20">
+        {/* The ledger can run to a thousand rows; the rail is after it. */}
+        <a
+          href="#categories"
+          className="sr-only rounded-md bg-popover px-3 py-2 text-sm font-medium ring-1 ring-foreground/10 focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50"
+        >
+          Skip to categories
+        </a>
         <div className="mb-5 flex items-center justify-between">
           <h1 className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight">
             <CoinMark />
@@ -626,18 +757,9 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       >
                         <Tile
                           tx={tx}
-                          onUnshare={(id) => void post({ type: "unshare", shareId: id })}
-                          onEditMerchant={(t) =>
-                            setMerchantSubject({
-                              key: t.id,
-                              name: t.name,
-                              domain: t.domain,
-                              emoji: t.emoji,
-                              pattern: t.merchantPattern,
-                              custom: t.customMerchant,
-                              target: { txId: t.id },
-                            })
-                          }
+                          onUnshare={unshare}
+                          unsharing={!!tx.shareId && busy.has(`unshare:${tx.shareId}`)}
+                          onEditMerchant={editMerchant}
                         />
                       </motion.div>
                     )),
@@ -678,7 +800,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
           {/* Cards must not flex-shrink: Card is overflow-hidden, so a squeezed
               card silently clips its bottom rows instead of overflowing. */}
           <div className="flex min-w-0 flex-col gap-4 md:sticky md:top-4 md:max-h-[calc(100vh-2rem)] md:self-start md:overflow-y-auto">
-            <Card className="shrink-0 gap-3 py-4">
+            <Card id="categories" tabIndex={-1} className="shrink-0 gap-3 py-4 outline-none">
               <CardHeader className="px-4">
                 <CardTitle className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
                   <span>Categories · {fmtMonth(month)}</span>
@@ -839,10 +961,11 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                           {g.cadence === "monthly" ? " / mo" : " / yr"}
                         </span>
                       </div>
-                      <div className="divide-y">
+                      <div className="divide-y" data-list>
                         {g.subs.map((s) => (
                       <motion.div
                         className="group flex items-center gap-2 py-2"
+                        data-row
                         key={s.sub.id}
                         initial={knownSubs.has(s.sub.id) ? false : { opacity: 0, y: -8 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -879,11 +1002,17 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                             </span>
                             {s.priceChanged && s.lastCharge && (
                               <Badge
-                                render={<button type="button" />}
-                                className="cursor-pointer bg-attention/15 font-mono tabular-nums text-attention hover:bg-attention/25"
+                                render={<button type="button" disabled={busy.has(`price:${s.sub.id}`)} />}
+                                className="cursor-pointer bg-attention/15 font-mono tabular-nums text-attention hover:bg-attention/25 disabled:cursor-default disabled:opacity-60"
                                 title={`Price changed — click to accept ${eur.format(s.lastCharge.amount)} as the new price`}
-                                aria-label={`Accept ${eur.format(s.lastCharge.amount)} as the new price for ${s.sub.name}`}
-                                onClick={() => void post({ type: "accept-price", subId: s.sub.id })}
+                                aria-label={`Accept ${eur.format(s.lastCharge.amount)} as the new price for ${s.label}`}
+                                onClick={() =>
+                                  void oneClick(
+                                    `price:${s.sub.id}`,
+                                    { type: "accept-price", subId: s.sub.id },
+                                    `${s.label} now expects ${eur.format(s.lastCharge!.amount)}.`
+                                  )
+                                }
                               >
                                 {eur.format(s.sub.expectedAmount)} → {eur.format(s.lastCharge.amount)}
                               </Badge>
@@ -902,12 +1031,15 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                           className="size-6 shrink-0 text-muted-foreground [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
                           title={`Make ${s.sub.cadence === "monthly" ? "yearly" : "monthly"}`}
                           aria-label={`Make ${s.label} ${s.sub.cadence === "monthly" ? "yearly" : "monthly"}`}
-                          onClick={() =>
-                            void post({
-                              type: "cadence",
-                              subId: s.sub.id,
-                              cadence: s.sub.cadence === "monthly" ? "yearly" : "monthly",
-                            })
+                          data-focus-key="cadence"
+                          disabled={busy.has(`cadence:${s.sub.id}`)}
+                          onClick={(e) =>
+                            void oneClick(
+                              `cadence:${s.sub.id}`,
+                              { type: "cadence", subId: s.sub.id, cadence: s.sub.cadence === "monthly" ? "yearly" : "monthly" },
+                              `${s.label} moved to ${s.sub.cadence === "monthly" ? "yearly" : "monthly"}.`,
+                              e.currentTarget
+                            )
                           }
                         >
                           <RepeatIcon className="size-3.5" />
@@ -917,10 +1049,19 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                           size="icon"
                           className="size-6 shrink-0 text-muted-foreground"
                           title="Mark cancelled"
-                          aria-label={`Cancel ${s.sub.name} subscription`}
-                          onClick={() => void post({ type: "unsubscribe", subId: s.sub.id })}
+                          aria-label={`Cancel ${s.label} subscription`}
+                          data-focus-key="cancel-sub"
+                          disabled={busy.has(`unsub:${s.sub.id}`)}
+                          onClick={(e) =>
+                            void oneClick(
+                              `unsub:${s.sub.id}`,
+                              { type: "unsubscribe", subId: s.sub.id },
+                              `Stopped tracking ${s.label}.`,
+                              e.currentTarget
+                            )
+                          }
                         >
-                          ✕
+                          <XIcon className="size-3.5" />
                         </Button>
                       </motion.div>
                         ))}
@@ -1051,8 +1192,10 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
       </DragOverlay>
 
       {/* The title asks, the description says what and what "always" would
-          match, the two buttons decide. Nothing is said twice. */}
-      <Dialog open={!!prompt} onOpenChange={(o) => !o && setPrompt(null)}>
+          match, the two buttons decide. Nothing is said twice. The prompt
+          stays open, coin turning, until the server has filed it: a refusal
+          is shown here, where the choice was made. */}
+      <Dialog open={!!prompt} onOpenChange={(o) => !o && closePrompt()}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>File under {prompt?.category}?</DialogTitle>
@@ -1065,73 +1208,60 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
             Always also files every past and future charge matching{" "}
             <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">{prompt?.pattern}</code>.
           </p>
+          <FormError message={promptErr} />
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (!prompt) return;
-                const { txId, category } = prompt;
-                void post({ type: "override", txId, category }).then(() => acknowledge(category));
-                setPrompt(null);
-              }}
-            >
-              Only this one
+            <Button variant="outline" disabled={!!filing} onClick={() => void file(false)}>
+              <Pending on={filing === "one"}>Only this one</Pending>
             </Button>
-            <Button
-              onClick={() => {
-                if (!prompt) return;
-                const { txId, category } = prompt;
-                void post({ type: "rule", txId, category })
-                  .then(() => post({ type: "override", txId, category }))
-                  .then(() => acknowledge(category));
-                setPrompt(null);
-              }}
-            >
-              Always
+            <Button disabled={!!filing} onClick={() => void file(true)}>
+              <Pending on={filing === "always"}>Always</Pending>
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!sharePrompt} onOpenChange={(o) => !o && setSharePrompt(null)}>
+      <Dialog open={!!sharePrompt} onOpenChange={(o) => !o && closeSharePrompt()}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Share with {PARTNER_NAME}?</DialogTitle>
             <DialogDescription>
               {sharePrompt?.name} ·{" "}
               <span className="font-mono tabular-nums">{sharePrompt && eur.format(Math.abs(sharePrompt.amount))}</span> ·{" "}
-              {sharePrompt && shortDate.format(new Date(sharePrompt.date))} · {PARTNER_NAME} pays{" "}
-              {sharePrompt && shareLabel(sharePrompt.partnerShare)}
+              {sharePrompt && shortDate.format(new Date(sharePrompt.date))}
             </DialogDescription>
           </DialogHeader>
+          {sharePrompt && (
+            <SplitPicker
+              label={`${PARTNER_NAME} pays`}
+              value={sharePrompt.partnerShare}
+              onChange={(f) => setSharePrompt({ ...sharePrompt, partnerShare: f })}
+            />
+          )}
           <p className="text-xs text-muted-foreground">
             Always also puts every future charge matching{" "}
             <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">{sharePrompt?.pattern}</code>{" "}
             on Pooleks at the same split. Past charges stay as they are.
           </p>
+          <FormError message={promptErr} />
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (!sharePrompt) return;
-                void post({ type: "share", txId: sharePrompt.txId, partnerShare: sharePrompt.partnerShare });
-                setSharePrompt(null);
-              }}
-            >
-              Only this one
+            <Button variant="outline" disabled={!!filing} onClick={() => void share(false)}>
+              <Pending on={filing === "one"}>Only this one</Pending>
             </Button>
-            <Button
-              onClick={() => {
-                if (!sharePrompt) return;
-                void post({ type: "share", txId: sharePrompt.txId, partnerShare: sharePrompt.partnerShare, always: true });
-                setSharePrompt(null);
-              }}
-            >
-              Always
+            <Button disabled={!!filing} onClick={() => void share(true)}>
+              <Pending on={filing === "always"}>Always</Pending>
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <FileMenu
+        txs={board.txs}
+        categories={board.categories.map((c) => c.name)}
+        onFile={fileUnder}
+        onShare={shareWithPartner}
+        onUnshare={unshare}
+        onEditMerchant={editMerchant}
+      />
 
       <MerchantEditor
         subject={merchantSubject}
@@ -1151,10 +1281,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
         open={snapOpen}
         latest={board.investments.latest}
         onClose={() => setSnapOpen(false)}
-        onSave={(source, total, holdings, returnPct) => {
-          void post({ type: "snapshot", source, total, holdings, returnPct });
-          setSnapOpen(false);
-        }}
+        onSave={(source, total, holdings, returnPct) => tryPost({ type: "snapshot", source, total, holdings, returnPct })}
       />
       </MotionConfig>
     </DndContext>
@@ -1174,10 +1301,12 @@ function Sparkline({ spark }: { spark: Spark }) {
   if (spark.points.length < 2) return null;
   const color = SPARK_COLORS[spark.tone];
   const data = spark.points.map((v, i) => ({ i, v }));
+  // Decoration beside the tile's figure, which carries the meaning: no tab
+  // stop and nothing read out (recharts makes every chart a focusable widget).
   return (
-    <div className="mt-auto h-8 w-full pt-1.5">
+    <div className="mt-auto h-8 w-full pt-1.5" aria-hidden="true">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
+        <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }} accessibilityLayer={false}>
           <YAxis hide domain={["dataMin", "dataMax"]} />
           <Area
             type="monotone"
@@ -1239,31 +1368,23 @@ function Stat({
 function Tile({
   tx,
   onUnshare,
+  unsharing,
   onEditMerchant,
 }: {
   tx: BoardTx;
-  onUnshare: (shareId: string) => void;
+  onUnshare: (tx: BoardTx, from: HTMLElement) => void;
+  unsharing: boolean;
   onEditMerchant: (tx: BoardTx) => void;
 }) {
   const draggable = tx.amount < 0;
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  // The row is a drag surface for the pointer and nothing more: no button
+  // role, no tab stop. Its one keyboard stop is the category, which opens
+  // the File menu; the avatar and the split chip are reachable from there.
+  const { listeners, setNodeRef, isDragging } = useDraggable({
     id: tx.id,
     disabled: !draggable,
   });
-  const category =
-    tx.amount >= 0 ? null : tx.category ? (
-      <span
-        className={cn(
-          "truncate text-xs text-muted-foreground",
-          tx.categorySource === "override" && "underline decoration-dotted underline-offset-2"
-        )}
-        title={tx.categorySource === "override" ? "Filed by hand" : undefined}
-      >
-        {tx.category}
-      </span>
-    ) : (
-      <span className="text-xs font-medium text-attention">uncategorized</span>
-    );
+  const category = tx.amount >= 0 ? null : <FileTrigger tx={tx} />;
   return (
     <div
       ref={setNodeRef}
@@ -1279,7 +1400,6 @@ function Tile({
         isDragging && "opacity-40"
       )}
       {...listeners}
-      {...attributes}
     >
       {/* The avatar is the handle for the merchant's identity: name, favicon
           site, emoji. It swallows pointerdown so a click does not start a drag. */}
@@ -1288,6 +1408,8 @@ function Tile({
         className="rounded-full hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         title="Change name or icon"
         aria-label={`Change the name or icon of ${tx.name}`}
+        // Incoming rows have no File menu, so the avatar keeps its tab stop there.
+        tabIndex={draggable ? -1 : undefined}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={() => onEditMerchant(tx)}
       >
@@ -1299,11 +1421,13 @@ function Tile({
           {tx.shared && tx.shareId && (
             <button
               type="button"
-              className="shrink-0 font-medium text-shared hover:underline"
+              className="shrink-0 font-medium text-shared hover:underline disabled:opacity-60"
               title={`Shared with ${PARTNER_NAME}, who pays ${shareLabel(tx.partnerShare)}. Click to unshare`}
               aria-label={`Unshare — ${PARTNER_NAME} pays ${shareLabel(tx.partnerShare)} of this`}
+              tabIndex={-1}
+              disabled={unsharing}
               onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => onUnshare(tx.shareId!)}
+              onClick={(e) => onUnshare(tx, e.currentTarget)}
             >
               {shareLabel(tx.partnerShare)} {PARTNER_NAME}{tx.note && " ·"}
             </button>
@@ -1323,6 +1447,114 @@ function Tile({
         {eur.format(Math.abs(tx.amount))}
       </span>
     </div>
+  );
+}
+
+// A row's category, as the way to file it: click, tap or Enter opens the
+// File menu for this transaction. Uncategorized reads in amber, as before;
+// a dotted underline still marks one filed by hand.
+function FileTrigger({ tx }: { tx: BoardTx }) {
+  const label = tx.category ?? "uncategorized";
+  return (
+    <Menu.Trigger
+      handle={fileMenu}
+      payload={tx.id}
+      // A click files; it must not also start a drag of the row.
+      onPointerDown={(e) => e.stopPropagation()}
+      aria-label={`${label}: file ${tx.name}, ${eur.format(Math.abs(tx.amount))}`}
+      title={tx.categorySource === "override" ? "Filed by hand. Click to file it elsewhere" : "File under…"}
+      className={cn(
+        "-mx-1 max-w-[calc(100%+0.5rem)] cursor-pointer truncate rounded px-1 text-left text-xs outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-accent data-popup-open:text-foreground",
+        tx.category ? "text-muted-foreground" : "font-medium text-attention",
+        tx.categorySource === "override" && "underline decoration-dotted underline-offset-2"
+      )}
+    >
+      {label}
+    </Menu.Trigger>
+  );
+}
+
+const MENU_ITEM =
+  "flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 outline-none select-none data-highlighted:bg-accent data-highlighted:text-foreground";
+
+// Everything a drag can do, as a list: every category, the Subscriptions
+// row, the split with the partner, plus the merchant's name and icon. One
+// menu serves the whole ledger; the row that opened it is its payload.
+function FileMenu({
+  txs,
+  categories,
+  onFile,
+  onShare,
+  onUnshare,
+  onEditMerchant,
+}: {
+  txs: BoardTx[];
+  categories: string[];
+  onFile: (tx: BoardTx, category: string) => void;
+  onShare: (tx: BoardTx) => void;
+  onUnshare: (tx: BoardTx) => void;
+  onEditMerchant: (tx: BoardTx) => void;
+}) {
+  return (
+    <Menu.Root handle={fileMenu}>
+      {({ payload }) => {
+        const tx = txs.find((t) => t.id === payload);
+        return (
+          <Menu.Portal>
+            <Menu.Positioner sideOffset={4} align="start" className="z-50 outline-none">
+              <Menu.Popup className="max-h-[min(30rem,var(--available-height))] min-w-56 origin-[var(--transform-origin)] overflow-y-auto rounded-xl bg-popover p-1 text-sm text-popover-foreground shadow-[0_8px_30px_-8px_rgb(0_0_0/0.3)] ring-1 ring-foreground/10 outline-none transition-[scale,opacity] duration-100 ease-out data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none">
+                {tx && (
+                  <>
+                    <Menu.Group>
+                      <Menu.GroupLabel className="flex items-baseline gap-1.5 px-2 pb-1 pt-1.5 text-xs text-muted-foreground">
+                        <span className="truncate">File {tx.name}</span>
+                        <span className="ml-auto shrink-0 font-mono tabular-nums">{eur.format(Math.abs(tx.amount))}</span>
+                      </Menu.GroupLabel>
+                      <Menu.RadioGroup
+                        value={tx.category ?? ""}
+                        onValueChange={(v) => {
+                          // Close first, so the menu has handed focus back
+                          // before the prompt takes it.
+                          fileMenu.close();
+                          setTimeout(() => onFile(tx, String(v)), 0);
+                        }}
+                      >
+                        {categories.map((c) => (
+                          <Menu.RadioItem key={c} value={c} closeOnClick className={MENU_ITEM}>
+                            <span className="flex size-4 shrink-0 items-center justify-center">
+                              <Menu.RadioItemIndicator>
+                                <CheckIcon className="size-3.5 text-primary" />
+                              </Menu.RadioItemIndicator>
+                            </span>
+                            {c}
+                          </Menu.RadioItem>
+                        ))}
+                      </Menu.RadioGroup>
+                    </Menu.Group>
+                    <Menu.Separator className="mx-2 my-1 h-px bg-border" />
+                    <Menu.Item className={MENU_ITEM} onClick={() => onShare(tx)}>
+                      <span className="size-4 shrink-0" />
+                      {tx.shared ? `Change the split with ${PARTNER_NAME}…` : `Split with ${PARTNER_NAME}…`}
+                    </Menu.Item>
+                    {tx.shared && (
+                      <Menu.Item className={MENU_ITEM} onClick={() => onUnshare(tx)}>
+                        <span className="size-4 shrink-0" />
+                        Take off Pooleks
+                      </Menu.Item>
+                    )}
+                    <Menu.Separator className="mx-2 my-1 h-px bg-border" />
+                    <Menu.Item className={MENU_ITEM} onClick={() => onEditMerchant(tx)}>
+                      <span className="size-4 shrink-0" />
+                      Name and icon…
+                    </Menu.Item>
+                  </>
+                )}
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        );
+      }}
+    </Menu.Root>
   );
 }
 
@@ -1543,35 +1775,11 @@ function SubsZone() {
   );
 }
 
-const SPLIT_OPTIONS = [
-  { fraction: 0.5, label: "1/2" },
-  { fraction: 1 / 3, label: "1/3" },
-  { fraction: 0.25, label: "1/4" },
-];
-
 function PartnerZone({ share, onShareChange }: { share: number; onShareChange: (f: number) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: "partner" });
   return (
     <div className="mb-2">
-      <div className="mb-1.5 flex items-center justify-between text-xs text-muted-foreground">
-        <span>{PARTNER_NAME} pays</span>
-        <div className="flex gap-1">
-          {SPLIT_OPTIONS.map((o) => (
-            <button
-              key={o.label}
-              onClick={() => onShareChange(o.fraction)}
-              className={cn(
-                "min-w-8 rounded-md border border-transparent px-2 py-0.5 font-mono",
-                share === o.fraction
-                  ? "border-shared/40 bg-shared/15 font-semibold text-shared"
-                  : "hover:bg-accent hover:text-foreground"
-              )}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <SplitPicker label={`${PARTNER_NAME} pays`} value={share} onChange={onShareChange} className="mb-1.5" />
       <div
         ref={setNodeRef}
         className={cn(
@@ -1809,9 +2017,16 @@ function SnapshotEditor({
   open: boolean;
   latest: { lightyear: PotLatest; lhv: PotLatest };
   onClose: () => void;
-  onSave: (source: "lightyear" | "lhv", total: number, holdings: { name: string; pct: number }[], returnPct?: number) => void;
+  // null when saved, otherwise the server's reason
+  onSave: (
+    source: "lightyear" | "lhv",
+    total: number,
+    holdings: { name: string; pct: number }[],
+    returnPct?: number
+  ) => Promise<string | null>;
 }) {
   const [source, setSource] = useState<"lightyear" | "lhv">("lightyear");
+  const [saving, setSaving] = useState(false);
   // Once the sync feeds the LHV pot, only Lightyear is entered by hand.
   const pots = latest.lhv?.auto ? (["lightyear"] as const) : (["lightyear", "lhv"] as const);
   const [total, setTotal] = useState("");
@@ -1819,9 +2034,40 @@ function SnapshotEditor({
   const [holdings, setHoldings] = useState("");
   const [err, setErr] = useState("");
   const current = latest[source];
+  // An empty total is "not entered", never 0 €: every update is logged, and
+  // a zero would draw the pot falling to nothing.
+  const save = async () => {
+    if (saving) return;
+    const t = parseAmount(total);
+    if (total.trim() === "") return setErr("Enter the pot's total value first.");
+    if (!(t >= 0)) return setErr("The total should be a number like 5917 or 5 917,40.");
+    const pct = returnPct.trim() === "" ? undefined : parseAmount(returnPct.replace("%", ""));
+    if (pct !== undefined && !Number.isFinite(pct)) return setErr("Return % should be a number like 2,24.");
+    const parsed = holdings
+      .split(",")
+      .map((part) => part.trim().match(/^(.+?)\s+(\d+(?:\.\d+)?)$/))
+      .filter(Boolean)
+      .map((m) => ({ name: m![1], pct: Number(m![2]) }));
+    setErr("");
+    setSaving(true);
+    const error = await onSave(source, t, source === "lightyear" ? parsed : [], pct);
+    setSaving(false);
+    if (error) return setErr(error);
+    setTotal("");
+    setReturnPct("");
+    setHoldings("");
+    onClose();
+  };
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-sm">
+        <form
+          className="contents"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
+        >
         <DialogHeader>
           <DialogTitle>Update investments</DialogTitle>
           <DialogDescription>
@@ -1884,33 +2130,17 @@ function SnapshotEditor({
               onChange={(e) => setHoldings(e.target.value)}
             />
           )}
-          {err && <p className="text-xs text-destructive">{err}</p>}
+          <FormError message={err} />
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            onClick={() => {
-              const t = Number(total.replace(",", "."));
-              if (!(t >= 0)) return setErr("Enter the total value first");
-              const pct = returnPct.trim() === "" ? undefined : Number(returnPct.replace(",", ".").replace("%", ""));
-              if (pct !== undefined && !Number.isFinite(pct)) return setErr("Return % should be a number like 2.24");
-              const parsed = holdings
-                .split(",")
-                .map((part) => part.trim().match(/^(.+?)\s+(\d+(?:\.\d+)?)$/))
-                .filter(Boolean)
-                .map((m) => ({ name: m![1], pct: Number(m![2]) }));
-              onSave(source, t, source === "lightyear" ? parsed : [], pct);
-              setTotal("");
-              setReturnPct("");
-              setHoldings("");
-              setErr("");
-            }}
-          >
-            Save snapshot
+          <Button type="submit" disabled={saving}>
+            <Pending on={saving}>Save snapshot</Pending>
           </Button>
         </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

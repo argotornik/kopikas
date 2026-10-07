@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
+import { CircleAlertIcon } from "lucide-react";
+import { act } from "@/lib/act";
+import { runSync } from "@/lib/sync-report";
 import { cn } from "@/lib/utils";
 import { CoinMark } from "@/components/coin-mark";
 import { Button } from "@/components/ui/button";
@@ -15,8 +18,6 @@ type Phase =
   | { step: "opening"; rows: number }
   | { step: "failed"; message: string; detail?: string };
 
-type SyncReport = { ok?: boolean; error?: string; mapped?: number; refreshGrant?: string };
-
 // Paste the token, press Connect: the token is stored, the first sync runs,
 // and the board opens when rows arrive. One action instead of save, sync,
 // read the report, reload.
@@ -27,18 +28,15 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
   const [phase, setPhase] = useState<Phase>({ step: "idle" });
   const busy = phase.step === "saving" || phase.step === "syncing" || phase.step === "opening";
 
+  // Each failure says its own cause: a dead network, an expired sign-in or a
+  // timeout is not the token's fault, and only a refusal sends you back to LHV.
   const sync = async () => {
     setPhase({ step: "syncing" });
-    let report: SyncReport;
-    try {
-      report = (await (await fetch("/api/sync", { method: "POST" })).json()) as SyncReport;
-    } catch {
-      report = { ok: false, error: "The sync did not answer." };
+    const outcome = await runSync();
+    if (outcome.tone === "error") {
+      return setPhase({ step: "failed", message: outcome.text, detail: outcome.detail });
     }
-    if (!report.ok) {
-      return setPhase({ step: "failed", message: "LHV did not accept the token.", detail: report.error ?? report.refreshGrant });
-    }
-    const rows = report.mapped ?? 0;
+    const rows = outcome.rows;
     if (rows === 0) {
       return setPhase({
         step: "failed",
@@ -51,15 +49,14 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
   };
 
   const connect = async () => {
+    if (busy) return;
     const value = token.trim();
     if (!value) return setPhase({ step: "failed", message: "Paste the refresh token first." });
     setPhase({ step: "saving" });
-    const res = await fetch("/api/action", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "set-lhv-token", refreshToken: value }),
-    });
-    if (!res.ok) return setPhase({ step: "failed", message: "The token could not be stored. Try again." });
+    // The server checks the token with LHV before storing it; whatever goes
+    // wrong comes back as a sentence, and the form is usable again.
+    const result = await act({ type: "set-lhv-token", refreshToken: value });
+    if (!result.ok) return setPhase({ step: "failed", message: result.error });
     setToken("");
     setStored(true);
     await sync();
@@ -69,7 +66,7 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
   // failure takes the board's amber so it reads as the thing to deal with.
   const status =
     phase.step === "saving"
-      ? { key: "saving", text: "Storing the token…" }
+      ? { key: "saving", text: "Checking the token with LHV…" }
       : phase.step === "syncing"
         ? { key: "syncing", text: "Fetching the last 90 days from LHV…" }
         : phase.step === "opening"
@@ -95,7 +92,7 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
           disabled={busy}
           onChange={(e) => setToken(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.key === "Enter" && !busy) {
               e.preventDefault();
               void connect();
             }
@@ -116,17 +113,23 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
               transition={{ duration: 0.18, ease: "easeOut" }}
               className={cn(
                 "flex items-center gap-2",
-                status.failed && "rounded-md bg-attention/15 px-2.5 py-1.5 text-attention"
+                // The board's amber marks it as the thing to deal with; the
+                // words stay at full contrast on the tint.
+                status.failed && "items-start rounded-md bg-attention/15 px-2.5 py-1.5 text-foreground"
               )}
             >
               {busy && <CoinMark turning className="size-4" />}
+              {status.failed && <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-attention" />}
               <span>{status.text}</span>
             </motion.span>
           )}
         </AnimatePresence>
       </p>
       {phase.step === "failed" && phase.detail && (
-        <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs">{phase.detail}</pre>
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer select-none hover:text-foreground">Technical details</summary>
+          <pre className="mt-1.5 overflow-x-auto rounded-md bg-muted p-3 font-mono">{phase.detail}</pre>
+        </details>
       )}
       {stored && !busy && (
         <div>

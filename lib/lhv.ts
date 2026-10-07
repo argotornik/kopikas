@@ -58,6 +58,51 @@ export async function refreshAccessToken(
   };
 }
 
+// Before a pasted token replaces the stored one: does LHV take it as a
+// refresh token? The grant rotates it, so on success the token to keep is the
+// one LHV hands back. A refusal and an unreachable LHV read differently: one
+// means paste another token, the other means nothing is wrong with this one.
+export type TokenCheck =
+  | { ok: true; refreshToken: string }
+  | { ok: false; reason: "refused" | "unreachable"; message: string; detail: string };
+
+export async function checkRefreshToken(token: string): Promise<TokenCheck> {
+  try {
+    const { newRefreshToken } = await refreshAccessToken(token);
+    return { ok: true, refreshToken: newRefreshToken ?? token };
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    const status = Number(detail.match(/HTTP (\d{3})/)?.[1] ?? 0);
+    // The message ends with a hint naming both error codes; read only what LHV said.
+    if (/invalid_client/.test(lhvSaid(detail))) {
+      return {
+        ok: false,
+        reason: "refused",
+        message: "LHV turned down Kopikas's client id. Set LHV_CLIENT_ID to the id LHV uses now.",
+        detail,
+      };
+    }
+    if (status >= 400 && status < 500) {
+      return {
+        ok: false,
+        reason: "refused",
+        message:
+          "LHV didn't accept this as a refresh token. Copy a fresh one from api.lhv.ai/api-access: the refresh token, not the access token.",
+        detail,
+      };
+    }
+    return {
+      ok: false,
+      reason: "unreachable",
+      message: "Couldn't reach LHV to check the token. Nothing was changed; try again in a minute.",
+      detail,
+    };
+  }
+}
+
+// refreshAccessToken's error, minus the troubleshooting hint it appends.
+export const lhvSaid = (message: string) => message.replace(/\. invalid_client →[\s\S]*$/, "");
+
 async function lhvGet(accessToken: string, path: string): Promise<unknown> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },

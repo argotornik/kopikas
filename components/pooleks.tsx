@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
 import { motion, MotionConfig } from "motion/react";
-import { cn, shareLabel } from "@/lib/utils";
+import { amountInput, cn, parseAmount, shareLabel } from "@/lib/utils";
+import { act, focusAfterRemoval } from "@/lib/act";
 import { OWNER_NAME, PARTNER_NAME } from "@/lib/names";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,6 +21,9 @@ import { CoinMark } from "@/components/coin-mark";
 import { useRollingNumber } from "@/components/rolling-number";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
+import { announceError, announceUndoable } from "@/components/toaster";
+import { FormError, Pending } from "@/components/form-status";
+import { SplitPicker } from "@/components/split-picker";
 
 const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
@@ -39,7 +43,7 @@ interface SharedView {
     partnerShare?: number;
     category: string | null;
   }[];
-  settlements: { id: string; amount: number; date: string; note?: string }[];
+  settlements: { id: string; amount: number; date: string; note?: string; recordedBy?: Person }[];
   categories: string[];
 }
 
@@ -79,12 +83,6 @@ function groupMonths(rows: Row[]): Month[] {
   });
 }
 
-const SPLIT_OPTIONS = [
-  { fraction: 0.5, label: "1/2" },
-  { fraction: 1 / 3, label: "1/3" },
-  { fraction: 0.25, label: "1/4" },
-];
-
 // Clean by default: date · what · what moved the tab. Details adds the running
 // balance, and folds the bill and the share into the row's text — a statement
 // shows what moved and where it leaves you; the working is there to read, not
@@ -95,6 +93,11 @@ const GRID_CLEAN = "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1f
 const GRID_FULL =
   "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1fr)_5.5rem_1.25rem] sm:grid-cols-[3.25rem_minmax(0,1fr)_5.5rem_5.5rem_1.25rem]";
 
+// The quiet ✕ at the end of a row: always there on touch, revealed on hover
+// or keyboard focus where there is a pointer.
+const REMOVE =
+  "flex size-5 items-center justify-center justify-self-end rounded text-muted-foreground hover:text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100";
+
 // Pooleks ("in half"): the couple's tab as a statement. Same page for both
 // of them; only the labels flip.
 export function Pooleks({ role }: { role: Person }) {
@@ -103,7 +106,16 @@ export function Pooleks({ role }: { role: Person }) {
   const [amount, setAmount] = useState("");
   const [share, setShare] = useState(0.5);
   const [category, setCategory] = useState("");
-  const [err, setErr] = useState("");
+  // Each dialog reports its own failures; the page reports the rest as notices.
+  const [addErr, setAddErr] = useState("");
+  const [settleErr, setSettleErr] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [settling, setSettling] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
+  // Focus goes back to the button that opened a dialog when it closes.
+  const addButton = useRef<HTMLButtonElement>(null);
+  const settleButton = useRef<HTMLButtonElement>(null);
   const [settleOpen, setSettleOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [details, setDetails] = useState(false);
@@ -126,32 +138,56 @@ export function Pooleks({ role }: { role: Person }) {
   // the number winds down to zero and only then reads "All square".
   const shownBalance = useRollingNumber(view ? view.balance : null);
 
+  // The statement, read fresh. A failed read keeps whatever is on screen;
+  // with nothing on screen yet, the page offers to try again.
   const refetch = useCallback(async () => {
-    const res = await fetch("/api/shared", { cache: "no-store" });
-    setView(await res.json());
+    try {
+      const res = await fetch("/api/shared", { cache: "no-store" });
+      if (!res.ok) throw new Error(String(res.status));
+      setView(await res.json());
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+    }
   }, []);
   useEffect(() => {
     void refetch();
   }, [refetch]);
+  useEffect(() => {
+    if (loadError && view) announceError("Pooleks couldn't refresh. Reload to see the latest.", () => window.location.reload());
+  }, [loadError, view]);
 
-  const post = useCallback(
+  const run = useCallback(
     async (action: object) => {
-      const res = await fetch("/api/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(action),
-      });
-      if (!res.ok) setErr("Couldn't save that — try again.");
-      await refetch();
-      return res.ok;
+      const result = await act(action);
+      if (result.ok) await refetch();
+      return result;
     },
     [refetch]
   );
 
+  // Remove and take-back: one click, an Undo, and focus that stays on the list.
+  const oneClick = async (key: string, action: object, done: string, from: HTMLElement) => {
+    if (busy.has(key)) return;
+    setBusy((b) => new Set(b).add(key));
+    const refocus = focusAfterRemoval(from);
+    const result = await run(action);
+    setBusy((b) => {
+      const next = new Set(b);
+      next.delete(key);
+      return next;
+    });
+    if (!result.ok) return announceError(result.error);
+    refocus();
+    announceUndoable(done, result.undo, refetch);
+  };
+
   // "You" for whoever is looking; the other by name.
   const names = role === "owner" ? { owner: "You", partner: PARTNER_NAME } : { owner: OWNER_NAME, partner: "You" };
   const owes = (who: string) => (who === "You" ? "owe" : "owes");
-  const today = new Date().toISOString().slice(0, 10);
+  // Today on the household's own clock: toISOString would be yesterday's
+  // date in Tallinn until three in the morning.
+  const today = new Date().toLocaleDateString("sv-SE");
 
   // Oldest → newest to accumulate the running tab, then newest first to show.
   // Everything up to the last repayment is history: it folds into one line
@@ -231,30 +267,46 @@ export function Pooleks({ role }: { role: Person }) {
     ).format(new Date(m + "-01T00:00:00Z"));
 
   const add = async () => {
-    const a = Number(amount.replace(",", "."));
-    if (!desc.trim() || !(a > 0)) {
-      setErr("Add a description and a positive amount");
-      return;
-    }
-    setErr("");
-    if (
-      await post({
-        type: "quickadd",
-        description: desc,
-        amount: a,
-        date: today,
-        partnerShare: share,
-        category: category || undefined,
-      })
-    ) {
-      setDesc("");
-      setAmount("");
-      setCategory("");
-      setAddOpen(false);
-    }
+    if (adding) return;
+    const a = parseAmount(amount);
+    if (!desc.trim()) return setAddErr("Say what it was, so both of you recognise it later.");
+    if (!(a > 0)) return setAddErr("Enter the amount you paid, like 54,00.");
+    setAddErr("");
+    setAdding(true);
+    const result = await run({
+      type: "quickadd",
+      description: desc,
+      amount: a,
+      date: today,
+      partnerShare: share,
+      category: category || undefined,
+    });
+    setAdding(false);
+    if (!result.ok) return setAddErr(result.error);
+    setDesc("");
+    setAmount("");
+    setCategory("");
+    setAddOpen(false);
   };
 
-  if (!view) return <div className="mx-auto max-w-xl px-5 py-6 text-sm text-muted-foreground">Loading…</div>;
+  if (!view)
+    return (
+      <div className="mx-auto flex max-w-3xl flex-col items-start gap-3 px-5 py-6 text-sm text-muted-foreground">
+        {loadError ? (
+          <>
+            <p role="alert">Pooleks couldn&apos;t load. Check the connection and try again.</p>
+            <Button variant="outline" onClick={() => void refetch()}>
+              Try again
+            </Button>
+          </>
+        ) : (
+          <p className="flex items-center gap-2">
+            <CoinMark turning className="size-4" />
+            Loading the statement…
+          </p>
+        )}
+      </div>
+    );
   const bal = view.balance;
   // Balance sentence from the viewer's side, following the rolling number so
   // "All square" arrives when the amount does. bal > 0 means the partner owes the owner.
@@ -271,6 +323,35 @@ export function Pooleks({ role }: { role: Person }) {
   const shareHeader = role === "owner" ? `${PARTNER_NAME} pays` : "you pay";
   // "Partner → you" / "You → Owner": from whoever owes to whoever is owed.
   const arrow = (from: string, to: string) => `${from} → ${to === "You" ? "you" : to}`;
+
+  // Settle up: the amount as typed, and what it would leave.
+  const settleValue = parseAmount(settleAmount);
+  const open = Math.abs(bal);
+  const settleLeaves = !(settleValue > 0)
+    ? settleAmount.trim()
+      ? "Enter an amount like 40,40."
+      : ""
+    : Math.abs(settleValue - open) < 0.005
+      ? "Leaves the tab at 0,00 €: all square."
+      : settleValue < open
+        ? `Leaves ${eur.format(open - settleValue)} open.`
+        : `That is ${eur.format(settleValue - open)} more than is owed; the tab would turn the other way.`;
+  const settle = async () => {
+    if (settling) return;
+    if (!(settleValue > 0)) return setSettleErr("Enter the amount that was paid back, like 40,40.");
+    setSettleErr("");
+    setSettling(true);
+    const result = await run({
+      type: "settle",
+      amount: bal > 0 ? settleValue : -settleValue,
+      date: today,
+      note: settleNote.trim() || undefined,
+    });
+    setSettling(false);
+    if (!result.ok) return setSettleErr(result.error);
+    setSettleOpen(false);
+    announceUndoable(`Recorded a ${eur.format(settleValue)} repayment.`, result.undo, refetch);
+  };
 
   return (
     <MotionConfig reducedMotion="user">
@@ -304,14 +385,24 @@ export function Pooleks({ role }: { role: Person }) {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={() => setAddOpen(true)}>Add expense</Button>
             <Button
+              ref={addButton}
+              onClick={() => {
+                setAddErr("");
+                setAddOpen(true);
+              }}
+            >
+              Add expense
+            </Button>
+            <Button
+              ref={settleButton}
               variant="outline"
               // Greys out when the rolling amount reaches zero, in step with "All square".
               disabled={flat}
               onClick={() => {
-                setSettleAmount(Math.abs(bal).toFixed(2));
+                setSettleAmount(amountInput(Math.abs(bal)));
                 setSettleNote("");
+                setSettleErr("");
                 setSettleOpen(true);
               }}
             >
@@ -327,7 +418,7 @@ export function Pooleks({ role }: { role: Person }) {
         </p>
       ) : (
         // The statement: one sheet, ruled rows, month headers as section rules.
-        <div className="overflow-hidden rounded-xl bg-card pb-2 ring-1 ring-foreground/10">
+        <div className="overflow-hidden rounded-xl bg-card pb-2 ring-1 ring-foreground/10 outline-none" data-list>
           {/* One head row: the view toggle in the label columns, column heads on the rail. */}
           <div className={cn(GRID, "items-center pb-1 pt-2 text-[10px] uppercase tracking-wide text-muted-foreground")}>
             <div className="col-span-2 -ml-2">
@@ -387,12 +478,15 @@ export function Pooleks({ role }: { role: Person }) {
                 r.kind === "settle" ? (
                   <div
                     key={r.settlement.id}
-                    className={cn(GRID, "py-2 text-xs text-muted-foreground", i > 0 && "border-t border-border/70")}
+                    data-row
+                    className={cn(GRID, "group py-2 text-xs text-muted-foreground", i > 0 && "border-t border-border/70")}
                   >
                     <span>{shortDate.format(new Date(r.date))}</span>
                     <span className="truncate italic">
                       {r.settlement.amount > 0 ? `${names.partner} paid back` : `${names.owner} paid back`}
                       {r.settlement.note && ` · ${r.settlement.note}`}
+                      {r.settlement.recordedBy &&
+                        ` · recorded by ${names[r.settlement.recordedBy] === "You" ? "you" : names[r.settlement.recordedBy]}`}
                     </span>
                     <span className="text-right font-mono text-sm tabular-nums text-foreground">
                       {signed(r.movement)}
@@ -403,10 +497,28 @@ export function Pooleks({ role }: { role: Person }) {
                         {eur.format(r.running)}
                       </span>
                     )}
-                    <span />
+                    {/* Either of the two can take a repayment back; Undo puts it back. */}
+                    <button
+                      type="button"
+                      className={REMOVE}
+                      title="Remove this repayment"
+                      aria-label={`Remove the ${eur.format(Math.abs(r.settlement.amount))} repayment of ${shortDate.format(new Date(r.date))}`}
+                      data-focus-key="remove"
+                      disabled={busy.has(`unsettle:${r.settlement.id}`)}
+                      onClick={(e) =>
+                        void oneClick(
+                          `unsettle:${r.settlement.id}`,
+                          { type: "unsettle", settlementId: r.settlement.id },
+                          `Removed the ${eur.format(Math.abs(r.settlement.amount))} repayment.`,
+                          e.currentTarget
+                        )
+                      }
+                    >
+                      <XIcon className="size-3" />
+                    </button>
                   </div>
                 ) : (
-                  <div key={r.item.id} className={cn(GRID, "group py-1.5", i > 0 && "border-t border-border/70")}>
+                  <div key={r.item.id} data-row className={cn(GRID, "group py-1.5", i > 0 && "border-t border-border/70")}>
                     <span className="text-xs text-muted-foreground">{shortDate.format(new Date(r.date))}</span>
                     <div className="min-w-0">
                       <div className="truncate text-sm">
@@ -436,10 +548,19 @@ export function Pooleks({ role }: { role: Person }) {
                     {role === "owner" ? (
                       <button
                         type="button"
-                        className="flex size-5 items-center justify-center justify-self-end rounded text-muted-foreground hover:text-foreground [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100"
+                        className={REMOVE}
                         title="Remove from Pooleks"
                         aria-label={`Remove ${r.item.description} from Pooleks`}
-                        onClick={() => void post({ type: "unshare", shareId: r.item.id })}
+                        data-focus-key="remove"
+                        disabled={busy.has(`unshare:${r.item.id}`)}
+                        onClick={(e) =>
+                          void oneClick(
+                            `unshare:${r.item.id}`,
+                            { type: "unshare", shareId: r.item.id },
+                            `Took ${r.item.description} off Pooleks.`,
+                            e.currentTarget
+                          )
+                        }
                       >
                         <XIcon className="size-3" />
                       </button>
@@ -456,7 +577,14 @@ export function Pooleks({ role }: { role: Person }) {
       )}
 
       <Dialog open={addOpen} onOpenChange={(o) => !o && setAddOpen(false)}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-sm" finalFocus={addButton}>
+          <form
+            className="contents"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void add();
+            }}
+          >
           <DialogHeader>
             <DialogTitle>I paid for something shared</DialogTitle>
             <DialogDescription>Added at full price — the split takes care of the shares.</DialogDescription>
@@ -471,14 +599,16 @@ export function Pooleks({ role }: { role: Person }) {
           />
           <div className="flex gap-2">
             <Input
-              placeholder="Amount, e.g. 54.00"
+              placeholder="Amount, e.g. 54,00"
               aria-label="Amount in euros"
               name="amount"
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
-            <Button onClick={() => void add()}>Add</Button>
+            <Button type="submit" disabled={adding}>
+              <Pending on={adding}>Add</Pending>
+            </Button>
           </div>
           <select
             aria-label="Category"
@@ -494,35 +624,22 @@ export function Pooleks({ role }: { role: Person }) {
               </option>
             ))}
           </select>
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{role === "owner" ? `${PARTNER_NAME} pays` : "You pay"}</span>
-            <div className="flex gap-1">
-              {SPLIT_OPTIONS.map((o) => (
-                <button
-                  key={o.label}
-                  type="button"
-                  onClick={() => setShare(o.fraction)}
-                  className={cn(
-                    "min-w-8 rounded-md border border-transparent px-2 py-0.5 font-mono",
-                    share === o.fraction
-                      ? "border-shared/40 bg-shared/15 font-semibold text-shared"
-                      : "hover:bg-accent hover:text-foreground"
-                  )}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
+          <SplitPicker label={role === "owner" ? `${PARTNER_NAME} pays` : "You pay"} value={share} onChange={setShare} />
+          <FormError message={addErr} />
           </div>
-          <p className="min-h-4 text-xs text-destructive" aria-live="polite">
-            {err}
-          </p>
-          </div>
+          </form>
         </DialogContent>
       </Dialog>
 
       <Dialog open={settleOpen} onOpenChange={(o) => !o && setSettleOpen(false)}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-sm" finalFocus={settleButton}>
+          <form
+            className="contents"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void settle();
+            }}
+          >
           <DialogHeader>
             <DialogTitle>Settle up</DialogTitle>
             <DialogDescription>
@@ -532,12 +649,18 @@ export function Pooleks({ role }: { role: Person }) {
           <div className="grid gap-2">
             <Input
               aria-label="Amount in euros"
+              aria-describedby="settle-leaves"
               name="settle-amount"
               inputMode="decimal"
               value={settleAmount}
               onChange={(e) => setSettleAmount(e.target.value)}
               autoFocus
             />
+            {/* Where the repayment leaves the tab, before it is recorded:
+                404 typed for 40,40 shows up here, not on the statement. */}
+            <p id="settle-leaves" className="min-h-4 text-xs text-muted-foreground">
+              {settleLeaves}
+            </p>
             <Input
               placeholder="Note (optional), e.g. cash at dinner"
               aria-label="Note"
@@ -545,27 +668,17 @@ export function Pooleks({ role }: { role: Person }) {
               value={settleNote}
               onChange={(e) => setSettleNote(e.target.value)}
             />
+            <FormError message={settleErr} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSettleOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setSettleOpen(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={() => {
-                const a = Number(settleAmount.replace(",", "."));
-                if (!(a > 0)) return;
-                void post({
-                  type: "settle",
-                  amount: bal > 0 ? a : -a,
-                  date: today,
-                  note: settleNote.trim() || undefined,
-                });
-                setSettleOpen(false);
-              }}
-            >
-              Record
+            <Button type="submit" disabled={settling}>
+              <Pending on={settling}>{settleValue > 0 ? `Record ${eur.format(settleValue)}` : "Record"}</Pending>
             </Button>
           </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

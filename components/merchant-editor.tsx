@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { FormError, Pending } from "@/components/form-status";
 
 type Fields = { name: string; domain: string; emoji: string };
 
@@ -76,7 +77,14 @@ function MerchantForm({
     else onClose();
   };
   return (
-    <>
+    // A form, so Enter in any field saves.
+    <form
+      className="contents"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!busy && name.trim()) void finish(() => onSave({ name, domain, emoji }));
+      }}
+    >
       <DialogHeader>
         <DialogTitle>Name and icon</DialogTitle>
         <DialogDescription>
@@ -116,26 +124,26 @@ function MerchantForm({
             value={emoji}
             onChange={(e) => setEmoji(e.target.value)}
           />
-          {err && <p className="text-xs text-destructive">{err}</p>}
+          <FormError message={err} />
         </div>
       </div>
       <DialogFooter className="sm:justify-between">
         {tx.custom ? (
-          <Button variant="ghost" disabled={busy} onClick={() => void finish(onReset)}>
+          <Button type="button" variant="ghost" disabled={busy} onClick={() => void finish(onReset)}>
             Use default
           </Button>
         ) : (
           <span />
         )}
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={busy || !name.trim()} onClick={() => void finish(() => onSave({ name, domain, emoji }))}>
-            Save
+          <Button type="submit" disabled={busy || !name.trim()}>
+            <Pending on={busy}>Save</Pending>
           </Button>
         </div>
       </DialogFooter>
-    </>
+    </form>
   );
 }

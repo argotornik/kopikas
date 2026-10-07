@@ -55,11 +55,12 @@ create table if not exists share_rules (
 );
 
 create table if not exists settlements (
-  id     text primary key,
-  amount numeric(12, 2) not null,
-  date   date not null,
-  tx_id  text,
-  note   text
+  id          text primary key,
+  amount      numeric(12, 2) not null,
+  date        date not null,
+  tx_id       text,
+  note        text,
+  recorded_by text -- 'owner' | 'partner'; null on rows from before it was kept
 );
 
 create table if not exists subscriptions (

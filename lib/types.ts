@@ -54,6 +54,8 @@ export interface Settlement {
   date: string;
   txId?: string; // matched incoming bank transfer, if any
   note?: string;
+  // Who pressed Record. Absent on repayments from before it was kept.
+  recordedBy?: Person;
 }
 
 export interface Subscription {

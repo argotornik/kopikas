@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { cn } from "@/lib/utils";
 import { authEnabled } from "@/lib/auth";
 import { ClerkThemed } from "@/components/clerk-themed";
+import { Toaster } from "@/components/toaster";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono-var" });
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const content = (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       {authEnabled ? <ClerkThemed>{children}</ClerkThemed> : children}
+      <Toaster />
     </ThemeProvider>
   );
   return (
