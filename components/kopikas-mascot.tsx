@@ -3,7 +3,7 @@
 import { useEffect, useId, useMemo, useRef } from "react";
 import { motion, useMotionValue, useReducedMotion, useSpring } from "motion/react";
 import { GOOFY_CSS, INK, wobblyCircle } from "@/components/goofy";
-import { PAINTED_MASCOT } from "@/components/painted";
+import { PaintedKopikas, type PaintedPose } from "@/components/kopikas-painted";
 import { cn } from "@/lib/utils";
 
 export type MascotPose = "idle" | "wave" | "point" | "cheer";
@@ -35,9 +35,11 @@ export function KopikasMascot({
   jump = 0,
   size = 112,
   look = "goofy",
+  paintedPose = "friendly",
   className,
 }: {
   look?: "goofy" | "painted";
+  paintedPose?: PaintedPose;
   pose?: MascotPose;
   mood?: MascotMood;
   lookAt?: { x: number; y: number } | null;
@@ -60,7 +62,7 @@ export function KopikasMascot({
       const r = ref.current?.getBoundingClientRect();
       if (!r) return;
       const dx = cx - (r.left + r.width / 2);
-      const dy = cy - (r.top + r.height * (look === "painted" ? 0.46 : 0.26));
+      const dy = cy - (r.top + r.height * (look === "painted" ? 0.42 : 0.26));
       const d = Math.hypot(dx, dy) || 1;
       const reach = Math.min(1, d / 160) * 4;
       px.set((dx / d) * reach);
@@ -125,38 +127,7 @@ export function KopikasMascot({
           transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
         >
 {look === "painted" ? (
-<>
-          {/* Painted: stubby brown limbs, a flat copper coin, two blue dots and a curve. */}
-          <g>
-            <path d="M50 108 L48 131" style={{ stroke: PAINTED_MASCOT.limb }} strokeWidth="6.5" strokeLinecap="round" />
-            <path d="M71 108 L74 131" style={{ stroke: PAINTED_MASCOT.limb }} strokeWidth="6.5" strokeLinecap="round" />
-            <ellipse cx="45" cy="134" rx="9" ry="4.5" style={{ fill: PAINTED_MASCOT.limb }} />
-            <ellipse cx="77" cy="134" rx="9" ry="4.5" style={{ fill: PAINTED_MASCOT.limb }} />
-          </g>
-          <motion.g style={{ originX: 1, originY: 0 }} animate={{ rotate: still(arms.l) }} transition={swing(arms.l)}>
-            <path d="M25 84 C17 90 16 99 11 106" style={{ stroke: PAINTED_MASCOT.limb }} strokeWidth="5.5" strokeLinecap="round" fill="none" />
-          </motion.g>
-          <motion.g style={{ originX: 0, originY: 0 }} animate={{ rotate: still(arms.r) }} transition={swing(arms.r)}>
-            <path d="M101 86 C109 92 110 101 115 108" style={{ stroke: PAINTED_MASCOT.limb }} strokeWidth="5.5" strokeLinecap="round" fill="none" />
-          </motion.g>
-          <g>
-            <path d={takes[0].edge} fill={PAINTED_MASCOT.edge} />
-            <path d={takes[0].face} fill={PAINTED_MASCOT.body} />
-            <circle cx="60" cy="74" r="31" fill="none" stroke={PAINTED_MASCOT.ring} strokeWidth="3" />
-            <path d={K} fill={PAINTED_MASCOT.k} transform="translate(46.83 37.1) scale(0.8)" />
-          </g>
-          <g className="goofy-blink" style={{ animationDelay: "-1.2s" }}>
-            <motion.ellipse cx="49" cy="70" rx="4.4" ry="5.2" fill={PAINTED_MASCOT.face} style={{ x: ex, y: ey }} />
-            <motion.ellipse cx="71" cy="69" rx="4" ry="4.8" fill={PAINTED_MASCOT.face} style={{ x: ex, y: ey }} />
-          </g>
-          {mood === "wow" ? (
-            <ellipse cx="60" cy="88" rx="4.5" ry="5.5" fill={PAINTED_MASCOT.face} />
-          ) : mood === "glad" ? (
-            <path d="M46 82 Q60 101 75 81 Z" fill={PAINTED_MASCOT.face} />
-          ) : (
-            <path d="M47 83 Q60 96 74 82" stroke={PAINTED_MASCOT.face} strokeWidth="4" fill="none" strokeLinecap="round" />
-          )}
-</>
+<PaintedKopikas pose={paintedPose} ex={ex} ey={ey} reduce={!!reduce} />
 ) : (
 <>
           {/* Noodle legs on big shoes. */}

@@ -44,8 +44,8 @@ export function faceInk(ground: string): string {
 export function PaintedDefs() {
   return (
     <style>{`
-      :root { --painted-limb: #3A2A20; --painted-ink: #2B2B2B; }
-      .dark { --painted-limb: #D9C7B4; --painted-ink: #ECE6DC; }
+      :root { --painted-limb: #3A2A20; --painted-ink: #2B2B2B; --painted-shadow: rgb(0 0 0 / 0.12); }
+      .dark { --painted-limb: #D9C7B4; --painted-ink: #ECE6DC; --painted-shadow: rgb(0 0 0 / 0.35); }
     `}</style>
   );
 }
@@ -266,7 +266,3 @@ export function PaintedBar({
     </svg>
   );
 }
-
-// Kopikas, painted: a flat copper coin with a darker edge, the k in it, two
-// blue dots and a curve, stubby brown limbs. Drawn by the mascot component.
-export const PAINTED_MASCOT = { body: "#C9773F", edge: "#9A5A2E", ring: "#E7A06A", k: "#6E3418", limb: LIMB, face: BLUE };

@@ -6,7 +6,9 @@ import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, SettingsIcon, Users
 import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS } from "@/lib/engine";
 import { GOOFY_CSS, GoofyFace, INK, PERSONAS, rng, wobblyCircle, wobblyRect, type Mood } from "@/components/goofy";
-import { KopikasMascot, type MascotPose } from "@/components/kopikas-mascot";
+import { KopikasAnimated } from "@/components/kopikas-animated";
+import type { MascotPose } from "@/components/kopikas-mascot";
+import type { PaintedPose } from "@/components/kopikas-painted";
 import { PAINTED_CONFETTI, PAINTED_WRAPPERS, PaintedBar, PaintedCoin, PaintedDefs, PaintedRoll } from "@/components/painted";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { RollingNumber } from "@/components/rolling-number";
@@ -405,6 +407,11 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
   const [waving, setWaving] = useState(false);
   const [lookAt, setLookAt] = useState<{ x: number; y: number } | null>(null);
   const [look, setLook] = useState<"painted" | "goofy">("painted");
+  const [greeting, setGreeting] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setGreeting(false), 2600);
+    return () => clearTimeout(t);
+  }, []);
   const painted = look === "painted";
   const [synced, setSynced] = useState<string | null>(null);
   useEffect(() => setSynced(sinceLabel(syncedAt)), [syncedAt]);
@@ -453,6 +460,22 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
 
   // What Kopikas says and does, from the state of the tray.
   const pose: MascotPose = pickedTx ? "point" : celebrating || lastFiled ? "cheer" : waving ? "wave" : "idle";
+  // The painted Kopikas has a pose for each moment of the board.
+  const paintedPose: PaintedPose = pickedTx
+    ? "budgeting"
+    : celebrating
+      ? "excited"
+      : lastFiled
+        ? "jump"
+        : waving
+          ? "friendly"
+          : greeting
+            ? "hello"
+            : loose.length > 0
+              ? "saving"
+              : !isCurrent && before.total > 0 && now.total < before.total
+                ? "proud"
+                : "resting";
   let said: string;
   let bubbleKey: string;
   let bubble: React.ReactNode;
@@ -517,7 +540,15 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
         onMouseLeave={() => setWaving(false)}
         className={cn("rounded-3xl", FOCUS)}
       >
-        <KopikasMascot look={look} pose={pose} mood={celebrating || lastFiled ? "glad" : "happy"} lookAt={lookAt} jump={cheer} size={narrow ? 62 : 112} />
+        <KopikasAnimated
+          look={look}
+          pose={pose}
+          paintedPose={paintedPose}
+          mood={celebrating || lastFiled ? "glad" : "happy"}
+          lookAt={lookAt}
+          jump={painted ? 0 : cheer}
+          size={narrow ? 62 : 112}
+        />
       </button>
       {celebrating && !reduce && <Burst key={cheer} painted={painted} />}
     </div>
