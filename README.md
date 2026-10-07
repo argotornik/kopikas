@@ -111,6 +111,10 @@ Only LHV is supported. Another bank means implementing the two fetch functions i
 
 The LHV API is in beta and changed during the build. If the sync starts returning empty, check `lhv.ai` before checking the code.
 
+## Credits
+
+The painted look of the coin tray prototype (`/coins`) and of Kopikas there, with flat colour, soft round shapes and faces of two dots and a curve, follows the tufted characters of KAIA ([@saiakuubik](https://www.instagram.com/saiakuubik/)), and is used with her permission.
+
 ## License
 
 MIT.
