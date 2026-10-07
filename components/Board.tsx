@@ -129,8 +129,9 @@ export default function Board({
   // How the pill leaves when a target has taken it: it fades where it fell,
   // and the prompt or the row's flash carries on from there. A miss keeps
   // dnd-kit's default and flies home to its row, which is what "put back"
-  // looks like.
-  const takenDrop = useMemo<DropAnimation>(
+  // looks like, unless motion is reduced: then a miss fades too.
+  const reduceMotion = useReducedMotion();
+  const fadeDrop = useMemo<DropAnimation>(
     () => ({
       duration: 180,
       easing: "cubic-bezier(0.22, 1, 0.36, 1)",
@@ -1299,7 +1300,7 @@ export default function Board({
       </div>
       {/* dnd-kit sizes the overlay to the dragged row; a pill should be as wide as
           its words, or it runs off the screen when the drop zone is in the rail. */}
-      <DragOverlay style={{ width: "auto", height: "auto" }} dropAnimation={taken ? takenDrop : undefined}>
+      <DragOverlay style={{ width: "auto", height: "auto" }} dropAnimation={taken || reduceMotion ? fadeDrop : undefined}>
         {activeTx && (
           <div className="cursor-grabbing rounded-lg border border-primary bg-card px-3 py-2 text-sm font-medium shadow-lg">
             {activeTx.name} · <span className="font-mono tabular-nums">{eur.format(Math.abs(activeTx.amount))}</span>
