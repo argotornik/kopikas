@@ -1,5 +1,5 @@
-// Builds public/kopikas.lottie: Kopikas's set pieces (hello, jump, excited)
-// as Lottie animations, drawn from the same data as the code-drawn figure
+// Builds public/kopikas.lottie: Kopikas's eight poses as Lottie animations,
+// drawn from the same data as the code-drawn figure
 // (components/kopikas-figure.ts), with light and dark themes.
 //
 //   npm run kopikas:lottie
@@ -74,48 +74,76 @@ function prop(spec, map = (v) => v) {
   };
 }
 
-// An SVG path (M, L, Q, C, Z) as a Lottie bezier shape. Quadratic curves become
-// cubic ones, so every limb is two vertices and any two poses can morph.
+// An SVG path (M, L, H, V, Q, C, Z, absolute or relative) as a Lottie bezier
+// shape. Quadratic curves become cubic ones, so every limb is two vertices and
+// any two poses can morph.
 function shape(d) {
-  const nums = d.match(/[MLQCZmlqcz]|-?\d*\.?\d+(?:e-?\d+)?/g);
+  const tokens = d.match(/[A-Za-z]|-?\d*\.?\d+(?:e-?\d+)?/g);
   const v = [];
   const ins = [];
   const outs = [];
   let closed = false;
   let i = 0;
+  let cmd = null;
   let cur = [0, 0];
-  const num = () => +nums[i++];
-  const pt = () => [num(), num()];
-  const sub = (a, b) => [+(a[0] - b[0]).toFixed(3), +(a[1] - b[1]).toFixed(3)];
-  while (i < nums.length) {
-    const cmd = nums[i++];
-    if (cmd === "M" || cmd === "L") {
-      cur = pt();
-      v.push(cur);
-      ins.push([0, 0]);
-      outs.push([0, 0]);
-    } else if (cmd === "Q") {
-      const c = pt();
-      const end = pt();
-      const c1 = [cur[0] + (2 / 3) * (c[0] - cur[0]), cur[1] + (2 / 3) * (c[1] - cur[1])];
-      const c2 = [end[0] + (2 / 3) * (c[0] - end[0]), end[1] + (2 / 3) * (c[1] - end[1])];
-      outs[outs.length - 1] = sub(c1, cur);
-      v.push(end);
-      ins.push(sub(c2, end));
-      outs.push([0, 0]);
-      cur = end;
-    } else if (cmd === "C") {
-      const c1 = pt();
-      const c2 = pt();
-      const end = pt();
-      outs[outs.length - 1] = sub(c1, cur);
-      v.push(end);
-      ins.push(sub(c2, end));
-      outs.push([0, 0]);
-      cur = end;
-    } else if (cmd === "Z" || cmd === "z") {
-      closed = true;
-    } else throw new Error(`kopikas-lottie: unsupported path command ${cmd} in ${d}`);
+  const r3 = (n) => +n.toFixed(3);
+  const num = () => +tokens[i++];
+  const sub = (a, b) => [r3(a[0] - b[0]), r3(a[1] - b[1])];
+  const to = (p, inT = [0, 0]) => {
+    cur = [r3(p[0]), r3(p[1])];
+    v.push(cur);
+    ins.push(inT);
+    outs.push([0, 0]);
+  };
+  while (i < tokens.length) {
+    if (/[A-Za-z]/.test(tokens[i])) cmd = tokens[i++];
+    else if (!cmd || cmd === "Z" || cmd === "z") throw new Error(`kopikas-lottie: stray number in ${d}`);
+    const rel = cmd === cmd.toLowerCase();
+    const from = cur;
+    const pt = () => {
+      const x = num();
+      const y = num();
+      return rel ? [from[0] + x, from[1] + y] : [x, y];
+    };
+    switch (cmd.toUpperCase()) {
+      case "M":
+        to(pt());
+        cmd = rel ? "l" : "L"; // more pairs after a move draw lines
+        break;
+      case "L":
+        to(pt());
+        break;
+      case "H": {
+        const x = num();
+        to([rel ? from[0] + x : x, from[1]]);
+        break;
+      }
+      case "V": {
+        const y = num();
+        to([from[0], rel ? from[1] + y : y]);
+        break;
+      }
+      case "Q": {
+        const c = pt();
+        const end = pt();
+        outs[outs.length - 1] = sub([from[0] + (2 / 3) * (c[0] - from[0]), from[1] + (2 / 3) * (c[1] - from[1])], from);
+        to(end, sub([end[0] + (2 / 3) * (c[0] - end[0]), end[1] + (2 / 3) * (c[1] - end[1])], end));
+        break;
+      }
+      case "C": {
+        const c1 = pt();
+        const c2 = pt();
+        const end = pt();
+        outs[outs.length - 1] = sub(c1, from);
+        to(end, sub(c2, end));
+        break;
+      }
+      case "Z":
+        closed = true;
+        break;
+      default:
+        throw new Error(`kopikas-lottie: unsupported path command ${cmd} in ${d}`);
+    }
   }
   // A closed path that returns to its start ends on a duplicate vertex: fold it in.
   const last = v.length - 1;
@@ -195,9 +223,72 @@ function limb(api, nm, parent, d, at, foot = false) {
   ]);
 }
 
+// A rounded rectangle, by its box; and a trim that draws a stroke on gradually.
+const rect = (x, y, w, h, r) => ({ ty: "rc", p: prop([x + w / 2, y + h / 2]), s: prop([w, h]), r: prop(r) });
+const trim = (end) => ({ ty: "tm", s: prop(0), e: prop(end), o: prop(0), m: 1 });
+// A position offset by a static or keyframed [dx, dy].
+const offset = (spec, [x, y]) => (Array.isArray(spec) && typeof spec[0] === "object" ? spec.map((k) => ({ ...k, v: [x + k.v[0], y + k.v[1]] })) : [x + spec[0], y + spec[1]]);
+
+// The eyes: dots that blink (and may look at a prop), closed in joy, closed
+// contentedly, or sleepy under heavy lids. A list of kinds crossfades them.
+function eyes(m) {
+  const face = { sid: SLOTS.face };
+  const one = (kind) => {
+    if (kind === "closed" || kind === "content")
+      return (kind === "closed" ? F.EYES_CLOSED : F.EYES_CONTENT).map((d, i) => group(`eye-${i}`, [path(d), stroke(F.FACE, F.EYE_STROKE, face)]));
+    if (kind === "sleepy")
+      return F.EYES_SLEEPY.map((e, i) =>
+        group(`eye-${i}`, [
+          group("line", [path(e.line), stroke(F.FACE, F.LINE_STROKE, face)]),
+          group("lid", [path(e.lid), fill(F.FACE, face)], tr({ a: [e.cx, e.cy], s: m.lids ?? [100, 100] })),
+        ]),
+      );
+    return F.EYE_DOTS.map((e, i) =>
+      group(`eye-${i}`, [ellipse(m.look ? offset(m.look, [e.cx, e.cy]) : [e.cx, e.cy], [e.rx * 2, e.ry * 2]), fill(F.FACE, face)], tr({ a: [e.cx, e.cy], s: m.blink ?? [100, 100] })),
+    );
+  };
+  if (!Array.isArray(m.eyes)) return one(m.eyes ?? "dots");
+  return m.eyes.map(({ kind, o }) => group(`eyes-${kind}`, one(kind), tr({ o })));
+}
+
+// The mouth: open with its tongue, a named stroke, or a stroke that morphs.
+function mouth(spec = "open") {
+  const face = { sid: SLOTS.face };
+  if (spec === "open") return [group("tongue", [path(F.MOUTHS.open.tongue), fill(F.TONGUE)]), group("mouth", [path(F.MOUTHS.open.mouth), fill(F.FACE, face)])];
+  const { d, width } = typeof spec === "string" ? F.MOUTHS[spec] : spec;
+  return [group("mouth", [path(shapeKeys(d)), stroke(F.FACE, width, face)])];
+}
+
+// The checklist, behind the arm that holds it; it can nod, and one row's tick can draw itself.
+function checklist(api, parent, spec) {
+  const c = F.CHECKLIST;
+  const face = { sid: SLOTS.face };
+  const rows = c.rows.map((row, i) => {
+    const tickMark = (extra = [], t) => group("tick", [path(F.tick(row.mid)), ...extra, stroke(F.FACE, c.tick.width, face)], t);
+    const items = [group("line", [path(`M${c.line.x} ${row.mid} H${row.end}`), stroke(c.line.stroke, c.line.width)])];
+    if (row.ticked) items.push(tickMark());
+    else if (spec.tick?.row === i) items.push(tickMark([trim(spec.tick.draw)], tr({ o: spec.tick.o ?? 100 })));
+    items.push(group("box", [rect(c.box.x, row.y, c.box.size, c.box.size, c.box.r), stroke(F.FACE, c.box.width, face)]));
+    return group(`row-${i}`, items);
+  });
+  const sheet = group("sheet", [rect(c.sheet.x, c.sheet.y, c.sheet.width, c.sheet.height, c.sheet.r), stroke(c.sheet.stroke, 1), fill(c.sheet.fill)]);
+  api.shapes("prop-checklist", parent, [group("checklist", [...rows, sheet], tr({ a: [c.tilt.x, c.tilt.y], r: spec.r ?? c.tilt.deg }))]);
+}
+
+// The held coin, in front of the hands; it can turn edge-on, and its glint twinkle.
+function heldCoin(api, parent, spec) {
+  const c = F.HELD_COIN;
+  const disc = (nm, d, style) => group(nm, [ellipse([d.cx, d.cy], [d.r * 2, d.r * 2]), style]);
+  api.shapes("prop-coin", parent, [
+    group("glint", [path(c.glint), fill(F.SPARKLE_FILL)], tr({ a: [77, 84], s: spec.glintS ?? [100, 100], o: spec.glintO ?? 100 })),
+    group("coin", [disc("ring", c.ring, stroke(c.ring.stroke, c.ring.width)), disc("face", c.face, fill(c.face.fill)), disc("back", c.back, fill(c.back.fill))], tr({ a: [c.face.cx, c.face.cy], s: spec.turn ?? [100, 100] })),
+  ]);
+}
+
 // The whole figure, with every moving part a keyframe track:
-//   lift (figure off the ground), squash (scale from the feet), tilt (lean
-//   about the coin's centre), arms, legs, shadow, blink, and extras on top.
+//   lift (figure off the ground), squash (scale from the feet), sit (the body
+//   lowered), tilt (lean about the coin's centre), arms (behind the coin, or in
+//   front), legs, props, face, shadow, and extras on top.
 function figure(api, m) {
   const root = api.null("kopikas", 0, { a: [0, 0], p: [PAD[0] * UNIT, PAD[1] * UNIT], s: [UNIT * 100, UNIT * 100] });
   api.shapes("shadow", root, [group("shadow", [ellipse([F.SHADOW.cx, F.SHADOW.cy], m.shadow), fill("#000000", { oSid: SLOTS.shadow, o: THEMES.light.shadow })])], { o: m.shadowO ?? 100 });
@@ -205,10 +296,14 @@ function figure(api, m) {
   const squash = api.null("squash", lift, { a: [60, 135], s: m.squash });
   limb(api, "leg-left", squash, m.legL, m.footL, true);
   limb(api, "leg-right", squash, m.legR, m.footR, true);
-  const body = api.null("body", squash);
+  const body = m.sit ? api.null("body", squash, { p: m.sit }) : api.null("body", squash);
   const tilt = api.null("tilt", body, { a: [F.PIVOT.x, F.PIVOT.y], r: m.tilt });
-  limb(api, "arm-left", tilt, m.armL, m.handL);
-  limb(api, "arm-right", tilt, m.armR, m.handR);
+  if (m.checklist) checklist(api, tilt, m.checklist);
+  const arms = () => {
+    limb(api, "arm-left", tilt, m.armL, m.handL);
+    limb(api, "arm-right", tilt, m.armR, m.handR);
+  };
+  if (!m.armsFront) arms();
   const c = F.COIN_SHAPE;
   api.shapes("coin", tilt, [
     group(
@@ -222,18 +317,11 @@ function figure(api, m) {
     group("coin-face", [ellipse([c.face.cx, c.face.cy], [c.face.r * 2, c.face.r * 2]), fill(F.COIN.body)]),
     group("coin-edge", [ellipse([c.edge.cx, c.edge.cy], [c.edge.r * 2, c.edge.r * 2]), fill(F.COIN.edge)]),
   ]);
-  // Eyes: dots that blink (squash shut about their centre), or closed in joy.
-  const eyes =
-    m.eyes === "closed"
-      ? F.EYES_CLOSED.map((d, i) => group(`eye-${i}`, [path(d), stroke(F.FACE, F.EYE_STROKE, { sid: SLOTS.face })]))
-      : F.EYE_DOTS.map((e, i) =>
-          group(`eye-${i}`, [ellipse([e.cx, e.cy], [e.rx * 2, e.ry * 2]), fill(F.FACE, { sid: SLOTS.face })], tr({ a: [e.cx, e.cy], s: m.blink ?? [100, 100] })),
-        );
-  api.shapes("eyes", tilt, eyes);
-  api.shapes("mouth", tilt, [
-    group("tongue", [path(F.MOUTHS.open.tongue), fill(F.TONGUE)]),
-    group("mouth", [path(F.MOUTHS.open.mouth), fill(F.FACE, { sid: SLOTS.face })]),
-  ]);
+  api.shapes("eyes", tilt, eyes(m));
+  if (m.brows !== undefined) api.shapes("brows", tilt, F.BROWS.map((d, i) => group(`brow-${i}`, [path(d), stroke(F.FACE, F.LINE_STROKE, { sid: SLOTS.face })])), { o: m.brows });
+  api.shapes("mouth", tilt, mouth(m.mouth));
+  if (m.armsFront) arms();
+  if (m.heldCoin) heldCoin(api, tilt, m.heldCoin);
   m.extras?.(api, lift);
 }
 
@@ -337,6 +425,113 @@ const excited = composition("excited", 72, (api) =>
   }),
 );
 
+// The idle poses, each from its still pose in kopikas-figure.ts: these loop
+// (proud plays once), starting and ending on that pose.
+const still = (pose) => ({ legL: S[pose].legL, footL: S[pose].footL, legR: S[pose].legR, footR: S[pose].footR, armL: S[pose].armL, handL: S[pose].handL, armR: S[pose].armR, handR: S[pose].handR });
+const hover = (n) => keys(...[0, 22, 45, 67, 90].map((t, i) => [t, F.HOVER_R[i % 2][n]]));
+
+// Friendly, when hovered: head tilted, it lifts one small hand twice and blinks.
+const friendly = composition("friendly", 90, (api) =>
+  figure(api, {
+    ...still("friendly"),
+    lift: [0, 0],
+    squash: [100, 100],
+    shadow: shadowW(F.SHADOW.rx),
+    tilt: keys([0, S.friendly.tilt, "inOut"], [45, 8.5, "inOut"], [90, S.friendly.tilt]),
+    armR: hover(0),
+    handR: hover(1),
+    blink: keys([58, [100, 100]], [61, [100, 10]], [66, [100, 100]]),
+    mouth: "smile",
+  }),
+);
+
+// Saving, while loose change waits: it breathes and bobs, turns the coin in its
+// hands to its edge and back, and the coin's glint fades and twinkles back.
+const saving = composition("saving", 144, (api) =>
+  figure(api, {
+    ...still("saving"),
+    armsFront: true,
+    look: S.saving.look,
+    mouth: "small",
+    tilt: 0,
+    lift: keys([0, [0, 0], "inOut"], [72, [0, -2], "inOut"], [144, [0, 0]]),
+    squash: keys([0, [100, 100], "inOut"], [72, [98.5, 101.5], "inOut"], [144, [100, 100]]),
+    shadow: keys([0, shadowW(F.SHADOW.rx), "inOut"], [72, shadowW(25.5), "inOut"], [144, shadowW(F.SHADOW.rx)]),
+    blink: keys([30, [100, 100]], [33, [100, 10]], [38, [100, 100]]),
+    heldCoin: {
+      turn: keys([56, [100, 100], "in"], [66, [8, 100], "out"], [76, [100, 100]]),
+      glintO: keys([50, 100], [58, 0, "hold"], [80, 0], [88, 100]),
+      glintS: keys([0, [100, 100], "hold"], [79, [100, 100], "hold"], [80, [40, 40], "back"], [96, [100, 100]]),
+    },
+  }),
+);
+
+// Budgeting, while filing: it leans into the list, its eyes drop to the next
+// row, a tick draws itself in, and it smiles. The tick fades before the loop.
+const budgeting = composition("budgeting", 144, (api) =>
+  figure(api, {
+    ...still("budgeting"),
+    lift: [0, 0],
+    squash: [100, 100],
+    shadow: shadowW(F.SHADOW.rx),
+    tilt: keys([0, S.budgeting.tilt, "inOut"], [40, -7, "inOut"], [64, -7, "inOut"], [100, S.budgeting.tilt]),
+    look: keys([30, S.budgeting.look, "inOut"], [42, [-3.5, 0.5], "inOut"], [70, [-3.5, 0.5], "inOut"], [84, S.budgeting.look]),
+    blink: keys([110, [100, 100]], [113, [100, 10]], [118, [100, 100]]),
+    mouth: {
+      d: keys([56, F.MOUTHS.small.d, "out"], [68, F.MOUTHS.smile.d, "inOut"], [110, F.MOUTHS.smile.d, "inOut"], [124, F.MOUTHS.small.d]),
+      width: keys([56, F.MOUTHS.small.width, "out"], [68, F.MOUTHS.smile.width, "inOut"], [110, F.MOUTHS.smile.width, "inOut"], [124, F.MOUTHS.small.width]),
+    },
+    checklist: {
+      r: keys([40, F.CHECKLIST.tilt.deg, "inOut"], [50, -8.5, "back"], [62, F.CHECKLIST.tilt.deg]),
+      tick: { row: 2, draw: keys([46, 0, "out"], [58, 100]), o: keys([124, 100, "inOut"], [136, 0]) },
+    },
+  }),
+);
+
+// Resting, with nothing to file: it sits and breathes, and its lids grow heavy
+// as its head dips, then lift again.
+const resting = composition("resting", 180, (api) =>
+  figure(api, {
+    ...still("resting"),
+    sit: [0, S.resting.sit],
+    eyes: "sleepy",
+    mouth: "small",
+    lift: [0, 0],
+    squash: keys([0, [100, 100], "inOut"], [90, [101.5, 98], "inOut"], [180, [100, 100]]),
+    tilt: keys([0, 0, "inOut"], [100, -2.5, "inOut"], [180, 0]),
+    lids: keys([60, [100, 100], "inOut"], [100, [100, 35], "inOut"], [128, [100, 35], "inOut"], [160, [100, 100]]),
+    shadow: keys([0, shadowW(S.resting.shadow.rx), "inOut"], [90, shadowW(35), "inOut"], [180, shadowW(S.resting.shadow.rx)]),
+  }),
+);
+
+// Proud, when a past month came in under the one before: it puffs up, swings
+// its hands to its hips, lifts its chin, and its eyes close contentedly under
+// lifted brows as the smile widens. Plays once and holds the proud pose.
+const proud = composition("proud", 72, (api) =>
+  figure(api, {
+    ...still("proud"),
+    armL: keys([8, HANG.armL, "back"], [28, S.proud.armL]),
+    handL: keys([8, HANG.handL, "back"], [28, S.proud.handL]),
+    armR: keys([10, HANG.armR, "back"], [30, S.proud.armR]),
+    handR: keys([10, HANG.handR, "back"], [30, S.proud.handR]),
+    lift: keys([0, [0, 0], "out"], [14, [0, -3], "inOut"], [34, [0, 0]]),
+    squash: keys([0, [100, 100], "out"], [14, [96, 106], "inOut"], [34, [102, 98], "back"], [44, [100, 100]]),
+    tilt: keys([12, 0, "out"], [30, -9.5, "inOut"], [42, S.proud.tilt]),
+    shadow: keys([0, shadowW(F.SHADOW.rx)], [14, shadowW(25)], [34, shadowW(28)], [44, shadowW(F.SHADOW.rx)]),
+    // The dots squeeze shut, and the content arcs take over as they close.
+    blink: keys([14, [100, 100], "in"], [20, [100, 8]]),
+    eyes: [
+      { kind: "content", o: keys([20, 0, "hold"], [21, 100]) },
+      { kind: "dots", o: keys([20, 100, "hold"], [21, 0]) },
+    ],
+    brows: keys([20, 0], [28, 100]),
+    mouth: {
+      d: keys([14, F.MOUTHS.smile.d, "out"], [30, F.MOUTHS.big.d]),
+      width: keys([14, F.MOUTHS.smile.width, "out"], [30, F.MOUTHS.big.width]),
+    },
+  }),
+);
+
 // ---- Timing --------------------------------------------------------------------
 
 // Each animation's timing, as [frame as choreographed, frame played] pairs at
@@ -350,6 +545,11 @@ export const TIMING = {
   hello: [[0, 0], [10, 7], [22, 16], [34, 25], [66, 52], [96, 72]],
   jump: [[0, 0], [54, 54]],
   excited: [[0, 0], [48, 72], [72, 108]],
+  friendly: [[0, 0], [90, 90]],
+  saving: [[0, 0], [144, 144]],
+  budgeting: [[0, 0], [144, 144]],
+  resting: [[0, 0], [180, 180]],
+  proud: [[0, 0], [72, 72]],
 };
 
 // An animation with every keyframe moved through the timing's pairs.
@@ -376,7 +576,8 @@ function retime(json, pairs) {
 
 // ---- The .lottie file ----------------------------------------------------------
 
-const ANIMATIONS = { hello, jump, excited };
+// Hello first: the player in use starts on the file's first animation.
+const ANIMATIONS = { hello, jump, excited, friendly, saving, budgeting, resting, proud };
 
 export function buildLottie(out = OUT, timing = TIMING) {
   const dir = mkdtempSync(join(tmpdir(), "kopikas-lottie-"));

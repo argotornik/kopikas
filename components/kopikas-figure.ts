@@ -52,16 +52,45 @@ export const EYE_DOTS = [
 export const EYE_STROKE = 3.4;
 export const EYES_CLOSED = ["M44 63 Q49 57 54 63", "M66 62 Q71 56 76 62"];
 export const EYES_CONTENT = ["M44 60.5 Q49 65.5 54 60.5", "M66 60 Q71 65 76 60"];
+// Sleepy: the lower half of each eye under a lid line; each half is two curves
+// (a half ellipse), so the Lottie file can draw and droop it too.
 export const EYES_SLEEPY = [
-  { lid: "M44.6 63 A4.4 3.2 0 0 0 53.4 63 Z", line: "M43.8 62.8 L54.2 62.8" },
-  { lid: "M66.6 62.4 A4.2 3.1 0 0 0 75.4 62.4 Z", line: "M65.8 62.2 L76.2 62.2" },
+  { lid: "M44.6 63 C44.6 64.77 46.57 66.2 49 66.2 C51.43 66.2 53.4 64.77 53.4 63 Z", line: "M43.8 62.8 L54.2 62.8", cx: 49, cy: 63 },
+  { lid: "M66.6 62.4 C66.6 64.19 68.57 65.65 71 65.65 C73.43 65.65 75.4 64.19 75.4 62.4 Z", line: "M65.8 62.2 L76.2 62.2", cx: 71, cy: 62.4 },
 ];
+export const LINE_STROKE = 2.6; // sleepy lid lines and brows
 export const BROWS = ["M45 52 Q49 48.5 53 50.5", "M67 51 Q71 47.5 75 49.5"];
 export const MOUTHS = {
   open: { mouth: "M46 75 Q60 94 74 74 Z", tongue: "M52 83.5 Q60 90 68 83 Q60 79 52 83.5 Z" },
   small: { d: "M53 78 Q60 83 67 77.6", width: 3.2 },
   big: { d: "M45 74 Q60 92 75 73", width: 4 },
   smile: { d: "M47 76 Q60 89 73 75", width: 3.6 },
+};
+
+// The checklist Kopikas holds up by its face while you file: a sheet, tilted,
+// with four rows, the first two ticked.
+export const CHECKLIST = {
+  tilt: { deg: -6, x: 8, y: 62 },
+  sheet: { x: -8, y: 42, width: 31, height: 40, r: 3, fill: "#FAF7F0", stroke: "#D8D2C6" },
+  box: { x: -3.5, size: 4.6, r: 0.8, width: 1.2 },
+  tick: { width: 1.3 },
+  line: { x: 4, stroke: "#A7A196", width: 1.6 },
+  rows: [
+    { y: 48, mid: 50.4, end: 18, ticked: true },
+    { y: 56, mid: 58.4, end: 14, ticked: true },
+    { y: 64, mid: 66.4, end: 18, ticked: false },
+    { y: 72, mid: 74.4, end: 14, ticked: false },
+  ],
+};
+// A tick in a row's box, from the middle of the row.
+export const tick = (mid: number) => `M-2.7 ${mid} l1.4 1.4 2.6-3`;
+
+// The loose coin Kopikas holds up to show you while there is change to file.
+export const HELD_COIN = {
+  back: { cx: 62.5, cy: 96.5, r: 10, fill: "#B88A1E" },
+  face: { cx: 60, cy: 95, r: 10, fill: "#E8B93C" },
+  ring: { cx: 60, cy: 95, r: 7, stroke: "#FBE08A", width: 1.4 },
+  glint: "M77 79.8 l1.2 3 3 1.2 -3 1.2 -1.2 3 -1.2 -3 -3 -1.2 3 -1.2z",
 };
 
 // The two marks either side of the waving hand on arrival, in the limb colour.

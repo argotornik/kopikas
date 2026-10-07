@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { AnimatePresence, motion, type MotionValue } from "motion/react";
 import {
   BROWS,
+  CHECKLIST,
   COIN,
   COIN_SHAPE,
   CONFETTI,
@@ -15,7 +16,9 @@ import {
   FACE,
   FOOT,
   HAND_R,
+  HELD_COIN,
   K,
+  LINE_STROKE,
   LIMB_WIDTH,
   MOUTHS,
   PIVOT,
@@ -25,6 +28,7 @@ import {
   SPARKLE_FILL,
   SPARKLES,
   TONGUE,
+  tick,
   WAVE_MARK,
   WAVE_MARKS,
   type Frame,
@@ -76,14 +80,15 @@ function Limb({ name, d, at, reduce, foot = false, frames, repeat = false }: { n
 
 // The checklist Kopikas holds up by its face while you file.
 function Checklist() {
+  const c = CHECKLIST;
   return (
-    <g transform="rotate(-6 8 62)">
-      <rect x="-8" y="42" width="31" height="40" rx="3" fill="#FAF7F0" stroke="#D8D2C6" strokeWidth="1" />
-      {[0, 1, 2, 3].map((i) => (
-        <g key={i}>
-          <rect x="-3.5" y={48 + i * 8} width="4.6" height="4.6" rx="0.8" fill="none" stroke={FACE} strokeWidth="1.2" />
-          {i < 2 && <path d={`M-2.7 ${50.4 + i * 8} l1.4 1.4 2.6-3`} stroke={FACE} strokeWidth="1.3" fill="none" strokeLinecap="round" />}
-          <path d={`M4 ${50.4 + i * 8} H${i % 2 ? 14 : 18}`} stroke="#A7A196" strokeWidth="1.6" strokeLinecap="round" />
+    <g transform={`rotate(${c.tilt.deg} ${c.tilt.x} ${c.tilt.y})`}>
+      <rect x={c.sheet.x} y={c.sheet.y} width={c.sheet.width} height={c.sheet.height} rx={c.sheet.r} fill={c.sheet.fill} stroke={c.sheet.stroke} strokeWidth="1" />
+      {c.rows.map((row) => (
+        <g key={row.y}>
+          <rect x={c.box.x} y={row.y} width={c.box.size} height={c.box.size} rx={c.box.r} fill="none" stroke={FACE} strokeWidth={c.box.width} />
+          {row.ticked && <path d={tick(row.mid)} stroke={FACE} strokeWidth={c.tick.width} fill="none" strokeLinecap="round" />}
+          <path d={`M${c.line.x} ${row.mid} H${row.end}`} stroke={c.line.stroke} strokeWidth={c.line.width} strokeLinecap="round" />
         </g>
       ))}
     </g>
@@ -92,12 +97,13 @@ function Checklist() {
 
 // The loose coin Kopikas holds up to show you while there is change to file.
 function HeldCoin() {
+  const c = HELD_COIN;
   return (
     <g>
-      <circle cx="62.5" cy="96.5" r="10" fill="#B88A1E" />
-      <circle cx="60" cy="95" r="10" fill="#E8B93C" />
-      <circle cx="60" cy="95" r="7" fill="none" stroke="#FBE08A" strokeWidth="1.4" />
-      <path d="M77 79.8 l1.2 3 3 1.2 -3 1.2 -1.2 3 -1.2 -3 -3 -1.2 3 -1.2z" fill="#F2B585" />
+      <circle cx={c.back.cx} cy={c.back.cy} r={c.back.r} fill={c.back.fill} />
+      <circle cx={c.face.cx} cy={c.face.cy} r={c.face.r} fill={c.face.fill} />
+      <circle cx={c.ring.cx} cy={c.ring.cy} r={c.ring.r} fill="none" stroke={c.ring.stroke} strokeWidth={c.ring.width} />
+      <path d={c.glint} fill={SPARKLE_FILL} />
     </g>
   );
 }
@@ -190,7 +196,7 @@ export function PaintedKopikas({ pose, ex, ey, reduce }: { pose: PaintedPose; ex
           EYES_SLEEPY.map((e) => (
             <Fragment key={e.lid}>
               <path d={e.lid} fill={FACE} />
-              <path d={e.line} stroke={FACE} strokeWidth="2.6" strokeLinecap="round" />
+              <path d={e.line} stroke={FACE} strokeWidth={LINE_STROKE} strokeLinecap="round" />
             </Fragment>
           ))
         ) : s.look ? (
@@ -210,7 +216,7 @@ export function PaintedKopikas({ pose, ex, ey, reduce }: { pose: PaintedPose; ex
         {s.brows && (
           <g data-layer="brows">
             {BROWS.map((d) => (
-              <path key={d} d={d} stroke={FACE} strokeWidth="2.6" fill="none" strokeLinecap="round" />
+              <path key={d} d={d} stroke={FACE} strokeWidth={LINE_STROKE} fill="none" strokeLinecap="round" />
             ))}
           </g>
         )}
