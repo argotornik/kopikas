@@ -337,24 +337,70 @@ const excited = composition("excited", 72, (api) =>
   }),
 );
 
+// ---- Timing --------------------------------------------------------------------
+
+// Each animation's timing, as [frame as choreographed, frame played] pairs at
+// its phase boundaries. The moves stay the same; the stretches between pairs
+// speed up or slow down, and the last pair sets the length. Pairs that match
+// play an animation as choreographed above.
+//   hello    quicker (1.2 s): it plays as the page opens, so it greets and gets out of the way
+//   jump     as choreographed (0.9 s): it answers a tap and already reads crisp
+//   excited  softer (1.8 s a hop, a rest between): it loops while everything is sorted
+export const TIMING = {
+  hello: [[0, 0], [10, 7], [22, 16], [34, 25], [66, 52], [96, 72]],
+  jump: [[0, 0], [54, 54]],
+  excited: [[0, 0], [48, 72], [72, 108]],
+};
+
+// An animation with every keyframe moved through the timing's pairs.
+function retime(json, pairs) {
+  const at = (t) => {
+    let i = 1;
+    while (i < pairs.length - 1 && t > pairs[i][0]) i++;
+    const [a0, b0] = pairs[i - 1];
+    const [a1, b1] = pairs[i];
+    return +(b0 + ((t - a0) * (b1 - b0)) / (a1 - a0)).toFixed(2);
+  };
+  const walk = (v) => {
+    if (Array.isArray(v)) return v.forEach(walk);
+    if (!v || typeof v !== "object") return;
+    if (Array.isArray(v.k) && typeof v.k[0] === "object" && v.k[0] !== null && "t" in v.k[0]) for (const key of v.k) key.t = at(key.t);
+    Object.values(v).forEach(walk);
+  };
+  const out = structuredClone(json);
+  walk(out.layers);
+  out.op = Math.round(at(out.op));
+  for (const layer of out.layers) layer.op = out.op;
+  return out;
+}
+
 // ---- The .lottie file ----------------------------------------------------------
 
 const ANIMATIONS = { hello, jump, excited };
-const dir = mkdtempSync(join(tmpdir(), "kopikas-lottie-"));
-mkdirSync(join(dir, "a"));
-mkdirSync(join(dir, "t"));
-for (const [id, json] of Object.entries(ANIMATIONS)) writeFileSync(join(dir, "a", `${id}.json`), JSON.stringify(json));
-for (const [id, t] of Object.entries(THEMES)) writeFileSync(join(dir, "t", `${id}.json`), JSON.stringify(theme(t)));
-writeFileSync(
-  join(dir, "manifest.json"),
-  JSON.stringify({
-    version: "2",
-    generator: "scripts/kopikas-lottie.mjs",
-    animations: Object.keys(ANIMATIONS).map((id) => ({ id })),
-    themes: Object.keys(THEMES).map((id) => ({ id })),
-  }),
-);
-rmSync(OUT, { force: true });
-execFileSync("zip", ["-q", "-X", "-D", "-r", OUT, "manifest.json", "a", "t"], { cwd: dir });
-rmSync(dir, { recursive: true, force: true });
-console.log(`wrote ${OUT.replace(ROOT + "/", "")}: ${Object.keys(ANIMATIONS).join(", ")}; themes ${Object.keys(THEMES).join(", ")}`);
+
+export function buildLottie(out = OUT, timing = TIMING) {
+  const dir = mkdtempSync(join(tmpdir(), "kopikas-lottie-"));
+  mkdirSync(join(dir, "a"));
+  mkdirSync(join(dir, "t"));
+  for (const [id, json] of Object.entries(ANIMATIONS)) writeFileSync(join(dir, "a", `${id}.json`), JSON.stringify(retime(json, timing[id])));
+  for (const [id, t] of Object.entries(THEMES)) writeFileSync(join(dir, "t", `${id}.json`), JSON.stringify(theme(t)));
+  writeFileSync(
+    join(dir, "manifest.json"),
+    JSON.stringify({
+      version: "2",
+      generator: "scripts/kopikas-lottie.mjs",
+      animations: Object.keys(ANIMATIONS).map((id) => ({ id })),
+      themes: Object.keys(THEMES).map((id) => ({ id })),
+    }),
+  );
+  rmSync(out, { force: true });
+  execFileSync("zip", ["-q", "-X", "-D", "-r", out, "manifest.json", "a", "t"], { cwd: dir });
+  rmSync(dir, { recursive: true, force: true });
+  return out;
+}
+
+// Built when run (npm run kopikas:lottie); importable for trying other timings.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  buildLottie();
+  console.log(`wrote ${OUT.replace(ROOT + "/", "")}: ${Object.keys(ANIMATIONS).join(", ")}; themes ${Object.keys(THEMES).join(", ")}`);
+}

@@ -14,9 +14,9 @@ The board asks for each animation by name. Three are made; the rest are planned.
 
 | Name | Moment | Plays | Length | What happens | Made |
 |---|---|---|---|---|---|
-| `hello` | arriving on the board | once, then holds | 1.6 s | crouches, pops up leaning in, opens one arm wide, waves the other twice, blinks, settles on the hello pose | yes |
+| `hello` | arriving on the board | once, then holds | 1.2 s | crouches, pops up leaning in, opens one arm wide, waves the other twice, blinks, settles on the hello pose | yes |
 | `jump` | a coin landed | once, then holds | 0.9 s | crouches with arms swung back, springs up tucking its legs, lands with a squash, wobbles still, stands | yes |
-| `excited` | everything sorted | loops | 1.2 s | eyes shut with joy, hops with arms pumping, sways, sparkles twinkle and confetti bobs | yes |
+| `excited` | everything sorted | loops | 1.8 s | eyes shut with joy, hops with arms pumping and rests between hops, sways, sparkles twinkle and confetti bobs | yes |
 | `friendly` | hovered | loops | ~1.5 s | head tilted, one small hand lift | |
 | `saving` | loose change waiting | loops | ~2.4 s | gentle bob, turns the coin in its hands, eyes on it | |
 | `budgeting` | filing a coin | loops | ~2.4 s | leans into the list, ticks a box | |
@@ -27,7 +27,9 @@ A one-shot ends on a pose the code-drawn Kopikas can take over from, and a loop 
 
 ## Tuning by eye
 
-Open `public/kopikas.lottie` in Lottie Creator to try timing or easing by eye. The script is the source, so carry what works back into `scripts/kopikas-lottie.mjs` (keyframes are frame numbers at 60 fps) and rebuild; editing the file alone is overwritten by the next build.
+Timing lives in `TIMING` in `scripts/kopikas-lottie.mjs`: for each animation, pairs of [frame as choreographed, frame played] at its phase boundaries, so a phase can be made quicker or slower without touching the moves. Today hello runs quicker than choreographed, jump as choreographed and excited softer, with a rest between hops; the three were picked from side-by-side versions.
+
+Open `public/kopikas.lottie` in Lottie Creator to try timing or easing by eye. The script is the source, so carry what works back into it (keyframes are frame numbers at 60 fps) and rebuild; editing the file alone is overwritten by the next build.
 
 The artboard is 592 × 624 px: the figure's 124 × 150 units at 4 px each, inset 12 and 6 units for outstretched hands and sparkles. The layers, top-down from the root:
 
