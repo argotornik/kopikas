@@ -4,3 +4,12 @@ data/
 .env*
 .vercel/
 brag-output*/
+
+# Copied from the dotLottie player on install, so the renderer is served by Kopikas, not a CDN.
+/public/dotlottie-player.wasm
+
+# TypeScript's incremental build cache.
+*.tsbuildinfo
+
+# Impeccable's local question server: its process, port and heartbeat.
+/.impeccable/questions/
