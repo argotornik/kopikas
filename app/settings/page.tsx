@@ -28,7 +28,7 @@ export default async function SettingsPage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 py-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold tracking-tight">Settings</h1>
+        <h1 className="font-heading text-xl font-bold tracking-tight">Settings</h1>
         <a
           href="/"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground pointer-coarse:min-h-11 pointer-coarse:px-2"

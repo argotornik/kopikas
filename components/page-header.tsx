@@ -8,7 +8,7 @@ import { UserMenu } from "@/components/user-menu";
 export function PageHeader() {
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight">
+      <div className="flex items-center gap-2 font-heading text-xl font-bold tracking-tight">
         <CoinMark />
         Kopikas
       </div>

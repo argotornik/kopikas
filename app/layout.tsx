@@ -10,7 +10,9 @@ import { Toaster } from "@/components/toaster";
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono-var" });
 // Display face: wordmark and card titles only — body and amounts stay Geist.
-const bricolage = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-heading-var" });
+// With its optical-size axis, so a 16px heading and the 20px wordmark each
+// get the cut drawn for their size (font-optical-sizing is auto).
+const bricolage = Bricolage_Grotesque({ subsets: ["latin"], axes: ["opsz"], variable: "--font-heading-var" });
 
 export const metadata: Metadata = {
   title: "Kopikas",

@@ -394,7 +394,7 @@ export function Pooleks({ role }: { role: Person }) {
     <MotionConfig reducedMotion="user">
     <div className="mx-auto flex max-w-3xl flex-col gap-4 px-5 py-6 pb-24">
       <div className="flex items-center justify-between">
-        <h1 className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight">
+        <h1 className="flex items-center gap-2 font-heading text-xl font-bold tracking-tight">
           <CoinMark />
           Pooleks
         </h1>
@@ -465,13 +465,13 @@ export function Pooleks({ role }: { role: Person }) {
         // The statement: one sheet, ruled rows, month headers as section rules.
         <div className="overflow-hidden rounded-xl bg-card pb-2 ring-1 ring-foreground/10 outline-none" data-list>
           {/* One head row: the view toggle in the label columns, column heads on the rail. */}
-          <div className={cn(GRID, "items-center pb-1 pt-2 text-[10px] uppercase tracking-wide text-muted-foreground")}>
+          <div className={cn(GRID, "items-center pb-1 pt-2 text-xs text-muted-foreground")}>
             <div className="col-span-2 -ml-2">
               <button
                 type="button"
                 onClick={toggleDetails}
                 aria-pressed={details}
-                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs normal-case tracking-normal text-muted-foreground hover:bg-accent hover:text-foreground pointer-coarse:py-3.5"
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground pointer-coarse:py-3.5"
                 title={details ? "Hide each part and the balance after every line" : "Show each part and the balance after every line"}
               >
                 <ReceiptTextIcon className="size-3.5" />
@@ -487,9 +487,7 @@ export function Pooleks({ role }: { role: Person }) {
             <div key={m.month}>
               {fold && mi === months.length && foldLine}
               <div className={cn(GRID, "pb-1.5 pt-3", mi > 0 && "border-t border-border/70")}>
-                <span className="col-span-2 font-heading text-xs uppercase tracking-wide text-muted-foreground">
-                  {monthLabel(m.month)}
-                </span>
+                <h2 className="col-span-2 font-heading text-sm font-semibold tracking-tight">{monthLabel(m.month)}</h2>
                 {details && (
                   <>
                     <MonthNet net={m.rows.reduce((sum, r) => sum + r.movement, 0)} arrow={arrow} flow={flow} />

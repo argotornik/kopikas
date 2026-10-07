@@ -81,8 +81,8 @@ export function SettingsForm({
   // changes it beside it; the setup, needed once, folded beneath.
   return (
     <Card id="connection" className="scroll-mt-4 gap-3 py-4">
-      <CardHeader className="px-4">
-        <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">LHV connection</CardTitle>
+      <CardHeader className="border-b px-4">
+        <CardTitle>LHV connection</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 px-4">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -133,7 +133,7 @@ export function SettingsForm({
             {stored ? "Replace the token" : "Connect LHV"}
           </summary>
           <div className="mt-2 flex flex-col gap-2">
-            <p className="text-xs text-muted-foreground">
+            <p className="max-w-prose text-sm text-muted-foreground">
               Sign in at{" "}
               <a href="https://api.lhv.ai/api-access" className="underline" target="_blank" rel="noreferrer">
                 api.lhv.ai/api-access

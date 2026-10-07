@@ -48,14 +48,14 @@ export function ShareRulesList({ initial }: { initial: ShareRuleRow[] }) {
 
   return (
     <Card id="pooleks-rules" className="scroll-mt-4 gap-3 py-4">
-      <CardHeader className="px-4">
-        <CardTitle className="flex items-baseline justify-between text-xs uppercase tracking-wide text-muted-foreground">
+      <CardHeader className="border-b px-4">
+        <CardTitle className="flex items-baseline justify-between">
           <span>Pooleks rules</span>
-          <span className="font-mono normal-case tabular-nums">{rules.length}</span>
+          <span className="font-mono text-sm font-normal tracking-normal tabular-nums text-muted-foreground">{rules.length}</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4">
-        <p className="mb-2 text-xs text-muted-foreground">
+        <p className="mb-2 max-w-prose text-sm text-muted-foreground">
           Made when you choose Always while splitting a charge with {PARTNER_NAME}. New charges that match go
           on Pooleks at that split. Charges already there stay, even if you remove the rule.
         </p>

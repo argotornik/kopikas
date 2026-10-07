@@ -598,7 +598,7 @@ export default function Board({
         </a>
         <div className="mb-5 flex items-center justify-between">
           <div className="flex flex-col">
-            <h1 className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight">
+            <h1 className="flex items-center gap-2 font-heading text-xl font-bold tracking-tight">
               <CoinMark />
               Kopikas
             </h1>
@@ -819,7 +819,7 @@ export default function Board({
                       }}
                       transition={{ duration: 0.18, ease: "easeOut", delay: visible[0] ? fillDelay(visible[0].id) : 0 }}
                       className={cn(
-                        "px-3 pb-1 pt-3 text-xs text-muted-foreground",
+                        "px-3 pb-1 pt-3 text-xs font-semibold text-foreground/80",
                         dayIndex > 0 && "border-t border-border/70"
                       )}
                     >
@@ -893,14 +893,17 @@ export default function Board({
             )}
           >
             <Card id="categories" tabIndex={-1} className="shrink-0 scroll-mt-4 gap-3 py-4 outline-none">
-              <CardHeader className="px-4">
-                <CardTitle className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
-                  {/* On a phone the four controls need the room; the rows say what the card is. */}
+              <CardHeader className="border-b px-4">
+                <CardTitle className="flex items-center justify-between">
+                  {/* On a phone the four controls need the room, so the month
+                      alone heads the card; the rows say what it is. */}
                   <span className="min-w-0 truncate">
-                    <span className="max-sm:hidden">Categories · </span>
-                    {fmtMonth(month)}
+                    <span className="max-sm:hidden">Categories </span>
+                    <span className="font-sans text-sm font-normal tracking-normal text-muted-foreground max-sm:font-heading max-sm:text-base max-sm:font-semibold max-sm:tracking-tight max-sm:text-foreground">
+                      {fmtMonth(month)}
+                    </span>
                   </span>
-                  <span className="flex items-center gap-0.5">
+                  <span className="flex items-center gap-0.5 text-muted-foreground">
                     <button
                       aria-label="Edit categories"
                       title="Rename or add categories"
@@ -943,7 +946,7 @@ export default function Board({
                       key="todo"
                       exit={{ opacity: 0, transition: { duration: 0.15 } }}
                       className={cn(
-                        "flex w-full justify-between rounded-md bg-attention/15 px-2.5 py-1.5 text-left text-sm font-medium text-attention pointer-coarse:py-3",
+                        "flex w-full justify-between rounded-md bg-attention/15 px-2.5 py-1.5 text-left text-sm font-medium text-attention-ink pointer-coarse:py-3",
                         filter === "Uncategorized" && "ring-2 ring-attention"
                       )}
                       onClick={() => toggleFilter("Uncategorized")}
@@ -1002,7 +1005,7 @@ export default function Board({
                     <div className="mt-1 border-t px-2.5 pt-2">
                       <div className="flex justify-between text-sm font-medium">
                         <span>Paid out</span>
-                        <span className="font-mono tabular-nums">{eur.format(monthSpentTotal)}</span>
+                        <span className="font-mono font-semibold tabular-nums">{eur.format(monthSpentTotal)}</span>
                       </div>
                       <p className="text-xs text-muted-foreground">Everything but savings; shared costs in full.</p>
                     </div>
@@ -1016,7 +1019,7 @@ export default function Board({
                       )}
                     >
                       <span>Received</span>
-                      <span className="font-mono tabular-nums text-gain">+{eur.format(monthReceivedTotal)}</span>
+                      <span className="font-mono font-semibold tabular-nums text-gain">+{eur.format(monthReceivedTotal)}</span>
                     </button>
                   </>
                 )}
@@ -1033,14 +1036,14 @@ export default function Board({
             {!dragging && (
             <>
             <Card id="subscriptions" className="shrink-0 scroll-mt-4 gap-3 py-4">
-              <CardHeader className="px-4">
-                <CardTitle className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
+              <CardHeader className="border-b px-4">
+                <CardTitle className="flex items-center justify-between">
                   <span>Subscriptions</span>
                   <button
                     aria-label={showSubs ? "Collapse subscriptions" : "Expand subscriptions"}
                     aria-expanded={showSubs}
                     onClick={() => toggleCollapsed("subs")}
-                    className="flex size-6 items-center justify-center rounded-md hover:bg-accent hover:text-foreground pointer-coarse:size-11"
+                    className="flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground pointer-coarse:size-11"
                   >
                     <ChevronDownIcon className={cn("size-3.5 transition-transform", !showSubs && "-rotate-90")} />
                   </button>
@@ -1120,7 +1123,7 @@ export default function Board({
                             {s.priceChanged && s.lastCharge && (
                               <Badge
                                 render={<button type="button" disabled={busy.has(`price:${s.sub.id}`)} />}
-                                className="relative cursor-pointer bg-attention/15 font-mono tabular-nums text-attention hover:bg-attention/25 disabled:cursor-default disabled:opacity-60 pointer-coarse:after:absolute pointer-coarse:after:-inset-3 pointer-coarse:after:content-['']"
+                                className="relative cursor-pointer bg-attention/15 font-mono tabular-nums text-attention-ink hover:bg-attention/25 disabled:cursor-default disabled:opacity-60 pointer-coarse:after:absolute pointer-coarse:after:-inset-3 pointer-coarse:after:content-['']"
                                 title={`The price went from ${eur.format(s.sub.expectedAmount)} to ${eur.format(s.lastCharge.amount)}. Click to accept the new price`}
                                 aria-label={`Accept ${eur.format(s.lastCharge.amount)} as the new price for ${s.label}, was ${eur.format(s.sub.expectedAmount)}`}
                                 onClick={() =>
@@ -1137,7 +1140,7 @@ export default function Board({
                               </Badge>
                             )}
                             {s.overdue && (
-                              <Badge className="bg-attention/15 text-attention" title="No charge has come since it was due">
+                              <Badge className="bg-attention/15 text-attention-ink" title="No charge has come since it was due">
                                 gone quiet
                               </Badge>
                             )}
@@ -1208,8 +1211,10 @@ export default function Board({
             </Card>
 
             <Card id="pooleks-summary" className="shrink-0 scroll-mt-4 gap-3 py-4">
-              <CardHeader className="px-4">
-                <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Pooleks · with {PARTNER_NAME}</CardTitle>
+              <CardHeader className="border-b px-4">
+                <CardTitle>
+                  Pooleks <span className="font-sans text-sm font-normal tracking-normal text-muted-foreground">with {PARTNER_NAME}</span>
+                </CardTitle>
               </CardHeader>
               <CardContent className="px-4">
                 {coarse && (
@@ -1241,9 +1246,9 @@ export default function Board({
             </Card>
 
             <Card className="shrink-0 gap-3 py-4">
-              <CardHeader className="px-4">
-                <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Investments over time
+              <CardHeader className="border-b px-4">
+                <CardTitle>
+                  Investments <span className="font-sans text-sm font-normal tracking-normal text-muted-foreground">over time</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="px-4">
@@ -1337,7 +1342,7 @@ export default function Board({
           </DialogHeader>
           <p className="text-xs text-muted-foreground">
             Always also files every past and future charge matching{" "}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">{prompt?.pattern}</code>.
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-foreground">{prompt?.pattern}</code>.
           </p>
           <FormError message={promptErr} />
           <DialogFooter>
@@ -1370,7 +1375,7 @@ export default function Board({
           )}
           <p className="text-xs text-muted-foreground">
             Always also puts every future charge matching{" "}
-            <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">{sharePrompt?.pattern}</code>{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs text-foreground">{sharePrompt?.pattern}</code>{" "}
             on Pooleks at the same split. Past charges stay as they are.
           </p>
           <FormError message={promptErr} />
@@ -1530,7 +1535,7 @@ function Stat({
       )}
     >
       <CardContent className="flex h-full flex-col gap-0.5 px-4">
-        <div className={cn("truncate text-xs", hero ? "font-medium text-primary" : "text-muted-foreground")}>
+        <div className={cn("truncate text-xs", hero ? "font-medium text-primary-ink" : "text-muted-foreground")}>
           {label}
         </div>
         <div className="font-mono text-lg font-semibold tabular-nums tracking-tight">{value}</div>
@@ -1633,7 +1638,7 @@ function Tile({
         </div>
       </div>
       <div className="hidden min-w-0 sm:block">{category}</div>
-      <span className={cn("text-right font-mono text-sm font-semibold tabular-nums", tx.amount > 0 && "text-gain")}>
+      <span className={cn("text-right font-mono text-sm font-medium tabular-nums", tx.amount > 0 && "text-gain")}>
         {tx.amount > 0 ? "+" : "−"}
         {eur.format(Math.abs(tx.amount))}
       </span>
@@ -1658,7 +1663,7 @@ function FileTrigger({
     "aria-label": `${label}: file ${tx.name}, ${eur.format(Math.abs(tx.amount))}`,
     className: cn(
       "-mx-1 max-w-[calc(100%+0.5rem)] cursor-pointer truncate rounded px-1 text-left text-xs outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-popup-open:bg-accent data-popup-open:text-foreground",
-      tx.category ? "text-muted-foreground" : "font-medium text-attention",
+      tx.category ? "text-muted-foreground" : "font-medium text-attention-ink",
       tx.categorySource === "override" && "underline decoration-dotted underline-offset-2"
     ),
   };
@@ -1752,7 +1757,7 @@ function FileSheet({
                     )}
                   >
                     <span className="truncate">{c}</span>
-                    {current && <CheckIcon aria-hidden className="size-4 shrink-0 text-primary" />}
+                    {current && <CheckIcon aria-hidden className="size-4 shrink-0 text-primary-ink" />}
                   </button>
                 );
               })}
@@ -1826,7 +1831,7 @@ function FileMenu({
                           <Menu.RadioItem key={c} value={c} closeOnClick className={MENU_ITEM}>
                             <span className="flex size-4 shrink-0 items-center justify-center">
                               <Menu.RadioItemIndicator>
-                                <CheckIcon className="size-3.5 text-primary" />
+                                <CheckIcon className="size-3.5 text-primary-ink" />
                               </Menu.RadioItemIndicator>
                             </span>
                             {c}
@@ -1916,7 +1921,7 @@ function TrendStrip({
           ))}
         </div>
       </div>
-      <div className="mt-1 flex gap-1 text-[10px] leading-none text-muted-foreground">
+      <div className="mt-1 flex gap-1 text-xs leading-none text-muted-foreground">
         {points.map((p) => (
           <span key={p.month} className={cn("flex-1 text-center", p.month === month && "font-semibold text-foreground")}>
             {monthNarrow.format(new Date(p.month + "-01T00:00:00Z"))}
@@ -2019,14 +2024,20 @@ function CategoryRow({
           transition={{ duration: 1.1, ease: "easeOut" }}
         />
       )}
-      <span className="relative">{name}</span>
-      <span className={cn("relative text-muted-foreground", !isOver && "font-mono tabular-nums", over && !isOver && "text-attention")}>
+      <span className="relative min-w-0 truncate">{name}</span>
+      <span
+        className={cn(
+          "relative shrink-0 whitespace-nowrap pl-2 text-muted-foreground",
+          !isOver && "font-mono tabular-nums",
+          over && !isOver && "text-attention-ink"
+        )}
+      >
         {isOver ? (
           "drop here"
         ) : (
           <>
             {total > 0 || budget != null ? <RollingNumber value={total} format={eur.format} /> : ""}
-            {budget != null && <span className="text-muted-foreground/70"> / {limit(budget)}</span>}
+            {budget != null && <span className="text-muted-foreground"> / {limit(budget)}</span>}
           </>
         )}
       </span>
