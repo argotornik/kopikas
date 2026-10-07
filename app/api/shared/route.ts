@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { readDb } from "@/lib/storage";
-import { buildBoard } from "@/lib/board";
+import { sharedView } from "@/lib/shared-view";
 import { currentRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -10,13 +10,5 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const role = await currentRole();
   if (!role) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  const db = await readDb();
-  const board = buildBoard(db);
-  return NextResponse.json({
-    role,
-    balance: board.balance,
-    sharedItems: board.sharedItems,
-    settlements: board.settlements,
-    categories: db.categories.map((c) => c.name),
-  });
+  return NextResponse.json(sharedView(await readDb(), role));
 }

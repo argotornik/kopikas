@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   closestCenter,
   DndContext,
@@ -87,6 +87,13 @@ const dayFmt = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
 type Prompt = { txId: string; name: string; pattern: string; category: string; amount: number; date: string };
+
+// Drop targets are measured throughout a drag: the rail changes shape under
+// it. A constant, so the drag context is not rebuilt on every render.
+const MEASURING = { droppable: { strategy: MeasuringStrategy.Always } };
+// A 5px move before a press becomes a drag. Constant for the same reason: new
+// sensor options rebuild the activators every row's drag hook reads.
+const MOUSE_DRAG = { activationConstraint: { distance: 5 } };
 
 // The "File under…" menu: one menu for the whole ledger, opened from any
 // row's category with that row's transaction id as its payload.
@@ -220,8 +227,11 @@ export default function Board({
   // has said yes, and a no comes back as a sentence instead of silence.
   const run = useCallback(
     async (action: object) => {
-      const result = await act(action);
-      if (result.ok) await refetch();
+      const result = await act<BoardData>(action, "board");
+      if (result.ok) {
+        if (result.fresh) setBoard(result.fresh);
+        else await refetch();
+      }
       return result;
     },
     [refetch]
@@ -242,9 +252,13 @@ export default function Board({
   // is one change; `from` is the control, so keyboard focus survives a row
   // that leaves.
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
+  // Read through a ref, so oneClick (and every row handler built on it) keeps
+  // one identity and the memoised ledger rows are not redrawn by it.
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
   const oneClick = useCallback(
     async (busyKey: string, action: object, done: string, from?: HTMLElement | null) => {
-      if (busy.has(busyKey)) return;
+      if (busyRef.current.has(busyKey)) return;
       setBusy((b) => new Set(b).add(busyKey));
       const refocus = focusAfterRemoval(from ?? null);
       const result = await run(action);
@@ -257,7 +271,7 @@ export default function Board({
       refocus();
       announceUndoable(done, result.undo, refetch);
     },
-    [busy, run, refetch]
+    [run, refetch]
   );
 
   // Renames and additions from the Categories dialog; a renamed filter follows the name.
@@ -273,26 +287,31 @@ export default function Board({
   // Mouse only. The keyboard files through the category menu on each row;
   // a finger taps the row and files through the File sheet, because on a
   // phone the drop targets are screens away and a swipe must scroll.
-  const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(useSensor(MouseSensor, MOUSE_DRAG));
   const coarse = useCoarsePointer();
   // The transaction whose File sheet is open (touch only).
   const [sheetTx, setSheetTx] = useState<BoardTx | null>(null);
 
   // What a screen reader hears while a pointer drags: names, not row ids.
-  const txLabel = (id: unknown) => {
-    const t = board.txs.find((x) => x.id === id);
-    return t ? `${t.name}, ${eur.format(Math.abs(t.amount))}` : "the transaction";
-  };
-  const targetLabel = (id: unknown) =>
-    id === "partner" ? `Pooleks with ${PARTNER_NAME}` : id === "subs" ? "Subscriptions" : String(id).replace(/^cat:/, "");
-  const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up ${txLabel(active.id)}.`,
-    onDragOver: ({ active, over }) =>
-      over ? `${txLabel(active.id)} is over ${targetLabel(over.id)}.` : `${txLabel(active.id)} is not over a target.`,
-    onDragEnd: ({ active, over }) =>
-      over ? `Dropped ${txLabel(active.id)} on ${targetLabel(over.id)}.` : `Put ${txLabel(active.id)} back.`,
-    onDragCancel: ({ active }) => `Put ${txLabel(active.id)} back.`,
-  };
+  // Memoised: a new object here each render would change the drag context,
+  // and every row's drag hook would redraw through it, memo or not.
+  const accessibility = useMemo(() => {
+    const txLabel = (id: unknown) => {
+      const t = board.txs.find((x) => x.id === id);
+      return t ? `${t.name}, ${eur.format(Math.abs(t.amount))}` : "the transaction";
+    };
+    const targetLabel = (id: unknown) =>
+      id === "partner" ? `Pooleks with ${PARTNER_NAME}` : id === "subs" ? "Subscriptions" : String(id).replace(/^cat:/, "");
+    const announcements: Announcements = {
+      onDragStart: ({ active }) => `Picked up ${txLabel(active.id)}.`,
+      onDragOver: ({ active, over }) =>
+        over ? `${txLabel(active.id)} is over ${targetLabel(over.id)}.` : `${txLabel(active.id)} is not over a target.`,
+      onDragEnd: ({ active, over }) =>
+        over ? `Dropped ${txLabel(active.id)} on ${targetLabel(over.id)}.` : `Put ${txLabel(active.id)} back.`,
+      onDragCancel: ({ active }) => `Put ${txLabel(active.id)} back.`,
+    };
+    return { announcements };
+  }, [board.txs]);
 
   // The rail scrolls back to its top at pickup: every target is up there.
   const railRef = useRef<HTMLDivElement>(null);
@@ -338,18 +357,30 @@ export default function Board({
       date: tx.date,
       partnerShare: tx.shared ? (tx.partnerShare ?? 0.5) : partnerShare,
     });
-  const editMerchant = (t: BoardTx) =>
-    setMerchantSubject({
-      key: t.id,
-      name: t.name,
-      domain: t.domain,
-      emoji: t.emoji,
-      pattern: t.merchantPattern,
-      custom: t.customMerchant,
-      target: { txId: t.id },
-    });
-  const unshare = (tx: BoardTx, from?: HTMLElement | null) =>
-    tx.shareId && void oneClick(`unshare:${tx.shareId}`, { type: "unshare", shareId: tx.shareId }, `Took ${tx.name} off Pooleks.`, from);
+  // Stable identities: these reach every ledger row, which is memoised.
+  const editMerchant = useCallback(
+    (t: BoardTx) =>
+      setMerchantSubject({
+        key: t.id,
+        name: t.name,
+        domain: t.domain,
+        emoji: t.emoji,
+        pattern: t.merchantPattern,
+        custom: t.customMerchant,
+        target: { txId: t.id },
+      }),
+    []
+  );
+  const unshare = useCallback(
+    (tx: BoardTx, from?: HTMLElement | null) => {
+      if (tx.shareId)
+        void oneClick(`unshare:${tx.shareId}`, { type: "unshare", shareId: tx.shareId }, `Took ${tx.name} off Pooleks.`, from);
+    },
+    [oneClick]
+  );
+  // Which shared rows have an unshare in flight, as one stable string, so a
+  // pending subscription click does not redraw the ledger.
+  const unsharing = [...busy].filter((k) => k.startsWith("unshare:")).sort().join("|");
 
   // The phone's filing queue: the ledger narrowed to what needs filing, from
   // the top. Each filed row leaves, so the next one is where the thumb is.
@@ -395,8 +426,7 @@ export default function Board({
     setPromptErr("");
     // Always teaches the rule first, then pins this row, as before.
     let result = always ? await act({ type: "rule", txId, category }) : { ok: true as const };
-    if (result.ok) result = await act({ type: "override", txId, category });
-    if (result.ok) await refetch();
+    if (result.ok) result = await run({ type: "override", txId, category });
     setFiling(null);
     if (!result.ok) return setPromptErr(result.error);
     closePrompt();
@@ -417,15 +447,20 @@ export default function Board({
     closeSharePrompt();
   };
 
+  // The ledger follows search and filter at a lower priority: the field and
+  // the category row answer at once, and redrawing a thousand rows can be
+  // interrupted by the next keystroke instead of blocking it.
+  const ledgerQuery = useDeferredValue(query);
+  const ledgerFilter = useDeferredValue(filter);
   const days = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let visible = filter
+    const q = ledgerQuery.trim().toLowerCase();
+    let visible = ledgerFilter
       ? board.txs.filter((t) =>
-          filter === "Incoming"
+          ledgerFilter === "Incoming"
             ? t.amount > 0 && !t.micro
-            : filter === "Uncategorized"
+            : ledgerFilter === "Uncategorized"
               ? !t.category && t.amount < 0 && !t.micro
-              : t.category === filter
+              : t.category === ledgerFilter
         )
       : board.txs;
     if (q) {
@@ -441,7 +476,7 @@ export default function Board({
       map.get(tx.date)!.push(tx);
     }
     return [...map.entries()];
-  }, [board.txs, filter, query]);
+  }, [board.txs, ledgerFilter, ledgerQuery]);
 
   // Feed position of each visible tile, for the exit cascade: when a rule
   // files many tiles at once they leave top-to-bottom like cards into a
@@ -584,8 +619,8 @@ export default function Board({
       onDragCancel={() => setActiveTx(null)}
       // The rail changes shape at pickup (reading cards fold, it scrolls to
       // the top), so targets are measured throughout, not only at the start.
-      measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-      accessibility={{ announcements }}
+      measuring={MEASURING}
+      accessibility={accessibility}
     >
       <MotionConfig reducedMotion="user">
       <div className="mx-auto max-w-6xl px-5 py-6 pb-28 md:pb-20">
@@ -798,88 +833,16 @@ export default function Board({
               // header outside the presence pops out instead of leaving with
               // its rows. relative + overflow-hidden keep popped-out exits
               // inside the sheet, sliding off its edge.
-              <div className="relative overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
-              <AnimatePresence initial={firstFill} mode="popLayout">
-                {days.flatMap(([date, txs], dayIndex) => {
-                  const visible = txs.filter((t) => !t.micro);
-                  const micro = txs.filter((t) => t.micro);
-                  const microOut = micro.filter((t) => t.amount < 0);
-                  const microTotal = microOut.reduce((s, t) => s + Math.abs(t.amount), 0);
-                  const delayOf = (id: string) => Math.min((visibleOrder.get(id) ?? 0) * 0.03, 0.4);
-                  const fillDelay = (id: string) => (firstFill ? Math.min((visibleOrder.get(id) ?? 0) * 0.04, 1.2) : 0);
-                  return [
-                    <motion.div
-                      key={`day-${date}`}
-                      layout="position"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{
-                        opacity: 0,
-                        transition: { duration: 0.12, delay: visible[0] ? delayOf(visible[0].id) : 0 },
-                      }}
-                      transition={{ duration: 0.18, ease: "easeOut", delay: visible[0] ? fillDelay(visible[0].id) : 0 }}
-                      className={cn(
-                        "px-3 pb-1 pt-3 text-xs font-semibold text-foreground/80",
-                        dayIndex > 0 && "border-t border-border/70"
-                      )}
-                    >
-                      {dayFmt.format(new Date(date))}
-                    </motion.div>,
-                    ...visible.map((tx, i) => (
-                      <motion.div
-                        key={tx.id}
-                        layout="position"
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{
-                          opacity: 0,
-                          x: 32,
-                          transition: { duration: 0.15, delay: delayOf(tx.id) },
-                        }}
-                        transition={{ duration: firstFill ? 0.3 : 0.18, ease: "easeOut", delay: fillDelay(tx.id) }}
-                        className={cn(i > 0 && "border-t border-border/70")}
-                      >
-                        <Tile
-                          tx={tx}
-                          coarse={coarse}
-                          onOpenSheet={setSheetTx}
-                          onUnshare={unshare}
-                          unsharing={!!tx.shareId && busy.has(`unshare:${tx.shareId}`)}
-                          onEditMerchant={editMerchant}
-                        />
-                      </motion.div>
-                    )),
-                    ...(micro.length > 0
-                      ? [
-                          <motion.div
-                            key={`micro-${date}`}
-                            layout="position"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0, transition: { duration: 0.12 } }}
-                            transition={{ duration: 0.18, ease: "easeOut" }}
-                            className={cn(
-                              "flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground",
-                              visible.length > 0 && "border-t border-border/70"
-                            )}
-                          >
-                            <SproutIcon className="size-3.5 shrink-0" />
-                            <span className="min-w-0 flex-1 truncate">
-                              Mikroinvesteering · {microOut.length || micro.length} transfer
-                              {(microOut.length || micro.length) === 1 ? "" : "s"}
-                            </span>
-                            {microTotal > 0 && (
-                              <span className="font-mono tabular-nums">
-                                −{eur.format(microTotal)} → Savings
-                              </span>
-                            )}
-                          </motion.div>,
-                        ]
-                      : []),
-                  ];
-                })}
-              </AnimatePresence>
-              </div>
+              <Ledger
+                days={days}
+                visibleOrder={visibleOrder}
+                firstFill={firstFill}
+                coarse={coarse}
+                unsharing={unsharing}
+                onOpenSheet={setSheetTx}
+                onUnshare={unshare}
+                onEditMerchant={editMerchant}
+              />
             )}
           </div>
 
@@ -1549,6 +1512,161 @@ function Stat({
 // A ledger row: icon · merchant/meta · category · amount, in fixed columns so
 // categories and amounts align down the whole statement. Color is reserved
 // for meaning — uncategorized (attention), incoming (gain), the partner's share.
+// Every board refresh hands over new objects for every transaction, so rows
+// compare the fields they show rather than identity: after filing one
+// charge, one row redraws, not a thousand.
+function sameTx(a: BoardTx, b: BoardTx): boolean {
+  if (a === b) return true;
+  for (const k in a) if (a[k as keyof BoardTx] !== b[k as keyof BoardTx]) return false;
+  return true;
+}
+
+type RowHandlers = {
+  coarse: boolean;
+  onOpenSheet: (tx: BoardTx) => void;
+  onUnshare: (tx: BoardTx, from: HTMLElement) => void;
+  onEditMerchant: (tx: BoardTx) => void;
+};
+
+// The ledger: one sheet, rows ruled by hairlines, day headers as section
+// rules. ONE flat presence for headers, rows and rollups alike: a nested
+// presence deadlocks exits (found live), and a header outside the presence
+// pops out instead of leaving with its rows. relative + overflow-hidden keep
+// popped-out exits inside the sheet, sliding off its edge. Memoised, with
+// memoised rows, so board state that is not the ledger (a prompt, a
+// collapsed card, a pending button) does not redraw a thousand rows.
+const Ledger = memo(function Ledger({
+  days,
+  visibleOrder,
+  firstFill,
+  unsharing,
+  ...handlers
+}: RowHandlers & {
+  days: [string, BoardTx[]][];
+  visibleOrder: Map<string, number>;
+  firstFill: boolean;
+  unsharing: string; // "|"-joined busy keys of rows with an unshare in flight
+}) {
+  const busy = new Set(unsharing.split("|"));
+  return (
+    <div className="relative overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10">
+      <AnimatePresence initial={firstFill} mode="popLayout">
+        {days.flatMap(([date, txs], dayIndex) => {
+          const visible = txs.filter((t) => !t.micro);
+          const micro = txs.filter((t) => t.micro);
+          const firstOrder = visible[0] ? (visibleOrder.get(visible[0].id) ?? 0) : 0;
+          return [
+            <DayHeader key={`day-${date}`} date={date} ruled={dayIndex > 0} order={firstOrder} firstFill={firstFill} />,
+            ...visible.map((tx, i) => (
+              <LedgerRow
+                key={tx.id}
+                tx={tx}
+                ruled={i > 0}
+                order={visibleOrder.get(tx.id) ?? 0}
+                firstFill={firstFill}
+                unsharing={!!tx.shareId && busy.has(`unshare:${tx.shareId}`)}
+                {...handlers}
+              />
+            )),
+            ...(micro.length > 0
+              ? [<MicroRollup key={`micro-${date}`} date={date} micro={micro} ruled={visible.length > 0} />]
+              : []),
+          ];
+        })}
+      </AnimatePresence>
+    </div>
+  );
+});
+
+// Exit cascade: when a rule files many rows at once they leave top-to-bottom
+// like cards into a drawer, capped so large sweeps stay snappy. `order` is the
+// row's place in the visible feed; it is left out of the memo comparison
+// (it shifts for every row below one that leaves), so a row's delay is its
+// place when it last drew, which keeps the same top-to-bottom order.
+const exitDelay = (order: number) => Math.min(order * 0.03, 0.4);
+const fillDelay = (order: number, firstFill: boolean) => (firstFill ? Math.min(order * 0.04, 1.2) : 0);
+
+const DayHeader = memo(
+  function DayHeader({ date, ruled, order, firstFill }: { date: string; ruled: boolean; order: number; firstFill: boolean }) {
+    return (
+      <motion.div
+        layout="position"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0, transition: { duration: 0.12, delay: exitDelay(order) } }}
+        transition={{ duration: 0.18, ease: "easeOut", delay: fillDelay(order, firstFill) }}
+        className={cn("px-3 pb-1 pt-3 text-xs font-semibold text-foreground/80", ruled && "border-t border-border/70")}
+      >
+        {dayFmt.format(new Date(date))}
+      </motion.div>
+    );
+  },
+  (a, b) => a.date === b.date && a.ruled === b.ruled && a.firstFill === b.firstFill
+);
+
+const LedgerRow = memo(
+  function LedgerRow({
+    tx,
+    ruled,
+    order,
+    firstFill,
+    unsharing,
+    ...handlers
+  }: RowHandlers & { tx: BoardTx; ruled: boolean; order: number; firstFill: boolean; unsharing: boolean }) {
+    return (
+      <motion.div
+        layout="position"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, x: 32, transition: { duration: 0.15, delay: exitDelay(order) } }}
+        transition={{ duration: firstFill ? 0.3 : 0.18, ease: "easeOut", delay: fillDelay(order, firstFill) }}
+        className={cn(ruled && "border-t border-border/70")}
+      >
+        <Tile tx={tx} unsharing={unsharing} {...handlers} />
+      </motion.div>
+    );
+  },
+  (a, b) =>
+    sameTx(a.tx, b.tx) &&
+    a.ruled === b.ruled &&
+    a.firstFill === b.firstFill &&
+    a.unsharing === b.unsharing &&
+    a.coarse === b.coarse &&
+    a.onOpenSheet === b.onOpenSheet &&
+    a.onUnshare === b.onUnshare &&
+    a.onEditMerchant === b.onEditMerchant
+);
+
+// The day's micro-investing round-ups as one line instead of a row each.
+const MicroRollup = memo(
+  function MicroRollup({ micro, ruled }: { date: string; micro: BoardTx[]; ruled: boolean }) {
+    const microOut = micro.filter((t) => t.amount < 0);
+    const microTotal = microOut.reduce((s, t) => s + Math.abs(t.amount), 0);
+    const n = microOut.length || micro.length;
+    return (
+      <motion.div
+        layout="position"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0, transition: { duration: 0.12 } }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+        className={cn("flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground", ruled && "border-t border-border/70")}
+      >
+        <SproutIcon className="size-3.5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate">
+          Mikroinvesteering · {n} transfer{n === 1 ? "" : "s"}
+        </span>
+        {microTotal > 0 && <span className="font-mono tabular-nums">−{eur.format(microTotal)} → Savings</span>}
+      </motion.div>
+    );
+  },
+  (a, b) =>
+    a.date === b.date &&
+    a.ruled === b.ruled &&
+    a.micro.length === b.micro.length &&
+    a.micro.every((t, i) => sameTx(t, b.micro[i]))
+);
+
 function Tile({
   tx,
   coarse,

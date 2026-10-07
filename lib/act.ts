@@ -3,12 +3,15 @@
 // as a sentence a person can act on, never as silence.
 
 export type Undo = { type: string } & Record<string, unknown>;
-export type ActResult = { ok: true; undo?: Undo } | { ok: false; error: string };
+// `fresh` is the view the caller asked for, as it stands after the change.
+export type ActResult<V = unknown> = { ok: true; undo?: Undo; fresh?: V } | { ok: false; error: string };
 
-export async function act(action: object): Promise<ActResult> {
+// `view` asks the server to send that page's data back with the reply, so
+// the page needs no second request to catch up.
+export async function act<V = unknown>(action: object, view?: "board" | "shared"): Promise<ActResult<V>> {
   let res: Response;
   try {
-    res = await fetch("/api/action", {
+    res = await fetch(view ? `/api/action?view=${view}` : "/api/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(action),
@@ -16,8 +19,10 @@ export async function act(action: object): Promise<ActResult> {
   } catch {
     return { ok: false, error: "Couldn't reach Kopikas. Check the connection and try again." };
   }
-  const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; undo?: Undo } | null;
-  if (res.ok && body?.ok !== false) return { ok: true, undo: body?.undo };
+  const body = (await res.json().catch(() => null)) as
+    | { ok?: boolean; error?: string; undo?: Undo; board?: V; shared?: V }
+    | null;
+  if (res.ok && body?.ok !== false) return { ok: true, undo: body?.undo, fresh: body?.board ?? body?.shared };
   if (res.status === 401) return { ok: false, error: "Your sign-in has expired. Reload the page and sign in again." };
   if (body?.error) return { ok: false, error: sentence(body.error) };
   return {

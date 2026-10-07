@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import type { Db, Merchant } from "@/lib/types";
-import { newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
+import { getAccounts, newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
+import { buildBoard } from "@/lib/board";
+import { sharedView } from "@/lib/shared-view";
 import {
   FIXED_CATEGORIES,
   SAVINGS,
@@ -392,7 +394,18 @@ export async function POST(req: Request) {
       return bad("unknown action");
   }
 
-  return NextResponse.json(undo ? { ok: true, undo } : { ok: true });
+  // The page that sent the change can ask for its view back in the same
+  // reply (?view=board or ?view=shared), so a change costs one round trip
+  // from the browser instead of two. Read fresh: the store normalises on read.
+  const view = new URL(req.url).searchParams.get("view");
+  let fresh: { board?: unknown; shared?: unknown } = {};
+  if (view === "board" && role === "owner") {
+    const [after, { accounts }] = await Promise.all([readDb(), getAccounts()]);
+    fresh = { board: buildBoard(after, new Date(), accounts) };
+  } else if (view === "shared" && role) {
+    fresh = { shared: sharedView(await readDb(), role) };
+  }
+  return NextResponse.json({ ok: true, ...(undo ? { undo } : {}), ...fresh });
 }
 
 // What an identity edit is about. From a tile: the pattern a rule would use,

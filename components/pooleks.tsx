@@ -99,8 +99,9 @@ const REMOVE =
 
 // Pooleks ("in half"): the couple's tab as a statement. Same page for both
 // of them; only the labels flip.
-export function Pooleks({ role }: { role: Person }) {
-  const [view, setView] = useState<SharedView | null>(null);
+export function Pooleks({ role, initial }: { role: Person; initial: SharedView }) {
+  // Rendered with its data on the server: no loading line, no layout jump.
+  const [view, setView] = useState<SharedView>(initial);
   const [desc, setDesc] = useState("");
   const [amount, setAmount] = useState("");
   const [share, setShare] = useState(0.5);
@@ -150,16 +151,16 @@ export function Pooleks({ role }: { role: Person }) {
     }
   }, []);
   useEffect(() => {
-    void refetch();
-  }, [refetch]);
-  useEffect(() => {
-    if (loadError && view) announceError("Pooleks couldn't refresh. Reload to see the latest.", () => window.location.reload());
-  }, [loadError, view]);
+    if (loadError) announceError("Pooleks couldn't refresh. Reload to see the latest.", () => window.location.reload());
+  }, [loadError]);
 
   const run = useCallback(
     async (action: object) => {
-      const result = await act(action);
-      if (result.ok) await refetch();
+      const result = await act<SharedView>(action, "shared");
+      if (result.ok) {
+        if (result.fresh) setView(result.fresh);
+        else await refetch();
+      }
       return result;
     },
     [refetch]
@@ -224,7 +225,6 @@ export function Pooleks({ role }: { role: Person }) {
   // and opens on request, so the statement shows what is open between the two.
   const [showSettled, setShowSettled] = useState(false);
   const statement = useMemo(() => {
-    if (!view) return { open: [] as Month[], settled: [] as Month[], fold: null };
     const chronological = [
       ...view.sharedItems.map((item) => ({ kind: "share" as const, date: item.date, item })),
       ...view.settlements.map((settlement) => ({ kind: "settle" as const, date: settlement.date, settlement })),
@@ -328,24 +328,6 @@ export function Pooleks({ role }: { role: Person }) {
     setAddOpen(false);
   };
 
-  if (!view)
-    return (
-      <div className="mx-auto flex max-w-3xl flex-col items-start gap-3 px-5 py-6 text-sm text-muted-foreground">
-        {loadError ? (
-          <>
-            <p role="alert">Pooleks couldn&apos;t load. Check the connection and try again.</p>
-            <Button variant="outline" onClick={() => void refetch()}>
-              Try again
-            </Button>
-          </>
-        ) : (
-          <p className="flex items-center gap-2">
-            <CoinMark turning className="size-4" />
-            Loading the statement…
-          </p>
-        )}
-      </div>
-    );
   const bal = view.balance;
   // Balance sentence from the viewer's side, following the rolling number so
   // "All square" arrives when the amount does. bal > 0 means the partner owes the owner.
