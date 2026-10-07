@@ -25,7 +25,7 @@ colors:
   limb-brown: "#3A2A20"
   limb-sand: "#D9C7B4"
   tongue-pink: "#F07A8C"
-  received-green: "#0E8A4A"
+  received-green: "#0A763F"
   received-green-night: "#4FD18B"
   wrapper-cornflower: "#6C8EEA"
   wrapper-tomato: "#E2553B"
@@ -178,7 +178,7 @@ A white page, a warm oat stage, copper as the house colour, Crayon Blue for ever
 - **Ink** (ink) and **Chalk** (chalk): all text and the active pill, in light and dark. Ink on Oat Paper is 15:1.
 - **Muted** (muted) and **Muted Night** (muted-night): secondary text, captions and the prototype strip; 4.8:1 on Oat Paper, 7.1:1 on Oat Paper Night.
 - **Limb Brown** (limb-brown) and **Limb Sand** (limb-sand): the characters' arms, legs and dark marks, swapped by theme so feet and confetti never vanish on the night ground.
-- **Received Green** (received-green / received-green-night): money coming in. On Oat Paper the light value is only 3.7:1 and must be deepened to reach 4.5:1; the night value (8.6:1) is fine.
+- **Received Green** (received-green / received-green-night): money coming in. 4.8:1 on Oat Paper, 5.7:1 on white and 5.2:1 on Mist; the night value is 8.6:1 on Oat Paper Night.
 
 ### Named Rules
 **The One Wrapper Rule.** A category owns one wrapper colour, given by its place in the list, everywhere it appears. Never pick a wrapper for looks.
@@ -258,7 +258,7 @@ A category as a character.
 ### Coins
 A charge as a coin.
 - **Shape:** a painted disc in copper, brass or nickel with a face, 40px on the stage (50px in the desktop pile, 38px on a phone).
-- **Behaviour:** pick a coin and tap a roll; it hops along an arc into the roll. A picked coin turns and smiles.
+- **Behaviour:** pick a coin and tap a roll; it hops along an arc into the roll. A picked coin turns and smiles. After filing on the stage, focus moves to the next loose coin, or to the month's name once the pile is empty.
 
 ### Kopikas
 The coin who narrates.
@@ -282,7 +282,7 @@ The coin who narrates.
 
 ### Inputs
 - **Select pill:** Mist fill, 2px Ink border at 10% (25% on hover), full pill, 40px tall, Body type at 500.
-- **Focus:** a visible 2px Ink outline (Chalk in dark) offset by 2px on every control. Note that pairing `outline-none` with a focus outline in Tailwind 4 hides it; use `outline-hidden`.
+- **Focus:** a visible 2px Ink outline (Chalk in dark) offset by 2px on every control, following the control's own corners. In Tailwind 4 both `outline-none` and `outline-hidden` also cancel a later outline's style, so the focus state sets it back with `outline-solid`.
 
 ### Motion
 Springs everywhere: the general one at stiffness 260 and damping 18, rolls at 200 and 20. A gulp lasts 0.6s, a hop 0.7s (easing out, then in), rolls rise over 1.1s on `cubic-bezier(0.16, 1, 0.3, 1)`, floaters drift ±7px and ±7° back and forth. With reduced motion every state stays and the movement goes.

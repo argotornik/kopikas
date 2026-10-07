@@ -352,16 +352,16 @@
       "received-green": {
         "role": "neutral",
         "displayName": "Received Green",
-        "canonical": "oklch(55.7% 0.139 153.1)",
+        "canonical": "oklch(49.8% 0.124 153.3)",
         "tonalRamp": [
-          "oklch(15% 0.139 153.1)",
-          "oklch(25% 0.139 153.1)",
-          "oklch(35% 0.139 153.1)",
-          "oklch(48% 0.139 153.1)",
-          "oklch(60% 0.139 153.1)",
-          "oklch(72% 0.139 153.1)",
-          "oklch(84% 0.139 153.1)",
-          "oklch(95% 0.139 153.1)"
+          "oklch(15% 0.124 153.3)",
+          "oklch(25% 0.124 153.3)",
+          "oklch(35% 0.124 153.3)",
+          "oklch(48% 0.124 153.3)",
+          "oklch(60% 0.124 153.3)",
+          "oklch(72% 0.124 153.3)",
+          "oklch(84% 0.124 153.3)",
+          "oklch(95% 0.124 153.3)"
         ]
       },
       "received-green-night": {
