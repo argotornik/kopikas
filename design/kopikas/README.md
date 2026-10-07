@@ -1,6 +1,6 @@
 # Kopikas, animated
 
-The board plays Kopikas's set pieces from one Lottie file, `public/kopikas.lottie`, and draws every other moment in code. The file is built by a script from the same data as the code-drawn Kopikas (`components/kopikas-figure.ts`), so the two always match:
+All eight of Kopikas's poses are animated in one Lottie file, `public/kopikas.lottie`. The board plays seven of them from it; friendly, the hover, stays drawn in code so its eyes follow the pointer. The file is built by a script from the same data as the code-drawn Kopikas (`components/kopikas-figure.ts`), so the two always match:
 
 ```
 npm run kopikas:lottie
@@ -10,18 +10,18 @@ Run it again after changing a pose in `kopikas-figure.ts` or the motion in `scri
 
 ## The animations
 
-The board asks for each animation by name. Three are made; the rest are planned.
+The board asks for each animation by name. All eight are made.
 
 | Name | Moment | Plays | Length | What happens | Made |
 |---|---|---|---|---|---|
 | `hello` | arriving on the board | once, then holds | 1.2 s | crouches, pops up leaning in, opens one arm wide, waves the other twice, blinks, settles on the hello pose | yes |
 | `jump` | a coin landed | once, then holds | 0.9 s | crouches with arms swung back, springs up tucking its legs, lands with a squash, wobbles still, stands | yes |
 | `excited` | everything sorted | loops | 1.8 s | eyes shut with joy, hops with arms pumping and rests between hops, sways, sparkles twinkle and confetti bobs | yes |
-| `friendly` | hovered | loops | ~1.5 s | head tilted, one small hand lift | |
-| `saving` | loose change waiting | loops | ~2.4 s | gentle bob, turns the coin in its hands, eyes on it | |
-| `budgeting` | filing a coin | loops | ~2.4 s | leans into the list, ticks a box | |
-| `resting` | nothing to file | loops | ~3 s | sits cross-legged, hands on the floor, breathes, heavy lids | |
-| `proud` | a past month came in under the one before | once, then holds | ~1.2 s | puffs up, hands to hips, chin up, eyes closed contentedly | |
+| `friendly` | hovered | loops | 1.5 s | head tilted and swaying, lifts one small hand twice, blinks | yes |
+| `saving` | loose change waiting | loops | 2.4 s | breathes and bobs, eyes on the coin, turns it edge-on and back while its glint fades and twinkles back | yes |
+| `budgeting` | filing a coin | loops | 2.4 s | leans into the list, eyes drop a row, a tick draws itself into the third box, a small smile; the tick fades before the loop | yes |
+| `resting` | nothing to file | loops | 3 s | sits cross-legged, hands on the floor, breathes; lids grow heavy as the head dips, then lift | yes |
+| `proud` | a past month came in under the one before | once, then holds | 1.2 s | puffs up, hands to hips, chin up; the eyes squeeze shut into contented arcs under lifted brows as the smile widens | yes |
 
 A one-shot ends on a pose the code-drawn Kopikas can take over from, and a loop starts and ends on its pose, so switching between moments never jumps. With reduced motion on, Kopikas is always the still, code-drawn figure.
 
@@ -43,8 +43,12 @@ The artboard is 592 × 624 px: the figure's 124 × 150 units at 4 px each, inset
 | `body`, `tilt` | everything above the legs; `tilt` is the lean, about the coin's centre |
 | `arm-left`, `arm-right` | curve plus mitten hand; every limb is one curve, so any two poses morph |
 | `coin` | `coin-edge`, `coin-face`, `coin-ring`, `k` |
-| `eyes`, `mouth` | dot eyes that blink, or joyful closed arcs (excited); the open mouth with its tongue |
+| `prop-checklist` | budgeting's list, behind the arm that holds it; it nods, and the third row's tick draws itself in |
+| `eyes`, `brows`, `mouth` | dot eyes that blink and can look at a prop, joyful closed arcs (excited), contented arcs (proud) or sleepy lids that droop (resting); brows only in proud; the open mouth with its tongue, or a stroke that can widen into a smile |
+| `prop-coin` | saving's coin, in front of the hands; it turns edge-on, and its glint twinkles |
 | `wave-marks`, `sparkles` | only in hello and excited |
+
+In saving the arms sit in front of the coin, and in resting the body sits lowered onto the floor.
 
 Pivots, in artboard pixels:
 
@@ -76,4 +80,6 @@ The coin keeps its copper in both: face `#CB793E`, edge `#A45A2B`, ring `#E39C63
 
 The player version in use ignores the animation's name at start-up and loads the file's first animation, so the board picks the right one as soon as the file has loaded (`components/kopikas-animated.tsx`).
 
-The code-drawn Kopikas follows the pointer with its eyes (except in saving and budgeting, where they stay on the prop); a Lottie animation plays as drawn and cannot. So the board plays Lottie for the set pieces only and keeps the code-drawn Kopikas for idle moments.
+The code-drawn Kopikas follows the pointer with its eyes (except in saving and budgeting, where they stay on the prop); a Lottie animation plays as drawn and cannot. Only friendly (the hover) has eyes that follow the pointer, so it is the one pose the board keeps drawn; saving and budgeting keep their eyes on the prop, resting's are sleepy and proud's closed, so they lose nothing in the file.
+
+The drawn Kopikas stays underneath the animations (`components/kopikas-animated.tsx`), so poses still spring into each other: the idle loops (saving, budgeting, resting) take over once the drawn figure has settled into their pose, 0.4 s after the change, and the one-shots and excited start at once from their own opening. Each animation hides the drawn figure in the same task it first paints, and shows it again on the way out.
