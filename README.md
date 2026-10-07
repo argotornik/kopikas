@@ -4,7 +4,7 @@ A personal money board fed by LHV bank data. Transactions arrive as one ruled st
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/board-dark.png">
-  <img alt="The board on mock data: stat tiles, the ledger, categories and subscriptions" src="docs/board-light.png">
+  <img alt="The board on mock data: four stat tiles, the ledger grouped by day, and the categories card with five charges to file" src="docs/board-light.png">
 </picture>
 
 ## Why
@@ -23,20 +23,20 @@ The rail on the right puts every drop target at the top: the categories card, th
 
 Categories start as a default list, and a cog on the card renames them, adds new ones or drags them into a new order; a rename carries every rule and filed charge along. Arrows in the card's header step through the months. Each row shows the month's total with a copper bar for its share of the largest, and each row is a drop target. Give a category a monthly limit in the same dialog and its bar becomes a meter against the limit, amber once it is passed. Select a category and a twelve-month strip appears above the ledger: a bar per month, the average as a line, the limit as another; click a month to move the card there. A drop asks whether to file just this one or *always*; *always* writes a rule, which is a lowercase substring matched against the counterparty and description. Rules are listed on the Settings page, grouped by the category they file into, with the ones that match nothing gathered first. Under the categories, Paid out is everything that left the account that month except savings, shared costs at full price. Incoming money has its own line, Received; clicking it shows who sent what.
 
-![Dragging an uncategorised charge onto the Home row, choosing Always, and watching the merchant's other charges file themselves](docs/drag.gif)
+![Dragging an uncategorised charge onto the Home row and choosing Always: the merchant's other charges file with it, and five to file becomes Everything filed](docs/drag.gif)
 
 <img src="docs/file-under.png" width="620" alt="The prompt after the drop: file every charge from this merchant here, or only this one">
 
 Subscriptions watches recurring charges. Drop one on Track as a subscription, or on the Subscriptions row in the categories card, and the board records the merchant pattern and expected amount, then tracks the last charge, the next due date, and whether the price moved. A price change shows as a badge you click to accept the new price. A charge that stops arriving shows as gone quiet. Rows group into monthly and yearly, with a per-month total at the bottom that spreads the yearly ones over twelve months; the guess between the two reads the statement text when there is only one charge to go on, re-measures itself once a second charge lands, and a control on each row corrects it for good.
 
 <p>
-  <img src="docs/subscriptions-dark.png" width="380" alt="The Subscriptions card: monthly and yearly groups, a price-change badge, the monthly burn">
+  <img src="docs/subscriptions-dark.png" width="380" alt="The Subscriptions card: monthly and yearly groups, a price-change badge to accept, and a per-month total that spreads the yearly ones over twelve months">
   <img src="docs/mobile-dark.png" width="290" alt="The board on a phone">
 </p>
 
 Pooleks (Estonian for *in half*) is the shared ledger. Drop a charge on Split with the partner, with a 1/2, 1/3 or 1/4 split, and it becomes a line on a running statement of who owes whom. Each line shows its amount and an arrow: who owes whom for a shared cost, who paid whom for a repayment. Choose Always and every future charge from that merchant lands on the statement by itself at the same split; past charges are left alone, and the rule can be removed on Settings. The partner signs in and sees the same statement with the labels flipped, plus a dialog to add what they paid for. Either of you records a repayment with Settle up, which shows what the amount would leave open before it is recorded; either can remove one, and new ones say who recorded them. Everything before the latest repayment folds into one line, so the statement shows what is open. This is what replaced Splitwise here: the rows come from the bank, so nothing is typed twice.
 
-![Pooleks: the shared statement, one figure per row, a Details toggle for the working](docs/pooleks-dark.png)
+![Pooleks: the shared statement, one amount and an arrow per line, opened past the latest repayment to show the lines before it](docs/pooleks-dark.png)
 
 The stat row across the top shows your share of this month's spending against last month (shared costs at your part), the account balances with a 30-day line each, and an Investments tile. The LHV investment account is read from the API on every sync, one snapshot a day refreshed through the day; the Lightyear pot has no API and is entered by hand. Both are charted over time. Under the wordmark, the board says when it last heard from LHV; past 26 hours that line turns amber and links to Settings.
 
