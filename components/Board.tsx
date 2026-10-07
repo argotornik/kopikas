@@ -94,15 +94,6 @@ const MEASURING = { droppable: { strategy: MeasuringStrategy.Always } };
 // A 5px move before a press becomes a drag. Constant for the same reason: new
 // sensor options rebuild the activators every row's drag hook reads.
 const MOUSE_DRAG = { activationConstraint: { distance: 5 } };
-// How the pill leaves when a target has taken it: it fades where it fell, and
-// the prompt or the row's flash carries on from there. A miss keeps dnd-kit's
-// default and flies home to its row, which is what "put back" looks like.
-const TAKEN_DROP: DropAnimation = {
-  duration: 180,
-  easing: "cubic-bezier(0.22, 1, 0.36, 1)",
-  keyframes: () => [{ opacity: 1 }, { opacity: 0 }],
-  sideEffects: null,
-};
 
 // The "File under…" menu: one menu for the whole ledger, opened from any
 // row's category with that row's transaction id as its payload.
@@ -131,8 +122,24 @@ export default function Board({
 }) {
   const [board, setBoard] = useState(initial);
   const [activeTx, setActiveTx] = useState<BoardTx | null>(null);
-  // Whether the last drop did something: picks how the pill leaves.
+  // A drop that did something, still landing: from the release until the
+  // pill has faded. The rail keeps its drag layout until then, so the row
+  // the pill fell on is still the one under it.
   const [taken, setTaken] = useState(false);
+  // How the pill leaves when a target has taken it: it fades where it fell,
+  // and the prompt or the row's flash carries on from there. A miss keeps
+  // dnd-kit's default and flies home to its row, which is what "put back"
+  // looks like.
+  const takenDrop = useMemo<DropAnimation>(
+    () => ({
+      duration: 180,
+      easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+      keyframes: () => [{ opacity: 1 }, { opacity: 0 }],
+      // Called as the fade starts; what it returns, as the fade ends.
+      sideEffects: () => () => setTaken(false),
+    }),
+    []
+  );
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [sharePrompt, setSharePrompt] = useState<SharePrompt | null>(null);
   // The category a drop just filed into, so its row can acknowledge the
@@ -210,8 +217,9 @@ export default function Board({
       return next;
     });
   // Mid-drag the rail is only targets: categories stay open, the reading
-  // cards below the drop strip fold away, so the rail shrinks at pickup.
-  const dragging = !!activeTx;
+  // cards below the drop strip fold away, so the rail shrinks at pickup. It
+  // grows back once a taken drop has faded, not at the release.
+  const dragging = !!activeTx || taken;
   const showCategories = !collapsed.categories || dragging;
   const showSubs = !collapsed.subs;
 
@@ -1291,7 +1299,7 @@ export default function Board({
       </div>
       {/* dnd-kit sizes the overlay to the dragged row; a pill should be as wide as
           its words, or it runs off the screen when the drop zone is in the rail. */}
-      <DragOverlay style={{ width: "auto", height: "auto" }} dropAnimation={taken ? TAKEN_DROP : undefined}>
+      <DragOverlay style={{ width: "auto", height: "auto" }} dropAnimation={taken ? takenDrop : undefined}>
         {activeTx && (
           <div className="cursor-grabbing rounded-lg border border-primary bg-card px-3 py-2 text-sm font-medium shadow-lg">
             {activeTx.name} · <span className="font-mono tabular-nums">{eur.format(Math.abs(activeTx.amount))}</span>
