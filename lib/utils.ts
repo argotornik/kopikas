@@ -36,5 +36,8 @@ export function shareLabel(f = 0.5): string {
   if (Math.abs(f - 0.5) < 0.01) return "1/2"
   if (Math.abs(f - 1 / 3) < 0.01) return "1/3"
   if (Math.abs(f - 0.25) < 0.01) return "1/4"
+  // The other side of those splits, when the owner's part is named.
+  if (Math.abs(f - 2 / 3) < 0.01) return "2/3"
+  if (Math.abs(f - 0.75) < 0.01) return "3/4"
   return `${Math.round(f * 100)}%`
 }

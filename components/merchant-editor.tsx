@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { FormError, Pending } from "@/components/form-status";
+import { Field, FormError, Pending } from "@/components/form-status";
 
 type Fields = { name: string; domain: string; emoji: string };
 
@@ -100,30 +100,27 @@ function MerchantForm({
           className="mt-1 size-9"
         />
         <div className="grid flex-1 gap-2">
-          <Input
-            placeholder="Name on the board"
-            aria-label="Name on the board"
-            name="merchant-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-          />
-          <Input
-            placeholder="Website for the favicon, e.g. delice.ee (optional)"
-            aria-label="Website for the favicon"
-            name="merchant-domain"
-            inputMode="url"
-            autoCapitalize="none"
-            value={domain}
-            onChange={(e) => setDomain(e.target.value)}
-          />
-          <Input
-            placeholder="Emoji when there is no website (optional)"
-            aria-label="Emoji"
-            name="merchant-emoji"
-            value={emoji}
-            onChange={(e) => setEmoji(e.target.value)}
-          />
+          <Field label="Name on the board">
+            {(id) => (
+              <Input id={id} name="merchant-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            )}
+          </Field>
+          <Field label="Website, for its icon (optional)">
+            {(id) => (
+              <Input
+                id={id}
+                placeholder="e.g. delice.ee"
+                name="merchant-domain"
+                inputMode="url"
+                autoCapitalize="none"
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+              />
+            )}
+          </Field>
+          <Field label="Emoji, when there is no website (optional)">
+            {(id) => <Input id={id} name="merchant-emoji" value={emoji} onChange={(e) => setEmoji(e.target.value)} />}
+          </Field>
           <FormError message={err} />
         </div>
       </div>

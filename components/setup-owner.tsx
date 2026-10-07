@@ -33,7 +33,10 @@ export function NotOnBoard({ email }: { email: string | null }) {
     <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 py-6">
       <PageHeader />
       <div className="flex flex-col gap-2 py-10 text-center text-sm text-muted-foreground">
-        <p>This account isn&apos;t on the board. Ask {OWNER_NAME}.</p>
+        <p>
+          This account isn&apos;t one of the two on this board. Ask{" "}
+          {OWNER_NAME === "Owner" ? "whoever set it up" : OWNER_NAME} to add it.
+        </p>
         {email && (
           <p className="text-xs">
             Signed in as {email}. Your own deployment? Then <Var>OWNER_EMAIL</Var> does not match this address.

@@ -28,7 +28,8 @@ export function ClerkThemed({ children }: { children: React.ReactNode }) {
         signIn: {
           start: {
             title: "Sign in to Kopikas",
-            subtitle: "Every kopikas counts — welcome back.",
+            // The page already carries the tagline; this line says which address works.
+            subtitle: "Use the address this board was set up for.",
           },
         },
       }}

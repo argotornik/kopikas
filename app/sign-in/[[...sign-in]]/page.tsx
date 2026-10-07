@@ -21,7 +21,10 @@ export default function SignInPage() {
         <SignIn />
       ) : (
         <p className="text-center text-sm text-muted-foreground">
-          Sign-in is off in local development — the board acts as the owner.
+          Sign-in is off in local development, so the board treats you as the owner.{" "}
+          <a href="/" className="underline">
+            Open the board
+          </a>
         </p>
       )}
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
+import { ReceiptTextIcon, XIcon } from "lucide-react";
 import { motion, MotionConfig } from "motion/react";
 import { amountInput, cn, parseAmount, shareLabel } from "@/lib/utils";
 import { act, focusAfterRemoval } from "@/lib/act";
@@ -22,12 +22,11 @@ import { useRollingNumber } from "@/components/rolling-number";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import { announceError, announceUndoable } from "@/components/toaster";
-import { FormError, Pending } from "@/components/form-status";
+import { Field, FormError, Pending } from "@/components/form-status";
 import { SplitPicker } from "@/components/split-picker";
 
 const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
-const signed = (n: number) => `${n >= 0 ? "+" : "−"}${eur.format(Math.abs(n))}`;
 
 type Person = "owner" | "partner";
 
@@ -71,7 +70,7 @@ function groupMonths(rows: Row[]): Month[] {
     const byCategory = new Map<string, number>();
     for (const r of shares) {
       if (r.kind !== "share") continue;
-      const key = r.item.category ?? "unsorted";
+      const key = r.item.category ?? "uncategorized";
       byCategory.set(key, (byCategory.get(key) ?? 0) + r.item.total);
     }
     return {
@@ -185,6 +184,37 @@ export function Pooleks({ role }: { role: Person }) {
   // "You" for whoever is looking; the other by name.
   const names = role === "owner" ? { owner: "You", partner: PARTNER_NAME } : { owner: OWNER_NAME, partner: "You" };
   const owes = (who: string) => (who === "You" ? "owe" : "owes");
+  const lower = (who: string) => (who === "You" ? "you" : who);
+  // Which way money goes on a line, from the reader's side: owed for a shared
+  // cost, paid for a repayment. `toOwner` = from the partner to the owner.
+  // Amounts are always positive; the arrow carries the direction.
+  const flow = (toOwner: boolean): [string, string] =>
+    toOwner ? [names.partner, names.owner] : [names.owner, names.partner];
+  // Where a balance stands, said from the reader's side and never negative.
+  // positive = the partner owes the owner.
+  const standing = (balance: number) => {
+    const r = Math.round(balance * 100) / 100;
+    if (r === 0) return { words: "square", amount: null };
+    const [debtor] = flow(r > 0);
+    return { words: debtor === "You" ? "you owe" : "owed to you", amount: Math.abs(r) };
+  };
+  // A shared cost's second line: its category, who paid, and with Details,
+  // whose part the amount on the right is.
+  const describeShare = (item: SharedView["sharedItems"][number]) => {
+    const parts = [item.category ?? "uncategorized"];
+    if (item.paidBy === "partner") parts.push(`${names.partner} paid`);
+    if (details) {
+      const owner = item.paidBy === "owner";
+      const debtor = owner ? names.partner : names.owner;
+      const part = owner ? (item.partnerShare ?? 0.5) : 1 - (item.partnerShare ?? 0.5);
+      parts.push(`${debtor === "You" ? "your" : `${debtor}'s`} part, ${shareLabel(part)} of ${eur.format(item.total)}`);
+    }
+    return parts.join(" · ");
+  };
+  const stillOwed = (balance: number) => {
+    const [debtor, creditor] = flow(balance > 0);
+    return `${debtor} still ${owes(debtor)} ${lower(creditor)} ${eur.format(Math.abs(balance))}`;
+  };
   // Today on the household's own clock: toISOString would be yesterday's
   // date in Tallinn until three in the morning.
   const today = new Date().toLocaleDateString("sv-SE");
@@ -248,12 +278,21 @@ export function Pooleks({ role }: { role: Person }) {
         type="button"
         onClick={() => setShowSettled((s) => !s)}
         aria-expanded={showSettled}
-        className="flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 hover:bg-accent hover:text-foreground pointer-coarse:py-3.5"
+        className="flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 text-left hover:bg-accent hover:text-foreground pointer-coarse:py-3.5"
       >
+        {/* "All square" only when it is: a repayment can leave something owed. */}
         <span>
-          {months.length === 0 && "All square. "}
-          Settled up to {shortDate.format(new Date(fold.date))} · {fold.lines} {fold.lines === 1 ? "line" : "lines"}
-          {fold.carried !== 0 && ` · ${signed(fold.carried)} carried`}
+          {fold.carried === 0 ? (
+            <>
+              {months.length === 0 && "All square. "}
+              Settled up to {shortDate.format(new Date(fold.date))} · {fold.lines} {fold.lines === 1 ? "line" : "lines"}
+            </>
+          ) : (
+            <>
+              Repayment on {shortDate.format(new Date(fold.date))} · {fold.lines} earlier {fold.lines === 1 ? "line" : "lines"} ·{" "}
+              {stillOwed(fold.carried)}
+            </>
+          )}
         </span>
         <span className="shrink-0">{showSettled ? "Hide" : "Show"}</span>
       </button>
@@ -317,12 +356,10 @@ export function Pooleks({ role }: { role: Person }) {
       : shownBalance > 0
         ? `${names.partner} ${owes(names.partner)} ${names.owner === "You" ? "you" : names.owner}`
         : `${names.owner} ${owes(names.owner)} ${names.partner === "You" ? "you" : names.partner}`;
-  const tabHeader = role === "owner" ? `${PARTNER_NAME} owes` : "You owe";
-  // What the visible number on each row is: that person's part of the bill,
-  // signed by how it moved the tab. Same words as the split control.
-  const shareHeader = role === "owner" ? `${PARTNER_NAME} pays` : "you pay";
-  // "Partner → you" / "You → Owner": from whoever owes to whoever is owed.
-  const arrow = (from: string, to: string) => `${from} → ${to === "You" ? "you" : to}`;
+  // "Partner → you" / "You → Owner": from whoever owes (or paid) to whoever is owed.
+  const arrow = (from: string, to: string) => `${from} → ${lower(to)}`;
+  // Lines open since the last repayment, for the line under the headline.
+  const openLines = months.reduce((n, m) => n + m.rows.length, 0);
 
   // Settle up: the amount as typed, and what it would leave.
   const settleValue = parseAmount(settleAmount);
@@ -383,8 +420,11 @@ export function Pooleks({ role }: { role: Person }) {
               {!flat && <span className="ml-2 font-mono tabular-nums">{eur.format(Math.abs(shownBalance))}</span>}
             </div>
             <div className="text-xs text-muted-foreground">
-              {view.sharedItems.length} shared · {view.settlements.length} repayment
-              {view.settlements.length === 1 ? "" : "s"}
+              {fold
+                ? openLines === 0
+                  ? `Nothing new since the repayment on ${shortDate.format(new Date(fold.date))}`
+                  : `${openLines} ${openLines === 1 ? "line" : "lines"} since the repayment on ${shortDate.format(new Date(fold.date))}`
+                : `${view.sharedItems.length} shared ${view.sharedItems.length === 1 ? "cost" : "costs"}, no repayments yet`}
             </div>
           </div>
           <div className="flex gap-2">
@@ -417,7 +457,9 @@ export function Pooleks({ role }: { role: Person }) {
 
       {months.length === 0 && settledMonths.length === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          Nothing shared yet. On the board, drop an expense on the Pooleks zone — or add something you paid for below.
+          {role === "owner"
+            ? `Nothing shared yet. On the board, file a charge with "Split with ${PARTNER_NAME}", or use Add expense for something you paid in cash.`
+            : `Nothing shared yet. Use Add expense for something you paid for; ${OWNER_NAME}'s shared costs arrive from the bank.`}
         </p>
       ) : (
         // The statement: one sheet, ruled rows, month headers as section rules.
@@ -430,14 +472,15 @@ export function Pooleks({ role }: { role: Person }) {
                 onClick={toggleDetails}
                 aria-pressed={details}
                 className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs normal-case tracking-normal text-muted-foreground hover:bg-accent hover:text-foreground pointer-coarse:py-3.5"
-                title={details ? "Hide amounts and running balance" : "Show amounts and running balance"}
+                title={details ? "Hide each part and the balance after every line" : "Show each part and the balance after every line"}
               >
-                {details ? <EyeOffIcon className="size-3.5" /> : <EyeIcon className="size-3.5" />}
+                <ReceiptTextIcon className="size-3.5" />
                 {details ? "Hide details" : "Details"}
               </button>
             </div>
-            <span className="text-right">{shareHeader}</span>
-            {details && <span className="hidden text-right sm:block">{tabHeader}</span>}
+            {/* The arrows say which way each amount goes; only the balance column needs a head. */}
+            <span />
+            {details && <span className="hidden text-right sm:block">Balance after</span>}
             <span />
           </div>
           {[...months, ...(showSettled ? settledMonths : [])].map((m, mi) => (
@@ -449,12 +492,7 @@ export function Pooleks({ role }: { role: Person }) {
                 </span>
                 {details && (
                   <>
-                    <span
-                      className="text-right font-mono text-xs tabular-nums text-muted-foreground"
-                      title="How this month moved the tab"
-                    >
-                      {signed(m.rows.reduce((sum, r) => sum + r.movement, 0))}
-                    </span>
+                    <MonthNet net={m.rows.reduce((sum, r) => sum + r.movement, 0)} arrow={arrow} flow={flow} />
                     <span className="hidden sm:block" />
                   </>
                 )}
@@ -491,15 +529,11 @@ export function Pooleks({ role }: { role: Person }) {
                       {r.settlement.recordedBy &&
                         ` · recorded by ${names[r.settlement.recordedBy] === "You" ? "you" : names[r.settlement.recordedBy]}`}
                     </span>
-                    <span className="text-right font-mono text-sm tabular-nums text-foreground">
-                      {signed(r.movement)}
-                      {details && <span className="block text-xs text-muted-foreground sm:hidden">{eur.format(r.running)}</span>}
-                    </span>
-                    {details && (
-                      <span className="hidden text-right font-mono text-sm tabular-nums text-foreground sm:block">
-                        {eur.format(r.running)}
-                      </span>
-                    )}
+                    {/* A repayment's arrow is the money that moved: who paid whom. */}
+                    <Amount value={Math.abs(r.settlement.amount)} label={arrow(...flow(r.settlement.amount > 0))}>
+                      {details && <Standing {...standing(r.running)} className="sm:hidden" />}
+                    </Amount>
+                    {details && <Standing {...standing(r.running)} className="hidden sm:block" />}
                     {/* Either of the two can take a repayment back; Undo puts it back. */}
                     <button
                       type="button"
@@ -528,26 +562,16 @@ export function Pooleks({ role }: { role: Person }) {
                         <span className="font-medium">{r.item.description}</span>
                         <span className="hidden text-muted-foreground sm:inline">
                           {" · "}
-                          {r.item.category ?? "unsorted"}
-                          {r.item.paidBy === "partner" && ` · ${names.partner} paid`}
-                          {details && ` · ${shareLabel(r.item.partnerShare)} of ${eur.format(r.item.total)}`}
+                          {describeShare(r.item)}
                         </span>
                       </div>
-                      <div className="truncate text-xs text-muted-foreground sm:hidden">
-                        {r.item.category ?? "unsorted"}
-                        {r.item.paidBy === "partner" && ` · ${names.partner} paid`}
-                        {details && ` · ${shareLabel(r.item.partnerShare)} of ${eur.format(r.item.total)}`}
-                      </div>
+                      <div className="truncate text-xs text-muted-foreground sm:hidden">{describeShare(r.item)}</div>
                     </div>
-                    <span className="text-right font-mono text-sm font-medium tabular-nums text-foreground">
-                      {signed(r.movement)}
-                      {details && (
-                        <span className="block text-xs font-normal text-muted-foreground sm:hidden">{eur.format(r.running)}</span>
-                      )}
-                    </span>
-                    {details && (
-                      <span className="hidden text-right font-mono text-sm tabular-nums sm:block">{eur.format(r.running)}</span>
-                    )}
+                    {/* A shared cost's arrow is what is owed for it: from the one who didn't pay. */}
+                    <Amount value={Math.abs(r.movement)} label={arrow(...flow(r.movement > 0))} strong>
+                      {details && <Standing {...standing(r.running)} className="sm:hidden" />}
+                    </Amount>
+                    {details && <Standing {...standing(r.running)} className="hidden sm:block" />}
                     {role === "owner" ? (
                       <button
                         type="button"
@@ -589,47 +613,69 @@ export function Pooleks({ role }: { role: Person }) {
             }}
           >
           <DialogHeader>
-            <DialogTitle>I paid for something shared</DialogTitle>
-            <DialogDescription>Added at full price — the split takes care of the shares.</DialogDescription>
+            <DialogTitle>Add something you paid for</DialogTitle>
+            <DialogDescription>Enter the full amount; the split works out each part.</DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-2">
-          <Input
-            placeholder="What was it, e.g. Dinner at Kivi Paber Käärid"
-            aria-label="What was it"
-            name="description"
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-          />
-          <div className="flex gap-2">
-            <Input
-              placeholder="Amount, e.g. 54,00"
-              aria-label="Amount in euros"
-              name="amount"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-            <Button type="submit" disabled={adding}>
-              <Pending on={adding}>Add</Pending>
+          <div className="flex flex-col gap-3">
+            <Field label="What was it">
+              {(id) => (
+                <Input
+                  id={id}
+                  placeholder="e.g. Dinner at Kivi Paber Käärid"
+                  name="description"
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                />
+              )}
+            </Field>
+            <Field label="Full amount, €">
+              {(id) => (
+                <Input
+                  id={id}
+                  placeholder="e.g. 54,00"
+                  name="amount"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+              )}
+            </Field>
+            <Field label="Category (optional)">
+              {(id) => (
+                <select
+                  id={id}
+                  name="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground pointer-coarse:h-11 pointer-coarse:text-base"
+                >
+                  <option value="">None</option>
+                  {(view?.categories ?? []).map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            {/* The fraction is always the partner's; named from the reader's side. */}
+            <SplitPicker label={role === "owner" ? `${PARTNER_NAME}'s part` : "Your part"} value={share} onChange={setShare} />
+            <p className="min-h-4 text-xs text-muted-foreground" aria-live="polite">
+              {parseAmount(amount) > 0 &&
+                (role === "owner"
+                  ? `${PARTNER_NAME} will owe you ${eur.format(parseAmount(amount) * share)}.`
+                  : `${OWNER_NAME} will owe you ${eur.format(parseAmount(amount) * (1 - share))}.`)}
+            </p>
+            <FormError message={addErr} />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
+              Cancel
             </Button>
-          </div>
-          <select
-            aria-label="Category"
-            name="category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground pointer-coarse:h-11 pointer-coarse:text-base"
-          >
-            <option value="">Category (optional)</option>
-            {(view?.categories ?? []).map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <SplitPicker label={role === "owner" ? `${PARTNER_NAME} pays` : "You pay"} value={share} onChange={setShare} />
-          <FormError message={addErr} />
-          </div>
+            <Button type="submit" disabled={adding}>
+              <Pending on={adding}>Add to Pooleks</Pending>
+            </Button>
+          </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
@@ -646,31 +692,41 @@ export function Pooleks({ role }: { role: Person }) {
           <DialogHeader>
             <DialogTitle>Settle up</DialogTitle>
             <DialogDescription>
-              {bal > 0 ? arrow(names.partner, names.owner) : arrow(names.owner, names.partner)} · records a repayment and moves the tab toward zero.
+              {bal > 0 === (role === "owner")
+                ? `Record money ${lower(bal > 0 ? names.partner : names.owner)} has paid you outside the app, by transfer or in cash. You both see it on the statement.`
+                : `Record money you have paid ${bal > 0 ? names.owner : names.partner} outside the app, by transfer or in cash. You both see it on the statement.`}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-2">
-            <Input
-              aria-label="Amount in euros"
-              aria-describedby="settle-leaves"
-              name="settle-amount"
-              inputMode="decimal"
-              value={settleAmount}
-              onChange={(e) => setSettleAmount(e.target.value)}
-              autoFocus
-            />
+            <Field label="Amount paid back, €">
+              {(id) => (
+                <Input
+                  id={id}
+                  aria-describedby="settle-leaves"
+                  name="settle-amount"
+                  inputMode="decimal"
+                  value={settleAmount}
+                  onChange={(e) => setSettleAmount(e.target.value)}
+                  autoFocus
+                />
+              )}
+            </Field>
             {/* Where the repayment leaves the tab, before it is recorded:
                 404 typed for 40,40 shows up here, not on the statement. */}
             <p id="settle-leaves" className="min-h-4 text-xs text-muted-foreground">
               {settleLeaves}
             </p>
-            <Input
-              placeholder="Note (optional), e.g. cash at dinner"
-              aria-label="Note"
-              name="settle-note"
-              value={settleNote}
-              onChange={(e) => setSettleNote(e.target.value)}
-            />
+            <Field label="Note (optional)">
+              {(id) => (
+                <Input
+                  id={id}
+                  placeholder="e.g. cash at dinner"
+                  name="settle-note"
+                  value={settleNote}
+                  onChange={(e) => setSettleNote(e.target.value)}
+                />
+              )}
+            </Field>
             <FormError message={settleErr} />
           </div>
           <DialogFooter>
@@ -686,5 +742,71 @@ export function Pooleks({ role }: { role: Person }) {
       </Dialog>
     </div>
     </MotionConfig>
+  );
+}
+
+// A line's figure: the amount, positive, and under it which way it goes.
+// The full sentence is what a screen reader hears.
+function Amount({
+  value,
+  label,
+  strong,
+  children,
+}: {
+  value: number;
+  label: string;
+  strong?: boolean;
+  children?: React.ReactNode;
+}) {
+  return (
+    <span className="min-w-0 text-right">
+      <span className={cn("block font-mono text-sm tabular-nums text-foreground", strong && "font-medium")}>
+        {eur.format(value)}
+      </span>
+      <span className="block truncate text-xs not-italic text-muted-foreground">{label}</span>
+      {children}
+    </span>
+  );
+}
+
+// Where the tab stands after a line, in words from the reader's side.
+function Standing({ words, amount, className }: { words: string; amount: number | null; className?: string }) {
+  return (
+    <span className={cn("text-right text-xs text-muted-foreground", className)}>
+      {amount === null ? (
+        words
+      ) : (
+        <>
+          {words} <span className="font-mono tabular-nums text-foreground">{eur.format(amount)}</span>
+        </>
+      )}
+    </span>
+  );
+}
+
+// What a month did to the tab, as an arrow and an amount.
+function MonthNet({
+  net,
+  arrow,
+  flow,
+}: {
+  net: number;
+  arrow: (from: string, to: string) => string;
+  flow: (toOwner: boolean) => [string, string];
+}) {
+  const r = Math.round(net * 100) / 100;
+  const [from, to] = flow(r > 0);
+  return (
+    // Same order as a line's figure: the amount, then which way it goes.
+    <span className="text-right text-xs text-muted-foreground" title="What this month did to the balance">
+      {r === 0 ? (
+        "evens out"
+      ) : (
+        <>
+          <span className="block font-mono tabular-nums">{eur.format(Math.abs(r))}</span>
+          <span className="block truncate">{arrow(from, to)}</span>
+        </>
+      )}
+    </span>
   );
 }

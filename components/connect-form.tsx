@@ -7,6 +7,7 @@ import { CircleAlertIcon } from "lucide-react";
 import { act } from "@/lib/act";
 import { runSync } from "@/lib/sync-report";
 import { cn } from "@/lib/utils";
+import { Field } from "@/components/form-status";
 import { CoinMark } from "@/components/coin-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,10 @@ type Phase =
   | { step: "saving" }
   | { step: "syncing" }
   | { step: "opening"; rows: number }
-  | { step: "failed"; message: string; detail?: string };
+  | { step: "failed"; message: string; detail?: string }
+  // Connected, but LHV had no transactions in the window: nothing is wrong
+  // with the token, so it does not wear the failure's amber.
+  | { step: "empty" };
 
 // Paste the token, press Connect: the token is stored, the first sync runs,
 // and the board opens when rows arrive. One action instead of save, sync,
@@ -37,12 +41,7 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
       return setPhase({ step: "failed", message: outcome.text, detail: outcome.detail });
     }
     const rows = outcome.rows;
-    if (rows === 0) {
-      return setPhase({
-        step: "failed",
-        message: "LHV answered, but no transactions came back for the last 90 days. The token is stored and the hourly sync keeps trying.",
-      });
-    }
+    if (rows === 0) return setPhase({ step: "empty" });
     setPhase({ step: "opening", rows });
     // The board opens on its first fill: the feed cascades in once.
     router.replace("/?welcome=1");
@@ -73,31 +72,41 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
           ? { key: "opening", text: `Fetched ${phase.rows} transactions. Opening your board…` }
           : phase.step === "failed"
             ? { key: `failed:${phase.message}`, text: phase.message, failed: true }
-            : stored
+            : phase.step === "empty"
+              ? {
+                  key: "empty",
+                  text: "Connected. LHV had no transactions from the last 90 days, so the board stays empty for now; the hourly sync keeps checking.",
+                }
+              : stored
               ? { key: "stored", text: "A token is already stored, but nothing has synced yet." }
               : null;
 
   return (
     <MotionConfig reducedMotion="user">
     <div className="flex flex-col gap-2">
-      <div className="flex gap-2">
-        <Input
-          type="password"
-          placeholder="Paste refresh token"
-          aria-label="LHV refresh token"
-          name="lhv-refresh-token"
-          autoComplete="off"
-          spellCheck={false}
-          value={token}
-          disabled={busy}
-          onChange={(e) => setToken(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !busy) {
-              e.preventDefault();
-              void connect();
-            }
-          }}
-        />
+      <div className="flex items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <Field label="Refresh token">
+            {(id) => (
+              <Input
+                id={id}
+                type="password"
+                name="lhv-refresh-token"
+                autoComplete="off"
+                spellCheck={false}
+                value={token}
+                disabled={busy}
+                onChange={(e) => setToken(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !busy) {
+                    e.preventDefault();
+                    void connect();
+                  }
+                }}
+              />
+            )}
+          </Field>
+        </div>
         <Button onClick={() => void connect()} disabled={busy || !token.trim()}>
           {busy ? "Connecting…" : "Connect"}
         </Button>
@@ -134,7 +143,7 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
       {stored && !busy && (
         <div>
           <Button variant="outline" onClick={() => void sync()}>
-            Run the sync again
+            {phase.step === "failed" || phase.step === "empty" ? "Try the sync again" : "Run the first sync"}
           </Button>
         </div>
       )}

@@ -6,13 +6,21 @@ import { CircleAlertIcon } from "lucide-react";
 import { act } from "@/lib/act";
 import { runSync, type SyncOutcome } from "@/lib/sync-report";
 import { cn } from "@/lib/utils";
-import { Pending } from "@/components/form-status";
+import { Field, Pending } from "@/components/form-status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const when = (iso: string | null) => (iso ? dateFmt.format(new Date(iso)) : "never");
+// The Vercel cron's 05:00 UTC, as the household reads a clock: 08:00 in
+// summer, 07:00 in winter. Fixed to Tallinn so server and browser agree.
+const cronTime = () => {
+  const now = new Date();
+  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Tallinn" }).format(
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 5))
+  );
+};
 
 type Status = { tone: "ok" | "warn" | "error"; text: string; detail?: string } | null;
 
@@ -20,10 +28,12 @@ export function SettingsForm({
   tokenUpdatedAt,
   accountCount,
   accountsFetchedAt,
+  encrypted,
 }: {
   tokenUpdatedAt: string | null;
   accountCount: number;
   accountsFetchedAt: string | null;
+  encrypted: boolean; // a database holds the token, sealed; the dev JSON store does not
 }) {
   const router = useRouter();
   const [token, setToken] = useState("");
@@ -68,40 +78,47 @@ export function SettingsForm({
         </CardHeader>
         <CardContent className="flex flex-col gap-2 px-4">
           <p className="text-xs text-muted-foreground">
-            Get a refresh token with Smart-ID at{" "}
+            Sign in at{" "}
             <a href="https://api.lhv.ai/api-access" className="underline" target="_blank" rel="noreferrer">
               api.lhv.ai/api-access
+              <span className="sr-only"> (opens in a new tab)</span>
             </a>{" "}
-            (scopes: accounts + transactions, read-only). The token renews itself on every sync and only
-            expires after 30 days without one. If a sync ever fails with a refresh error, come back here with
-            a fresh token. Stored encrypted; never shown again.
+            with Smart-ID, Mobile-ID or ID-card, allow the two read-only permissions (accounts and transactions),
+            and paste the refresh token it shows. Kopikas can see balances and transactions; it cannot make
+            payments. The token renews itself with every sync and lapses only after 30 days without one
+            {encrypted ? "; it is kept encrypted and never shown again." : "."}
           </p>
           <form
-            className="flex gap-2"
+            className="flex items-end gap-2"
             onSubmit={(e) => {
               e.preventDefault();
               void saveToken();
             }}
           >
-            <Input
-              type="password"
-              placeholder="Paste refresh token"
-              aria-label="LHV refresh token"
-              aria-describedby="token-status"
-              name="lhv-refresh-token"
-              autoComplete="off"
-              spellCheck={false}
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-            />
+            <div className="min-w-0 flex-1">
+              <Field label="Refresh token">
+                {(id) => (
+                  <Input
+                    id={id}
+                    type="password"
+                    aria-describedby="token-status"
+                    name="lhv-refresh-token"
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={token}
+                    onChange={(e) => setToken(e.target.value)}
+                  />
+                )}
+              </Field>
+            </div>
             <Button type="submit" disabled={saving}>
               <Pending on={saving}>{saving ? "Checking with LHV…" : "Save"}</Pending>
             </Button>
           </form>
           <p className="text-xs text-muted-foreground">
-            Token stored: <span className="font-mono">{when(tokenUpdatedAt)}</span> · Accounts known:{" "}
-            <span className="font-mono tabular-nums">{accountCount}</span> · Balances fetched:{" "}
-            <span className="font-mono">{when(accountsFetchedAt)}</span>
+            Token last renewed <span className="font-mono">{when(tokenUpdatedAt)}</span> ·{" "}
+            <span className="font-mono tabular-nums">{accountCount}</span> {accountCount === 1 ? "account" : "accounts"} · last
+            synced <span className="font-mono">{when(accountsFetchedAt)}</span>
           </p>
           <div id="token-status" aria-live="polite">
             <StatusLine status={saveStatus} />
@@ -115,9 +132,8 @@ export function SettingsForm({
         </CardHeader>
         <CardContent className="flex flex-col gap-2 px-4">
           <p className="text-xs text-muted-foreground">
-            Runs by itself every morning at 05:00 UTC from Vercel, and every hour once the optional GitHub
-            Actions workflow from the README is set up. Running it by hand any time is harmless; a sync never
-            duplicates anything.
+            Runs by itself every morning at {cronTime()} (Tallinn time), and every hour if the GitHub workflow
+            from the README is set up. Running it now is safe: nothing is fetched twice.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={() => void syncNow()} disabled={syncing || !stored}>

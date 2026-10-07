@@ -39,6 +39,7 @@ export default async function SettingsPage() {
         tokenUpdatedAt={tokens?.updatedAt ?? null}
         accountCount={accounts.length}
         accountsFetchedAt={fetchedAt}
+        encrypted={!!process.env.DATABASE_URL}
       />
       <RulesList initial={rules} />
       <ShareRulesList initial={[...db.shareRules].sort((a, b) => b.createdAt.localeCompare(a.createdAt))} />

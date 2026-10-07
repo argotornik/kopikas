@@ -10,6 +10,9 @@ import { act, focusAfterRemoval } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";
 
 const taughtFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+const taughtFmtYear = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const taught = (iso: string) =>
+  (iso.slice(0, 4) === String(new Date().getFullYear()) ? taughtFmt : taughtFmtYear).format(new Date(iso));
 
 export interface ShareRuleRow {
   id: string;
@@ -47,24 +50,27 @@ export function ShareRulesList({ initial }: { initial: ShareRuleRow[] }) {
     <Card className="gap-3 py-4">
       <CardHeader className="px-4">
         <CardTitle className="flex items-baseline justify-between text-xs uppercase tracking-wide text-muted-foreground">
-          <span>Shared by rule</span>
+          <span>Pooleks rules</span>
           <span className="font-mono normal-case tabular-nums">{rules.length}</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4">
         <p className="mb-2 text-xs text-muted-foreground">
-          Taught by dropping on Pooleks with “Always”. Every charge that arrives from then on and matches
-          goes on the statement at the split shown. Past charges are never touched, and removing a rule
-          keeps what it already shared.
+          Made when you choose Always while splitting a charge with {PARTNER_NAME}. New charges that match go
+          on Pooleks at that split. Charges already there stay, even if you remove the rule.
         </p>
-        {rules.length === 0 && <p className="py-2 text-sm text-muted-foreground">No share rules yet.</p>}
+        {rules.length === 0 && (
+          <p className="py-2 text-sm text-muted-foreground">
+            No Pooleks rules yet. Choose Always while splitting a charge with {PARTNER_NAME} and it appears here.
+          </p>
+        )}
         <div className="divide-y outline-none" data-list>
           {rules.map((r) => (
             <div className="flex items-center gap-3 py-2" key={r.id} data-row>
               <div className="min-w-0 flex-1">
                 <div className="truncate font-mono text-sm">{r.match}</div>
                 <div className="text-xs text-muted-foreground">
-                  {PARTNER_NAME} pays {shareLabel(r.partnerShare)} · since {taughtFmt.format(new Date(r.createdAt))}
+                  {PARTNER_NAME}&apos;s part {shareLabel(r.partnerShare)} · added {taught(r.createdAt)}
                 </div>
               </div>
               <Button

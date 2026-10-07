@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/page-header";
 // An empty board is a fresh deployment, not a quiet month: say what to do
 // next, and make the doing one action. With a token already stored the
 // same page offers to run the sync again or take a fresh token.
-export function FirstRun({ hasToken }: { hasToken: boolean }) {
+export function FirstRun({ hasToken, encrypted }: { hasToken: boolean; encrypted: boolean }) {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 px-5 py-6">
       <PageHeader />
@@ -18,16 +18,22 @@ export function FirstRun({ hasToken }: { hasToken: boolean }) {
           Open{" "}
           <a href="https://api.lhv.ai/api-access" className="underline" target="_blank" rel="noreferrer">
             api.lhv.ai/api-access
+            <span className="sr-only"> (opens in a new tab)</span>
           </a>{" "}
           and sign in with Smart-ID, Mobile-ID or ID-card. Grant the two read-only scopes, accounts and transactions.
         </li>
-        <li>Copy the refresh token it shows you and paste it below.</li>
+        <li>
+          Copy the refresh token it shows and paste it below. It is the long one that renews itself, not the
+          access token that lasts 15 minutes.
+        </li>
       </ol>
-      <ConnectForm hasToken={hasToken} />
-      <p className="text-xs text-muted-foreground">
-        The token is stored encrypted and never shown again. It renews itself on every sync and only expires
-        after 30 days without one.
+      {/* What handing it over means, said before the button rather than after it. */}
+      <p className="text-sm text-muted-foreground">
+        Read-only: Kopikas sees balances and transactions and cannot make payments. The token renews itself with
+        every sync and lapses only after 30 days without one
+        {encrypted ? "; it is kept encrypted and never shown again." : "."}
       </p>
+      <ConnectForm hasToken={hasToken} />
     </div>
   );
 }

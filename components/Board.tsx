@@ -46,7 +46,7 @@ import { FIXED_CATEGORIES, SAVINGS, SUBSCRIPTIONS } from "@/lib/engine";
 import { cn, parseAmount, shareLabel } from "@/lib/utils";
 import { act, focusAfterRemoval } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";
-import { FormError, Pending } from "@/components/form-status";
+import { Field, FormError, Pending } from "@/components/form-status";
 import { SplitPicker } from "@/components/split-picker";
 import { PARTNER_NAME } from "@/lib/names";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -102,7 +102,15 @@ type CategoryAction =
 // View state carried in the URL (?cat=&month=&q=) so filtered views deep-link.
 type ViewParams = { cat?: string; month?: string; q?: string; welcome?: string };
 
-export default function Board({ initial, view }: { initial: BoardData; view?: ViewParams }) {
+export default function Board({
+  initial,
+  view,
+  syncedAt = null,
+}: {
+  initial: BoardData;
+  view?: ViewParams;
+  syncedAt?: string | null; // when the last successful sync wrote the balances
+}) {
   const [board, setBoard] = useState(initial);
   const [activeTx, setActiveTx] = useState<BoardTx | null>(null);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
@@ -549,6 +557,8 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
   }, [board.txs, board.month, board.categories, filter, earliestMonth]);
 
   const bal = board.balance;
+  // Today on the household's clock, for "was due".
+  const today = new Date().toLocaleDateString("sv-SE");
   const monthName = new Intl.DateTimeFormat("en-GB", { month: "long" }).format(
     new Date(board.month + "-01T00:00:00Z")
   );
@@ -575,10 +585,13 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
           Skip to categories
         </a>
         <div className="mb-5 flex items-center justify-between">
-          <h1 className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight">
-            <CoinMark />
-            Kopikas
-          </h1>
+          <div className="flex flex-col">
+            <h1 className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight">
+              <CoinMark />
+              Kopikas
+            </h1>
+            <SyncStatus at={syncedAt} />
+          </div>
           <div className="flex items-center gap-1.5">
             <a
               href="/pooleks"
@@ -606,9 +619,11 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
           )}
         >
           <Stat
-            label={`Spent in ${monthName}`}
+            // Your consumption: shared costs at your part only. The categories
+            // card's "Paid out" is the other figure: what left the account.
+            label={`Your share of ${monthName}`}
             value={eur.format(board.spentThisMonth)}
-            sub={`your share · last month ${eur.format(board.spentLastMonth)}`}
+            sub={`last month ${eur.format(board.spentLastMonth)}`}
             spark={board.sparks.spent}
             hero
             className="col-span-2 md:col-span-1"
@@ -627,7 +642,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
             // one would sit alone in a half-width column, so it takes the row.
             className={cn("h-full text-left", board.accounts.length % 2 === 0 && "col-span-2 md:col-span-1")}
             onClick={() => setSnapOpen(true)}
-            title="Update a snapshot"
+            title="Update the investment snapshot"
           >
             <Stat
               label="Investments"
@@ -640,7 +655,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                     ]
                       .filter(Boolean)
                       .join(" · ")
-                  : "click to add a snapshot"
+                  : "add your first snapshot"
               }
               interactive
               spark={board.sparks.investments}
@@ -670,7 +685,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                 </button>
               )}
             </div>
-            {searchStats && (
+            {searchStats && searchStats.count > 0 && (
               <div className="mb-2 px-1 text-xs text-muted-foreground">
                 {searchStats.count} match{searchStats.count === 1 ? "" : "es"} ·{" "}
                 <span className="font-mono tabular-nums">{eur.format(searchStats.total)}</span> spent
@@ -689,7 +704,8 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                   <span className="font-mono tabular-nums">{eur.format(filterStats.total)}</span>
                   {/* On a phone the counts take their own line instead of a squeezed column. */}
                   <span className="text-xs text-muted-foreground max-sm:order-last max-sm:basis-full">
-                    {filterStats.count} transactions · {eur.format(filterStats.monthTotal)} in {fmtMonth(month)}
+                    all months · {filterStats.count} {filterStats.count === 1 ? "transaction" : "transactions"} ·{" "}
+                    {eur.format(filterStats.monthTotal)} in {fmtMonth(month)}
                   </span>
                   <Button variant="ghost" size="sm" className="ml-auto h-6 px-2 text-xs" onClick={() => setFilter(null)}>
                     Show all
@@ -893,12 +909,7 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                       onClick={() => toggleFilter("Uncategorized")}
                     >
                       <span>Uncategorized</span>
-                      {/* The instruction follows the hand: a finger taps, a mouse drags. */}
-                      <span>
-                        {board.uncategorizedCount === 1
-                          ? `1 tile — ${coarse ? "tap it" : "drag it"}`
-                          : `${board.uncategorizedCount} tiles — ${coarse ? "tap one" : "drag them"}`}
-                      </span>
+                      <span>{board.uncategorizedCount} to file</span>
                     </motion.button>
                   ) : (
                     <motion.div
@@ -914,6 +925,16 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                     </motion.div>
                   )}
                 </AnimatePresence>
+                {/* The count is every month's, not the card's month; and how
+                    to file follows the hand: a finger taps, a mouse drags. */}
+                {board.uncategorizedCount > 0 && (
+                  <p className="px-2.5 pb-1 pt-0.5 text-xs text-muted-foreground">
+                    From all months.{" "}
+                    {coarse
+                      ? "Tap one in the ledger to file it."
+                      : "Drag one onto a category, or click its category in the ledger."}
+                  </p>
+                )}
                 {showCategories && (
                   <>
                     {board.categories.map((c) => (
@@ -933,17 +954,17 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                         monthKey={month}
                       />
                     ))}
-                    <div
-                      className="mt-1 flex justify-between border-t px-2.5 pt-2 text-sm font-medium"
-                      title="Everything going out except Savings and micro-investing; shared expenses at full price"
-                    >
-                      <span>Spent</span>
-                      <span className="font-mono tabular-nums">{eur.format(monthSpentTotal)}</span>
+                    <div className="mt-1 border-t px-2.5 pt-2">
+                      <div className="flex justify-between text-sm font-medium">
+                        <span>Paid out</span>
+                        <span className="font-mono tabular-nums">{eur.format(monthSpentTotal)}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Everything but savings; shared costs in full.</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => toggleFilter("Incoming")}
-                      title="Money that came in this month — click to see who sent it"
+                      title={`Money that came in during ${fmtMonth(month)}. Shows who sent it`}
                       className={cn(
                         "flex w-full cursor-pointer justify-between rounded-md px-2.5 py-1 text-left text-sm hover:bg-accent/50 pointer-coarse:py-3",
                         filter === "Incoming" && "bg-accent font-medium"
@@ -1038,15 +1059,15 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                               {s.lastCharge && s.lastCharge.date.slice(0, 7) === board.month
                                 ? `paid ${shortDate.format(new Date(s.lastCharge.date))}`
                                 : s.nextDue
-                                  ? `due ${shortDate.format(new Date(s.nextDue))}`
-                                  : "no charge matched yet"}
+                                  ? `${s.nextDue < today ? "was due" : "due"} ${shortDate.format(new Date(s.nextDue))}`
+                                  : "no charge seen yet"}
                             </span>
                             {s.priceChanged && s.lastCharge && (
                               <Badge
                                 render={<button type="button" disabled={busy.has(`price:${s.sub.id}`)} />}
                                 className="relative cursor-pointer bg-attention/15 font-mono tabular-nums text-attention hover:bg-attention/25 disabled:cursor-default disabled:opacity-60 pointer-coarse:after:absolute pointer-coarse:after:-inset-3 pointer-coarse:after:content-['']"
-                                title={`Price changed — click to accept ${eur.format(s.lastCharge.amount)} as the new price`}
-                                aria-label={`Accept ${eur.format(s.lastCharge.amount)} as the new price for ${s.label}`}
+                                title={`The price went from ${eur.format(s.sub.expectedAmount)} to ${eur.format(s.lastCharge.amount)}. Click to accept the new price`}
+                                aria-label={`Accept ${eur.format(s.lastCharge.amount)} as the new price for ${s.label}, was ${eur.format(s.sub.expectedAmount)}`}
                                 onClick={() =>
                                   void oneClick(
                                     `price:${s.sub.id}`,
@@ -1055,10 +1076,16 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                                   )
                                 }
                               >
-                                {eur.format(s.sub.expectedAmount)} → {eur.format(s.lastCharge.amount)}
+                                {/* The new price is the amount beside it; the badge says what changed. */}
+                                {s.lastCharge.amount > s.sub.expectedAmount ? "up" : "down"} from {eur.format(s.sub.expectedAmount)}
+                                <CheckIcon aria-hidden className="size-3" />
                               </Badge>
                             )}
-                            {s.overdue && <Badge className="bg-attention/15 text-attention">gone quiet</Badge>}
+                            {s.overdue && (
+                              <Badge className="bg-attention/15 text-attention" title="No charge has come since it was due">
+                                gone quiet
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <span className="shrink-0 font-mono text-sm font-medium tabular-nums">
@@ -1111,11 +1138,12 @@ export default function Board({ initial, view }: { initial: BoardData; view?: Vi
                   ))}
                 {board.subscriptions.some((s) => s.sub.active) && (
                   <div className="mt-2 text-xs text-muted-foreground">
-                    Monthly burn:{" "}
+                    {/* Differs from the Monthly group's total: yearly ones count here too, a twelfth each. */}
+                    A month, yearly ones spread out:{" "}
                     <span className="font-mono font-semibold tabular-nums text-foreground">
                       {eur.format(board.monthlyBurn)}
                     </span>{" "}
-                    · paid this month:{" "}
+                    · paid in {monthName}:{" "}
                     <span className="font-mono font-semibold tabular-nums text-foreground">
                       {eur.format(board.subsPaidThisMonth)}
                     </span>
@@ -2075,6 +2103,11 @@ function CategoriesEditor({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-1.5">
+          {/* Column heads for the two fields every row has; each field keeps its own name too. */}
+          <div aria-hidden className="flex gap-1.5 pl-8 pr-0.5 text-xs font-medium text-muted-foreground pointer-coarse:pl-12">
+            <span className="flex-1">Name</span>
+            <span className="w-24 text-right">Monthly limit</span>
+          </div>
           <div ref={listRef} className="grid max-h-[55vh] gap-1.5 overflow-y-auto pr-0.5">
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
               <SortableContext items={order} strategy={verticalListSortingStrategy}>
@@ -2208,7 +2241,7 @@ function BudgetField({
   return (
     <Input
       aria-label={`Monthly limit for ${name}, in euros`}
-      placeholder="€ / mo"
+      placeholder="none"
       inputMode="decimal"
       className="w-24 shrink-0 text-right font-mono tabular-nums"
       value={draft}
@@ -2328,31 +2361,44 @@ function SnapshotEditor({
                 } · ${shortDate.format(new Date(current.at))}`
               : "No snapshot yet for this pot."}
           </p>
-          <Input
-            placeholder="Total value, e.g. 5917"
-            aria-label="Total value in euros"
-            name="snapshot-total"
-            inputMode="decimal"
-            value={total}
-            onChange={(e) => setTotal(e.target.value)}
-            autoFocus
-          />
-          <Input
-            placeholder="Return %, e.g. 2.24 (optional)"
-            aria-label="Return percent"
-            name="snapshot-return"
-            inputMode="decimal"
-            value={returnPct}
-            onChange={(e) => setReturnPct(e.target.value)}
-          />
+          <Field label="Total value, €">
+            {(id) => (
+              <Input
+                id={id}
+                placeholder="e.g. 5 917,40"
+                name="snapshot-total"
+                inputMode="decimal"
+                value={total}
+                onChange={(e) => setTotal(e.target.value)}
+                autoFocus
+              />
+            )}
+          </Field>
+          <Field label="Return % (optional)">
+            {(id) => (
+              <Input
+                id={id}
+                placeholder="e.g. 2,24"
+                name="snapshot-return"
+                inputMode="decimal"
+                value={returnPct}
+                onChange={(e) => setReturnPct(e.target.value)}
+              />
+            )}
+          </Field>
           {source === "lightyear" && (
-            <Input
-              placeholder="Allocations like “VWCE 70, MMF 25” (optional)"
-              aria-label="Allocations"
-              name="snapshot-holdings"
-              value={holdings}
-              onChange={(e) => setHoldings(e.target.value)}
-            />
+            <Field label="Allocations (optional)" hint="Fund and percent, separated by commas.">
+              {(id, hint) => (
+                <Input
+                  id={id}
+                  aria-describedby={hint}
+                  placeholder="VWCE 70, MMF 25"
+                  name="snapshot-holdings"
+                  value={holdings}
+                  onChange={(e) => setHoldings(e.target.value)}
+                />
+              )}
+            </Field>
           )}
           <FormError message={err} />
         </div>
@@ -2383,4 +2429,38 @@ function useCoarsePointer(): boolean {
     return () => mq.removeEventListener("change", update);
   }, []);
   return coarse;
+}
+
+// When the board last heard from LHV: the time every successful sync writes
+// with the balances. The daily cron is the backstop, so past 26 hours
+// something is wrong, and the line says where to look. Shown after mount,
+// since the server's clock is not the reader's.
+const relative = new Intl.RelativeTimeFormat("en-GB", { numeric: "auto" });
+function ago(ms: number): string {
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return relative.format(-minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return relative.format(-hours, "hour");
+  return relative.format(-Math.round(hours / 24), "day");
+}
+
+function SyncStatus({ at }: { at: string | null }) {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  if (!at || now === null) return null;
+  const age = now - Date.parse(at);
+  if (age > 26 * 3600_000) {
+    return (
+      <a href="/settings" className="inline-flex items-center gap-1.5 text-xs text-foreground hover:underline pointer-coarse:min-h-11">
+        <span aria-hidden className="size-1.5 rounded-full bg-attention" />
+        Last synced {ago(age)}. Check the connection
+      </a>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">Synced {ago(age)}</span>;
 }

@@ -8,6 +8,10 @@ import { act, focusAfterRemoval } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";
 
 const taughtFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+const taughtFmtYear = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
+// "1 Sept" this year, "1 Sept 2025" before it.
+const taught = (iso: string) =>
+  (iso.slice(0, 4) === String(new Date().getFullYear()) ? taughtFmt : taughtFmtYear).format(new Date(iso));
 
 export interface RuleRow {
   id: string;
@@ -47,23 +51,27 @@ export function RulesList({ initial }: { initial: RuleRow[] }) {
     <Card className="gap-3 py-4">
       <CardHeader className="px-4">
         <CardTitle className="flex items-baseline justify-between text-xs uppercase tracking-wide text-muted-foreground">
-          <span>Rules</span>
+          <span>Filing rules</span>
           <span className="font-mono normal-case tabular-nums">{rules.length}</span>
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4">
         <p className="mb-2 text-xs text-muted-foreground">
-          Taught by dragging with “Always”. Newest wins when two match the same transaction. Forgetting a
-          rule un-files what it decided — drag once more to teach it again.
+          Made when you choose Always while filing a charge. When two rules match, the newer one wins.
+          Forgetting a rule un-files the charges it filed; Undo puts it back.
         </p>
-        {rules.length === 0 && <p className="py-2 text-sm text-muted-foreground">No rules yet.</p>}
+        {rules.length === 0 && (
+          <p className="py-2 text-sm text-muted-foreground">
+            No filing rules yet. Choose Always while filing a charge and the rule appears here.
+          </p>
+        )}
         <div className="divide-y outline-none" data-list>
           {rules.map((r) => (
             <div className="flex items-center gap-3 py-2" key={r.id} data-row>
               <div className="min-w-0 flex-1">
                 <div className="truncate font-mono text-sm">{r.match}</div>
                 <div className="text-xs text-muted-foreground">
-                  → {r.category} · taught {taughtFmt.format(new Date(r.createdAt))}
+                  files as {r.category} · added {taught(r.createdAt)}
                 </div>
               </div>
               <span
@@ -73,7 +81,7 @@ export function RulesList({ initial }: { initial: RuleRow[] }) {
                     : "shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
                 }
               >
-                {r.matches === 0 ? "matches nothing" : `${r.matches} ${r.matches === 1 ? "match" : "matches"}`}
+                {r.matches === 0 ? "matches nothing" : `${r.matches} ${r.matches === 1 ? "charge matches" : "charges match"}`}
               </span>
               <Button
                 variant="ghost"
