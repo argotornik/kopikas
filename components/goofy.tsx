@@ -42,27 +42,41 @@ export function wobblyCircle(cx: number, cy: number, r: number, seed: number, am
   return smoothClosed(pts);
 }
 
-// A rounded rectangle drawn by hand. Each side has its own seed, so a roll
-// growing taller keeps the wobble of its top and corners.
-export function wobblyRect(x: number, y: number, w: number, h: number, r: number, seed: number, amp = 1.3): string {
+// A rounded rectangle drawn by hand. Points sit evenly about every 6 units,
+// so the smoothing never kinks; the hand lives in a gentle in-and-out offset
+// on each side, eased between random heights `step` units apart and zero at
+// the corners, so edges bend in long waves and corners stay round. Each side
+// has its own seed, so a roll growing taller keeps its top and corners.
+export function wobblyRect(x: number, y: number, w: number, h: number, r: number, seed: number, amp = 1.3, step = 14): string {
   const rr = Math.min(r, w / 2, h / 2);
   const pts: [number, number][] = [];
   let side = 0;
-  const jitter = (px: number, py: number, rand: () => number): [number, number] => [
-    px + (rand() - 0.5) * 2 * amp,
-    py + (rand() - 0.5) * 2 * amp,
-  ];
+  const SPACING = 6;
   const corner = (cx: number, cy: number, a0: number) => {
     const rand = rng(seed * 16 + side++);
-    for (let k = 0; k <= 2; k++) {
-      const a = a0 + (k / 2) * (Math.PI / 2);
-      pts.push(jitter(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr, rand));
+    const n = Math.max(2, Math.round((rr * Math.PI) / 2 / SPACING));
+    for (let k = 0; k <= n; k++) {
+      const a = a0 + (k / n) * (Math.PI / 2);
+      const rk = rr + (rand() - 0.5) * amp * 0.25;
+      pts.push([cx + Math.cos(a) * rk, cy + Math.sin(a) * rk]);
     }
   };
   const edge = (x0: number, y0: number, x1: number, y1: number) => {
     const rand = rng(seed * 16 + side++);
-    const steps = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / 14));
-    for (let k = 1; k < steps; k++) pts.push(jitter(x0 + ((x1 - x0) * k) / steps, y0 + ((y1 - y0) * k) / steps, rand));
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    const m = Math.max(1, Math.round(len / step));
+    const heights = Array.from({ length: m + 1 }, (_, i) => (i === 0 || i === m ? 0 : (rand() - 0.5) * 2 * amp));
+    const n = Math.max(1, Math.round(len / SPACING));
+    const horizontal = y0 === y1;
+    for (let k = 1; k < n; k++) {
+      const t = (k / n) * m;
+      const i = Math.min(m - 1, Math.floor(t));
+      const ease = (1 - Math.cos((t - i) * Math.PI)) / 2;
+      const off = heights[i] * (1 - ease) + heights[i + 1] * ease;
+      const px = x0 + ((x1 - x0) * k) / n;
+      const py = y0 + ((y1 - y0) * k) / n;
+      pts.push(horizontal ? [px, py + off] : [px + off, py]);
+    }
   };
   corner(x + rr, y + rr, Math.PI);
   edge(x + rr, y, x + w - rr, y);

@@ -51,10 +51,10 @@ export function PaintedDefs() {
 }
 
 // Two dots and a curve in a 40 by 28 box. Glad opens the smile, wow rounds it.
-export function PaintedFace({ ink, mood = "happy" }: { ink: string; mood?: Mood }) {
+export function PaintedFace({ ink, mood = "happy", blink = 0 }: { ink: string; mood?: Mood; blink?: number }) {
   return (
     <g>
-      <g className="goofy-blink">
+      <g className="goofy-blink" style={{ animationDelay: `${-blink}s` }}>
         <ellipse cx="14" cy="10.4" rx="2.6" ry="3" fill={ink} />
         <ellipse cx="26" cy="9.8" rx="2.4" ry="2.8" fill={ink} />
       </g>
@@ -99,7 +99,7 @@ export function PaintedCoin({
       </g>
       {face && (
         <g transform="translate(8.6 10.5) scale(0.55)">
-          <PaintedFace ink={metal === "copper" ? "#2E3A8C" : BROWN} mood={mood} />
+          <PaintedFace ink={metal === "copper" ? "#2E3A8C" : BROWN} mood={mood} blink={seed * 1.37} />
         </g>
       )}
     </svg>
@@ -152,9 +152,9 @@ export function PaintedRoll({
   useEffect(() => ev.set(extra), [ev, extra]);
 
   const seed = index * 613 + 29;
-  const d = useTransform(hv, (v) => wobblyRect(PAD, H - FOOT - v, RW, v, 12, seed, 1.1));
+  const d = useTransform(hv, (v) => wobblyRect(PAD, H - FOOT - v, RW, v, 12, seed, 0.8, 32));
   const dExtra = useTransform([hv, ev], ([v, e]: number[]) =>
-    e > 0 ? wobblyRect(PAD + 6, H - FOOT - v - e + 3, RW - 12, e, 8, seed + 3, 0.6) : ""
+    e > 0 ? wobblyRect(PAD + 6, H - FOOT - v - e + 3, RW - 12, e, 8, seed + 3, 0.6, 28) : ""
   );
   const top = useTransform(hv, (v) => H - FOOT - v);
   const ink = faceInk(colour);
@@ -163,7 +163,7 @@ export function PaintedRoll({
     <svg width={RW + PAD * 2} height={H} viewBox={`0 0 ${RW + PAD * 2} ${H}`} aria-hidden className="block overflow-visible">
       {budget != null && !over && (
         <path
-          d={wobblyRect(PAD, H - FOOT - budget, RW, budget, 12, seed + 7, 0.6)}
+          d={wobblyRect(PAD, H - FOOT - budget, RW, budget, 12, seed + 7, 0.6, 32)}
           fill="none"
           stroke={BLUE}
           strokeWidth="2.2"
@@ -183,7 +183,7 @@ export function PaintedRoll({
         </g>
         <motion.g style={{ y: top }}>
           <g transform={`translate(${PAD + RW / 2 - 20} 9)`}>
-            <PaintedFace ink={ink} mood={mood} />
+            <PaintedFace ink={ink} mood={mood} blink={index * 0.83 + 0.4} />
           </g>
         </motion.g>
       </motion.g>
@@ -235,15 +235,15 @@ export function PaintedBar({
   useEffect(() => ev.set(extra), [ev, extra]);
 
   const seed = index * 613 + 29;
-  const d = useTransform(lv, (v) => wobblyRect(2, Y, v, BH, 9, seed, 0.9));
-  const dExtra = useTransform([lv, ev], ([v, e]: number[]) => (e > 0 ? wobblyRect(v - 2, Y + 4, e + 2, BH - 8, 6, seed + 3, 0.5) : ""));
+  const d = useTransform(lv, (v) => wobblyRect(2, Y, v, BH, 9, seed, 0.7, 34));
+  const dExtra = useTransform([lv, ev], ([v, e]: number[]) => (e > 0 ? wobblyRect(v - 2, Y + 4, e + 2, BH - 8, 6, seed + 3, 0.5, 30) : ""));
   const faceX = useTransform(lv, (v) => v - 28);
   const mood: Mood = gulping ? "glad" : over ? "wow" : "happy";
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="block overflow-visible">
       {budget != null && !over && (
         <path
-          d={wobblyRect(2, Y, budget, BH, 9, seed + 7, 0.5)}
+          d={wobblyRect(2, Y, budget, BH, 9, seed + 7, 0.5, 34)}
           fill="none"
           stroke={BLUE}
           strokeWidth="2"
@@ -259,7 +259,7 @@ export function PaintedBar({
         </g>
         <motion.g style={{ x: faceX }}>
           <g transform="translate(0 7) scale(0.68)">
-            <PaintedFace ink={faceInk(colour)} mood={mood} />
+            <PaintedFace ink={faceInk(colour)} mood={mood} blink={index * 0.83 + 0.4} />
           </g>
         </motion.g>
       </motion.g>
