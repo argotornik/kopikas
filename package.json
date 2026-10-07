@@ -8,7 +8,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \"tests/**/*.test.ts\""
+    "test": "node --test --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \"tests/**/*.test.ts\"",
+    "kopikas:lottie": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/kopikas-lottie.mjs"
   },
   "keywords": [],
   "author": "",

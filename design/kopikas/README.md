@@ -1,25 +1,50 @@
-# Kopikas, for Lottie Creator
+# Kopikas, animated
 
-Eight poses of Kopikas as layered SVGs in `svg/`, one per moment of the board. Each is exported from the live character sheet (`/coins/kopikas`), so it matches the app exactly. Import them, animate them, and export one `.lottie` file; the board plays the right animation for each moment.
+The board plays Kopikas's set pieces from one Lottie file, `public/kopikas.lottie`, and draws every other moment in code. The file is built by a script from the same data as the code-drawn Kopikas (`components/kopikas-figure.ts`), so the two always match:
 
-## Import
+```
+npm run kopikas:lottie
+```
 
-Drag a file from `svg/` into Lottie Creator and choose **Vector** (editable shape layers). The layers arrive named:
+Run it again after changing a pose in `kopikas-figure.ts` or the motion in `scripts/kopikas-lottie.mjs`.
+
+## The animations
+
+The board asks for each animation by name. Three are made; the rest are planned.
+
+| Name | Moment | Plays | Length | What happens | Made |
+|---|---|---|---|---|---|
+| `hello` | arriving on the board | once, then holds | 1.6 s | crouches, pops up leaning in, opens one arm wide, waves the other twice, blinks, settles on the hello pose | yes |
+| `jump` | a coin landed | once, then holds | 0.9 s | crouches with arms swung back, springs up tucking its legs, lands with a squash, wobbles still, stands | yes |
+| `excited` | everything sorted | loops | 1.2 s | eyes shut with joy, hops with arms pumping, sways, sparkles twinkle and confetti bobs | yes |
+| `friendly` | hovered | loops | ~1.5 s | head tilted, one small hand lift | |
+| `saving` | loose change waiting | loops | ~2.4 s | gentle bob, turns the coin in its hands, eyes on it | |
+| `budgeting` | filing a coin | loops | ~2.4 s | leans into the list, ticks a box | |
+| `resting` | nothing to file | loops | ~3 s | sits cross-legged, hands on the floor, breathes, heavy lids | |
+| `proud` | a past month came in under the one before | once, then holds | ~1.2 s | puffs up, hands to hips, chin up, eyes closed contentedly | |
+
+A one-shot ends on a pose the code-drawn Kopikas can take over from, and a loop starts and ends on its pose, so switching between moments never jumps. With reduced motion on, Kopikas is always the still, code-drawn figure.
+
+## Tuning by eye
+
+Open `public/kopikas.lottie` in Lottie Creator to try timing or easing by eye. The script is the source, so carry what works back into `scripts/kopikas-lottie.mjs` (keyframes are frame numbers at 60 fps) and rebuild; editing the file alone is overwritten by the next build.
+
+The artboard is 592 × 624 px: the figure's 124 × 150 units at 4 px each, inset 12 and 6 units for outstretched hands and sparkles. The layers, top-down from the root:
 
 | Layer | What it is |
 |---|---|
-| `shadow` | the oval on the floor; it stays on the floor, and shrinks and fades as Kopikas leaves it |
-| `leg-left`, `leg-right` | stroke plus foot |
-| `body` | everything above the legs; move this for bounces and sitting |
-| `tilt` | inside `body`: the lean, about the coin's centre; each pose has its own angle |
-| `arm-left`, `arm-right` | stroke plus mitten hand |
+| `kopikas` | the root: scales figure units to pixels and adds the margin |
+| `shadow` | the oval on the floor; it stays there, and shrinks and fades as Kopikas leaves it |
+| `lift` | the figure off the ground |
+| `squash` | squash and stretch, scaled from the feet |
+| `leg-left`, `leg-right` | curve plus foot |
+| `body`, `tilt` | everything above the legs; `tilt` is the lean, about the coin's centre |
+| `arm-left`, `arm-right` | curve plus mitten hand; every limb is one curve, so any two poses morph |
 | `coin` | `coin-edge`, `coin-face`, `coin-ring`, `k` |
-| `eyes`, `brows`, `mouth` | the face: dot eyes, joyful closed arcs (excited), contented closed lids (proud) or sleepy lids (resting); brows only in proud |
-| `prop-coin`, `prop-checklist`, `sparkles`, `wave-marks` | only in saving, budgeting, excited, hello; the checklist sits behind the arm so the hand holds it |
+| `eyes`, `mouth` | dot eyes that blink, or joyful closed arcs (excited); the open mouth with its tongue |
+| `wave-marks`, `sparkles` | only in hello and excited |
 
-In `jump`, the legs and body sit in an unnamed group lifted 64 px off the floor.
-
-The artboard is 592 × 624. Pivots for rigging, in artboard pixels:
+Pivots, in artboard pixels:
 
 | Pivot | x, y |
 |---|---|
@@ -29,42 +54,24 @@ The artboard is 592 × 624. Pivots for rigging, in artboard pixels:
 | right hip | 324, 436 |
 | coin centre | 288, 304 |
 | lean (`tilt`) | 288, 320 |
+| squash (the feet) | 288, 564 |
+
+`svg/` still holds all eight poses as layered SVGs, exported from the live character sheet (`/coins/kopikas`), for importing into Lottie Creator or anything else.
 
 ## Colours and themes
 
-Make three colour slots and two themes, named exactly `light` and `dark` (the board asks for them by those names), so one file works on both boards:
+One file serves both boards: three slots, and two themes named `light` and `dark` that fill them (dotLottie 2 themes). The board picks the theme from light or dark mode.
 
-| Slot | Light | Dark |
-|---|---|---|
-| Limb (also the wave marks, at 45%) | `#3A2A20` | `#D9C7B4` |
-| Shadow | black at 12% | black at 35% |
-| Face | `#4C6FE0` | `#4C6FE0` |
+| Slot | Type | Light | Dark |
+|---|---|---|---|
+| `limb` (also the wave marks, at 45 %) | colour | `#3A2A20` | `#D9C7B4` |
+| `face` | colour | `#4C6FE0` | `#4C6FE0` |
+| `shadow_opacity` (black) | opacity | 12 % | 35 % |
 
 The coin keeps its copper in both: face `#CB793E`, edge `#A45A2B`, ring `#E39C63`, k `#7C3F1D`.
 
-## The animations
+## Two things to know
 
-Name each animation exactly as below; the board asks for them by these names.
+The player version in use ignores the animation's name at start-up and loads the file's first animation, so the board picks the right one as soon as the file has loaded (`components/kopikas-animated.tsx`).
 
-| Name | Moment | Plays | Length | Idea |
-|---|---|---|---|---|
-| `hello` | arriving on the board | once, then holds | ~1.6 s | pops in leaning, waves one arm twice with the other open wide, settles |
-| `friendly` | hovered | loops | ~1.5 s | head tilted, one small hand lift |
-| `saving` | loose change waiting | loops | ~2.4 s | gentle bob, turns the coin in its hands, eyes on it |
-| `budgeting` | filing a coin | loops | ~2.4 s | leans into the list, ticks a box |
-| `jump` | a coin landed | once | ~0.9 s | squash, jump, land, a little wobble |
-| `excited` | everything sorted | loops | ~1.2 s | hops with arms pumping, sparkles twinkle |
-| `resting` | nothing to file | loops | ~3 s | sits cross-legged, hands on the floor, breathes, heavy lids |
-| `proud` | a past month came in under the one before | once, then holds | ~1.2 s | puffs up, hands to hips, chin up, eyes closed contentedly |
-
-Keep the first and last frame of the looping ones in the standing pose from their SVG, so switching between moments never jumps.
-
-## Export
-
-Export **one `.lottie`** containing all eight animations and both themes, and put it at `public/kopikas.lottie` (or send it over). The board picks the animation by name and the theme from light or dark mode.
-
-Until that file exists the board draws Kopikas in code, so nothing breaks while you work. Today the board plays `hello`, `jump` and `excited` from the file and keeps the code-drawn Kopikas for the idle moments, so its eyes still follow the pointer; the other five animations are ready for when you want them. With reduced motion on, Kopikas is always the still, code-drawn figure.
-
-## One trade-off to know
-
-The code-drawn Kopikas follows the pointer with its eyes (except in saving and budgeting, where they stay on the prop); a Lottie animation plays as drawn and cannot. Either the animation carries all the life, or the board keeps the code-drawn Kopikas for idle moments and plays Lottie for the set pieces (hello, jump, excited).
+The code-drawn Kopikas follows the pointer with its eyes (except in saving and budgeting, where they stay on the prop); a Lottie animation plays as drawn and cannot. So the board plays Lottie for the set pieces only and keeps the code-drawn Kopikas for idle moments.

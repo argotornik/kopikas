@@ -2,16 +2,16 @@
 version: 1
 slug: "components-board-tsx"
 primary_target: "components/Board.tsx"
-related_targets: ["app/coins/page.tsx","components/coins-prototype.tsx","components/painted.tsx","components/goofy.tsx","components/kopikas-mascot.tsx","components/kopikas-painted.tsx","components/kopikas-animated.tsx","app/coins/kopikas/page.tsx","app/stripes/page.tsx","components/stripes-prototype.tsx"]
+related_targets: ["app/coins/page.tsx","components/coins-prototype.tsx","components/painted.tsx","components/goofy.tsx","components/kopikas-mascot.tsx","components/kopikas-figure.ts","components/kopikas-painted.tsx","components/kopikas-animated.tsx","app/coins/kopikas/page.tsx","app/stripes/page.tsx","components/stripes-prototype.tsx"]
 ---
 
 # Board
 
 Scope: the owner's board (`/`), the main Operate surface. Visitor mode: Operate. The household opens it in the evening on a laptop to see the month and file what came in; on the phone to clear the to-file queue.
 
-Status: first-viewport prototypes, merged to `main` on 2026-10-07 and live beside the current board, which stays at `/`. Like the rest of Kopikas they sit behind the household sign-in, and they save nothing: `/stripes` (striped skirts, not judged) and `/coins` (this contract). On `/coins` the user prefers the painted look ("Painted, after KAIA": flat colour, gently uneven but vector-smooth edges, faces of two dots and a curve) over the goofy one, which they found too goofy; the goofy look stays one click away. The painted look follows the work of the user's friend KAIA (@saiakuubik), who gave her okay to it on 2026-10-07; the README credits her. On a phone the rolls lie down as horizontal blocks in one list. Kopikas, the coin with the k, is redrawn from the user's own character sheet: eight poses, one per moment of the board, each with its own lean, arms and face, live at `/coins/kopikas`. They are polished and exported as layered SVGs with a brief for Lottie Creator (`design/kopikas`); the board plays a `public/kopikas.lottie` once it exists and draws Kopikas in code until then.
+Status: first-viewport prototypes, merged to `main` on 2026-10-07 and live beside the current board, which stays at `/`. Like the rest of Kopikas they sit behind the household sign-in, and they save nothing: `/stripes` (striped skirts, not judged) and `/coins` (this contract). On `/coins` the user prefers the painted look ("Painted, after KAIA": flat colour, gently uneven but vector-smooth edges, faces of two dots and a curve) over the goofy one, which they found too goofy; the goofy look stays one click away. The painted look follows the work of the user's friend KAIA (@saiakuubik), who gave her okay to it on 2026-10-07; the README credits her. On a phone the rolls lie down as horizontal blocks in one list. Kopikas, the coin with the k, is redrawn from the user's own character sheet: eight poses, one per moment of the board, each with its own lean, arms and face, live at `/coins/kopikas`. They are polished and exported as layered SVGs with a brief for Lottie Creator (`design/kopikas`); the board plays hello, jump and excited from `public/kopikas.lottie`, built from the same data as the code-drawn Kopikas by `npm run kopikas:lottie`, and draws every other moment in code.
 
-Unresolved: the Lottie animation itself (not made yet). Whether KAIA draws the cast herself is not settled. The display face (the user may name one from Free Faces). Pooleks, Settings and first run in this world; how a household of any size appears.
+Unresolved: the animations' timing, still to be tuned by eye in Lottie Creator, and the other five animations (not made). Whether KAIA draws the cast herself is not settled. The display face (the user may name one from Free Faces). Pooleks, Settings and first run in this world; how a household of any size appears.
 
 ## Direction contract
 
