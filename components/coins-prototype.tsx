@@ -60,6 +60,11 @@ const FOCUS =
   "outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17181D] dark:focus-visible:outline-[#F3F2EE]";
 const DISPLAY = "coins-display";
 const SPRING = { type: "spring" as const, stiffness: 260, damping: 18 };
+// Where a default name may break when its roll's column is too narrow for it on one
+// line: a soft hyphen, so the break is the same in every browser. Other names rely on
+// the browser's own hyphenation, and past that break anywhere rather than overflow.
+const HYPHENATED: Record<string, string> = { Subscriptions: "Sub­scrip­tions" };
+const breakable = (name: string) => HYPHENATED[name] ?? name;
 
 const monthOf = (date: string) => date.slice(0, 7);
 const shiftMonth = (m: string, by: number) => {
@@ -970,7 +975,7 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                 ref={floorRef}
                 role="group"
                 aria-label={`Where ${label(month)}'s money went`}
-                className={cn("flex flex-1 items-end gap-y-6", painted ? "flex-wrap" : "min-w-max", floorFits ? "justify-between" : "justify-start")}
+                className={cn("flex flex-1 gap-y-6", painted ? "flex-wrap items-start" : "min-w-max items-end", floorFits ? "justify-between" : "justify-start")}
                 style={{ columnGap: floorGap }}
               >
                 {rolls.map((r, i) => {
@@ -1026,8 +1031,17 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                         />
                         )}
                       </motion.button>
-                      <div className={cn("mt-3 text-center", !painted && "w-[68px] sm:w-[84px] lg:w-[100px]")} style={painted ? { width: RW + pad * 2 } : undefined}>
-                        <div className="truncate text-[13px] font-medium">{r.name}</div>
+                      {/* A painted name may use the gap on either side and run to two lines, hyphenated where the
+                          browser can; two lines are kept for every name, so the floor stays level when one wraps. */}
+                      <div
+                        className={cn("mt-3 text-center", !painted && "w-[68px] sm:w-[84px] lg:w-[100px]")}
+                        style={painted ? { width: RW + pad * 2 + floorGap, marginInline: -floorGap / 2 } : undefined}
+                      >
+                        <div
+                          className={cn("text-[13px] font-medium", painted ? "flex min-h-[2lh] flex-col justify-end leading-tight hyphens-auto wrap-anywhere" : "truncate")}
+                        >
+                          <span className={cn(painted && "line-clamp-2")}>{painted ? breakable(r.name) : r.name}</span>
+                        </div>
                         <div className={cn("truncate text-[13px] tabular-nums", over ? "font-medium" : MUTED)}>{eur.format(r.total)}</div>
                       </div>
                     </div>
