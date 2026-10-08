@@ -187,6 +187,8 @@ A white page, a warm oat stage, copper as the house colour, Crayon Blue for ever
 
 **The Face Is Decoration Rule.** Crayon Blue on copper is 1.4:1. A face may show a mood but never carries meaning on its own; every state it shows is also said in words.
 
+**The One Crayon Rule.** Every face is drawn with the same ink, Face Navy or Face Cream by the wrapper's lightness, never a colour of its own: one hand drew the whole cast. Per-category face inks were tried (2026-10-08) and rejected: a dark ink of another hue is invisible at face size, and a tinted one fails contrast on its own wrapper.
+
 ## Typography
 
 **Display Font:** Fredoka (with ui-rounded, system-ui, sans-serif)
