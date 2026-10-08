@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { motion, useReducedMotion, useSpring, useTransform } from "motion/react";
+import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useSpring, useTransform, type MotionValue } from "motion/react";
 import { wobblyCircle, wobblyRect, type Mood } from "@/components/goofy";
 
 // The painted look: flat matte shapes with gently uneven edges, faces of two
@@ -64,6 +64,35 @@ export function faceOffset(v: number): number {
 }
 // Marks drawn on the stage rather than on a wrapper take the stage's ink.
 const STAGE_INK = "var(--painted-stage-ink)";
+
+// A stage changes as the body passes one of its lines, not when the amount
+// does: `useCrossing` is 0 or 1 as `value` sits under or over `line`, settling
+// with a small spring when it crosses, or at once with reduced motion. Marks
+// that arrive as a stage settles, the mouth for one, take `arrive` of it.
+const SETTLE = { type: "spring", stiffness: 260, damping: 26 } as const;
+const arrive = (p: number) => Math.min(1, Math.max(0, (p - 0.5) * 2));
+function useCrossing(value: MotionValue<number>, line: number, reduce: boolean | null): MotionValue<number> {
+  const over = useMotionValue(0);
+  useLayoutEffect(() => {
+    let at = -1;
+    let a: ReturnType<typeof animate> | undefined;
+    const follow = (v: number, settle: boolean) => {
+      const to = v >= line ? 1 : 0;
+      if (to === at) return;
+      at = to;
+      a?.stop();
+      if (settle && !reduce) a = animate(over, to, SETTLE);
+      else over.jump(to);
+    };
+    follow(value.get(), false);
+    const off = value.on("change", (v) => follow(v, true));
+    return () => {
+      off();
+      a?.stop();
+    };
+  }, [value, line, reduce, over]);
+  return over;
+}
 
 // The two eyes of every painted face, in a 40 by 28 box.
 export function PaintedEyes({ ink, blink = 0 }: { ink: string; blink?: number }) {
@@ -174,7 +203,6 @@ export function PaintedRoll({
   const FOOT = 10;
   const asleep = body <= 0;
   const target = asleep ? 0 : Math.max(ROLL_FLOOR, body);
-  const grown = target >= FACE_FROM;
   const hv = useSpring(target, { stiffness: 200, damping: 20 });
   const first = useRef(true);
   useLayoutEffect(() => {
@@ -189,17 +217,33 @@ export function PaintedRoll({
   }, [hv, target, reduce, delay]);
   const ev = useSpring(extra, { stiffness: 200, damping: 20 });
   useEffect(() => ev.set(extra), [ev, extra]);
+  // The stage follows the body as it springs, not the amount it is heading for.
+  // As the body passes the grown line the eyes settle into it, and the mouth
+  // and the wrapper's ink arrive as they land; shrinking back past it, the
+  // mouth goes first and the eyes lift out. The first coin wakes a sleeper: the
+  // footprint fades, the shut eyes open and the z floats off, the legs arrive,
+  // and the body grows under the eyes. With reduced motion the stages swap.
+  const drop = useCrossing(hv, FACE_FROM, reduce);
+  const wasAsleep = useRef(asleep);
+  const waking = !asleep && wasAsleep.current;
+  useEffect(() => {
+    wasAsleep.current = asleep;
+  }, [asleep]);
+  const swap = { duration: reduce ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] as const };
 
   const seed = index * 613 + 29;
   const d = useTransform(hv, (v) => (v > 0 ? wobblyRect(PAD, H - FOOT - v, RW, v, 12, seed, 0.8, 32) : ""));
   const dExtra = useTransform([hv, ev], ([v, e]: number[]) =>
     e > 0 ? wobblyRect(PAD + 6, H - FOOT - v - e + 3, RW - 12, e, 8, seed + 3, 0.6, 28) : ""
   );
-  // The face box follows the body's top: inside it when grown, 4 px clear above it as a hatchling.
-  const faceY = useTransform(hv, (v) => H - FOOT - v + (grown ? faceOffset(v) : -17.5));
+  // The face box follows the body's top: 4 px clear above it as a hatchling, inside it once grown.
+  const faceY = useTransform([hv, drop], ([v, p]: number[]) => H - FOOT - v - 17.5 + (faceOffset(v) + 17.5) * p);
+  const eyesOut = useTransform(drop, (p) => 1 - arrive(p));
+  const faceIn = useTransform(drop, arrive);
   const ink = faceInk(colour);
   const mood: Mood = gulping ? "glad" : over ? "wow" : "happy";
   const faceX = PAD + RW / 2 - 20;
+  const blink = index * 0.83 + 0.4;
   return (
     <svg width={RW + PAD * 2} height={H} viewBox={`0 0 ${RW + PAD * 2} ${H}`} aria-hidden className="block overflow-visible">
       {budget != null && !over && (
@@ -213,9 +257,12 @@ export function PaintedRoll({
 
         />
       )}
-      {asleep ? (
-        <g>
-          <path
+      <AnimatePresence>
+        {asleep && (
+          <motion.path
+            key="footprint"
+            exit={{ opacity: 0 }}
+            transition={swap}
             d={wobblyRect(PAD, H - FOOT + 1, RW, 7, 4, seed + 7, 0.6, 32)}
             fill="none"
             strokeWidth="2"
@@ -223,16 +270,21 @@ export function PaintedRoll({
             strokeLinecap="round"
             style={{ stroke: `color-mix(in srgb, ${colour} var(--painted-foot-keep), var(--painted-foot-to))` }}
           />
-          <g transform={`translate(${faceX} ${H - 25})`}>
-            <PaintedSleep ink={STAGE_INK} />
-          </g>
-        </g>
-      ) : (
+        )}
+        {asleep && (
+          <motion.g key="asleep" exit={{ opacity: 0, y: -3 }} transition={swap}>
+            <g transform={`translate(${faceX} ${H - 25})`}>
+              <PaintedSleep ink={STAGE_INK} />
+            </g>
+          </motion.g>
+        )}
+      </AnimatePresence>
+      {!asleep && (
         <>
-          <g>
+          <motion.g initial={waking ? { opacity: 0 } : false} animate={{ opacity: 1 }} transition={swap}>
             <rect x={PAD + RW * 0.24} y={H - FOOT - 2} width="7" height={FOOT} rx="3" style={{ fill: LIMB }} />
             <rect x={PAD + RW * 0.76 - 7} y={H - FOOT - 2} width="7" height={FOOT} rx="3" style={{ fill: LIMB }} />
-          </g>
+          </motion.g>
           <motion.g style={{ originY: 1 }} animate={gulping && !reduce ? { scaleY: [1, 0.9, 1.04, 1] } : { scaleY: 1 }} transition={{ duration: 0.6 }}>
             <g>
               <motion.path d={dExtra} fill="#F0A3B4" />
@@ -240,7 +292,17 @@ export function PaintedRoll({
             </g>
             <motion.g style={{ y: faceY }}>
               <g transform={`translate(${faceX} 0)`}>
-                {grown ? <PaintedFace ink={ink} mood={mood} blink={index * 0.83 + 0.4} /> : <PaintedEyes ink={STAGE_INK} blink={index * 0.83 + 0.4} />}
+                <motion.g
+                  style={{ opacity: eyesOut, transformBox: "fill-box", originX: 0.5, originY: 0.5 }}
+                  initial={waking ? { scaleX: 1.35, scaleY: 0.4 } : false}
+                  animate={{ scaleX: 1, scaleY: 1 }}
+                  transition={swap}
+                >
+                  <PaintedEyes ink={STAGE_INK} blink={blink} />
+                </motion.g>
+                <motion.g style={{ opacity: faceIn }}>
+                  <PaintedFace ink={ink} mood={mood} blink={blink} />
+                </motion.g>
               </g>
             </motion.g>
           </motion.g>
@@ -298,8 +360,6 @@ export function PaintedBar({
   const Y = 4;
   const BH = 26;
   const target = length > 0 ? Math.max(BAR_FLOOR, length) : 0;
-  const grown = target >= BAR_FACE_FROM;
-  const eyed = target >= BAR_EYES_FROM;
   const lv = useSpring(target, { stiffness: 200, damping: 22 });
   const first = useRef(true);
   useLayoutEffect(() => {
@@ -314,13 +374,23 @@ export function PaintedBar({
   }, [lv, target, reduce, delay]);
   const ev = useSpring(extra, { stiffness: 200, damping: 22 });
   useEffect(() => ev.set(extra), [ev, extra]);
+  // The stages follow the bar as it springs: the eyes arrive as it passes 14 px,
+  // and as it passes 26 px they rise to make room for the mouth and hand over
+  // to the face's own. With reduced motion the stages swap.
+  const eyes = useCrossing(lv, BAR_EYES_FROM, reduce);
+  const face = useCrossing(lv, BAR_FACE_FROM, reduce);
 
   const seed = index * 613 + 29;
   const d = useTransform(lv, (v) => (v > 0 ? wobblyRect(2, Y, v, BH, 9, seed, 0.7, 34) : ""));
   const dExtra = useTransform([lv, ev], ([v, e]: number[]) => (e > 0 ? wobblyRect(v - 2, Y + 4, e + 2, BH - 8, 6, seed + 3, 0.5, 30) : ""));
-  // The face box, at 0.68, is flush with the tip from 33 px; below that it sits centred, as do the eyes alone.
-  const faceX = useTransform(lv, (v) => (grown ? Math.min(v - 28, 2 + v / 2 - 13.6) : 2 + v / 2 - 13.5));
+  // The eyes alone sit centred in the bar. The face box, at 0.68, is centred too until 33 px, then flush with the tip.
+  const eyesX = useTransform(lv, (v) => 2 + v / 2 - 13.5);
+  const eyesY = useTransform(face, (f) => 10.1 - 3.1 * f);
+  const eyesIn = useTransform([eyes, face], ([e, f]: number[]) => e * (1 - arrive(f)));
+  const faceX = useTransform(lv, (v) => Math.max(v - 28, 2 + v / 2 - 13.6));
+  const faceIn = useTransform(face, arrive);
   const mood: Mood = gulping ? "glad" : over ? "wow" : "happy";
+  const blink = index * 0.83 + 0.4;
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="block overflow-visible">
       {budget != null && !over && (
@@ -339,19 +409,16 @@ export function PaintedBar({
           <motion.path d={dExtra} fill="#F0A3B4" />
           <motion.path d={d} fill={colour} />
         </g>
-        {(grown || eyed) && (
-          <motion.g style={{ x: faceX }}>
-            {grown ? (
-              <g transform="translate(0 7) scale(0.68)">
-                <PaintedFace ink={faceInk(colour)} mood={mood} blink={index * 0.83 + 0.4} />
-              </g>
-            ) : (
-              <g transform="translate(0 10.1) scale(0.68)">
-                <PaintedEyes ink={faceInk(colour)} blink={index * 0.83 + 0.4} />
-              </g>
-            )}
-          </motion.g>
-        )}
+        <motion.g style={{ x: eyesX, y: eyesY, opacity: eyesIn }}>
+          <g transform="scale(0.68)">
+            <PaintedEyes ink={faceInk(colour)} blink={blink} />
+          </g>
+        </motion.g>
+        <motion.g style={{ x: faceX, opacity: faceIn }}>
+          <g transform="translate(0 7) scale(0.68)">
+            <PaintedFace ink={faceInk(colour)} mood={mood} blink={blink} />
+          </g>
+        </motion.g>
       </motion.g>
     </svg>
   );
