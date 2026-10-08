@@ -213,9 +213,9 @@ One centred column, 1200px wide at most, with 20px side padding on a phone and 2
 
 The board opens on the **stage**: a full-width Oat Paper panel holding the month's name with a stepper, the total, the loose-change pile with its count, Kopikas with his speech bubble, and the rolls standing in one row on a shared floor. On desktop, decoration (floating coins, confetti, dashes) is kept to the stage's upper right, away from every number. Below the stage, on one grid with a 32px gap, the ledger by day fills the left and the to-file queue a 380px column on the right from 1024px up.
 
-On a phone (639px and below) the stage reflows instead of shrinking. The rolls lie down as horizontal bars in one list, each with its name and amount above it; Kopikas moves to the stage's top-right corner at 62px; the speech bubble runs full width under the total. The phone's job is the to-file queue.
+On a phone (639px and below) the stage reflows instead of shrinking. The rolls lie down as horizontal bars in one list, each with its name and amount above it, and the categories with nothing filed yet gather in one "Nothing yet" line after the list; Kopikas moves to the stage's top-right corner at 62px; the speech bubble runs full width under the total. The phone's job is the to-file queue.
 
-Rolls currently sit in fixed 84px columns with a 20px gap, so about eight fit at 1440px; a household's full set of categories does not yet fit. Roll width should come from the number of rolls.
+Rolls sit in 84px columns with a 20px gap while they fit. The column narrows with the count, to 60px at the least, and past what fits in one row the floor wraps to a second shelf on the same scale; it never scrolls sideways. (Built state: fixed 84px columns, about eight at 1440px.)
 
 **The Clear Air Rule.** Nothing decorative overlaps a figure. Floaters and confetti live where no number is.
 
@@ -238,7 +238,7 @@ Coins are discs turned a touch so their darker rim shows below and to the right;
 
 **The Wobble, Not Filter Rule.** Edges stay vector-smooth at any zoom. No displacement or turbulence filters: they read as hairy or pixelated.
 
-**The Two Dots and a Curve Rule.** Every face is two dots and a curve (open when glad, round when surprised, shut arcs for joy). No googly eyes, teeth or tongues on categories.
+**The Two Dots and a Curve Rule.** Every face is two dots and a curve (open when glad, round when surprised, shut arcs for joy, two flat lines and one small z for sleep). No googly eyes, teeth or tongues on categories.
 
 ## Components
 
@@ -249,11 +249,17 @@ The month as one picture.
 - **Motion:** rolls rise on load, floaters drift slowly, faces blink on their own clocks.
 
 ### Rolls
-A category as a character.
-- **Shape:** an upright wobbled body in its wrapper colour, 22px corners, a face near the top, standing on a floor oval. On a phone it lies down as a bar.
-- **Scale:** the body's height is the month's amount on one shared scale; the limit, when set, is a dashed outline, and spending past it shows as a pink overflow above it.
-- **States:** disabled until a coin is picked; while a coin is held, every roll that can take it bobs; on a drop it gulps (squashes to 0.9 and springs back) and grows to its new height.
-- **Known gap:** the body currently has a 44px floor (34px as a bar), so small amounts read as equal. A roll's face should ride above a true-height body.
+A category as a character, at one of four stages. It grows as coins go in.
+- **Shape:** an upright wobbled body in its wrapper colour, 22px corners, standing on a floor oval. On a phone it lies down as a bar.
+- **Scale:** the body's height is the month's amount on one shared scale, never more, with a 4px floor (8px as a bar) so a few cents still show. The limit, when set, is a dashed outline, and spending past it shows as a pink overflow above it.
+- **Stages.** The face follows the body; nothing of fixed size is ever stacked on it or set beside it.
+  - *Grown:* a body of 32px or more holds the full face, 9px under the top from 51px up and centred in the body below that. As a bar, a length of 26px or more holds it, at the tip from 33px and centred below that.
+  - *Hatchling:* a body too short for a face shows the two eyes alone, in the stage's ink (Face Navy on Oat Paper, Face Cream on Oat Paper Night), floating 4px above the body and never touching it. As a bar, the eyes sit inside the bar from 14px, and under 14px the bar is plain; the amount beside it does the talking.
+  - *Asleep:* nothing filed yet. A dashed footprint where the body would stand, in the wrapper colour deepened a third toward Ink (a quarter toward Chalk in dark), with two flat shut eyes and one small z above it in the stage's ink. Still a drop target. As a bar there is no row: the sleepers gather in one "Nothing yet" line after the list, each a 30 by 26 blob in its wrapper colour carrying the shut eyes and the z, its name beside it in Ink or Chalk.
+  - *Over:* past its limit, the round "wow" mouth and the pink overflow.
+- **The floor:** every category stands on it every month, in the list's order, so a roll keeps its address and a zero is seen. Roll width comes from the count, from the 84px column down to a 60px one; past what fits in one row the floor wraps to a second shelf on the same scale. It never scrolls sideways.
+- **States:** disabled until a coin is picked; while a coin is held, every roll that can take it bobs; on a drop it gulps (squashes to 0.9 and springs back) and grows to its new height. The first coin wakes a sleeper: its eyes open and a body starts under them; at the grown line the mouth arrives. With reduced motion the stages swap in place.
+- **Built state (2026-10-08):** the floor still ships with the 44px minimum (34px as a bar) and hides empties. The stages above are the agreed target, prototyped with the production drawing code (`wobblyRect`, `PaintedRoll`, `PaintedBar`) and nothing else changed.
 
 ### Coins
 A charge as a coin.
