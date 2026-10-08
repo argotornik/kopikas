@@ -9,7 +9,7 @@ import { GOOFY_CSS, GoofyFace, INK, PERSONAS, rng, wobblyCircle, wobblyRect, typ
 import { KopikasAnimated } from "@/components/kopikas-animated";
 import type { MascotPose } from "@/components/kopikas-mascot";
 import type { PaintedPose } from "@/components/kopikas-painted";
-import { PAINTED_CONFETTI, PAINTED_WRAPPERS, PaintedBar, PaintedCoin, PaintedDefs, PaintedRoll } from "@/components/painted";
+import { PAINTED_CONFETTI, PAINTED_WRAPPERS, PaintedBar, PaintedCoin, PaintedDefs, PaintedMini, PaintedRoll } from "@/components/painted";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { RollingNumber } from "@/components/rolling-number";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -437,6 +437,16 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
     ro.observe(el);
     return () => ro.disconnect();
   }, [narrow, painted]);
+  // The floor's width sets the painted columns: 84px while they fit, narrower with the count, down to 60px.
+  const floorRef = useRef<HTMLDivElement>(null);
+  const [floorW, setFloorW] = useState(0);
+  useEffect(() => {
+    const el = floorRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setFloorW(Math.round(e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [narrow, painted]);
 
   const categories = initial.categories;
   const index = useMemo(() => new Map(categories.map((c, i) => [c.name, i])), [categories]);
@@ -448,9 +458,27 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
   const before = paidOut(txs, shiftMonth(month, -1));
   const isCurrent = month === initial.month;
 
+  // Every category stands on the painted floor, asleep when nothing is filed; the goofy look still hides empties.
   const rolls = categories
-    .filter((c) => c.name !== SAVINGS && (now.byCat.get(c.name) ?? 0) > 0)
+    .filter((c) => c.name !== SAVINGS && (painted || (now.byCat.get(c.name) ?? 0) > 0))
     .map((c) => ({ name: c.name, total: now.byCat.get(c.name) ?? 0, budget: c.budget }));
+  const sleeping = rolls.filter((r) => r.total <= 0);
+  // Column width from the count: the full 84px while every roll fits in one row, else narrower, never under 60px,
+  // then a tighter gap; only past that does the floor wrap to a second row on the same scale. It never scrolls.
+  const colMax = narrow ? 70 : 84;
+  const n = rolls.length;
+  const fitsAt = (col: number, gap: number) => floorW === 0 || n * col + gap * (n - 1) <= floorW;
+  const colAt = (gap: number) => Math.max(60, Math.min(colMax, Math.floor((floorW - gap * (n - 1)) / n)));
+  let floorGap = narrow ? 16 : 20;
+  let colW = colMax;
+  if (!fitsAt(colMax, floorGap)) {
+    colW = colAt(floorGap);
+    if (!fitsAt(colW, floorGap)) {
+      floorGap = 12;
+      colW = colAt(floorGap);
+    }
+  }
+  const floorFits = fitsAt(colW, floorGap);
   const loose = txs.filter((t) => t.amount < 0 && !t.category && monthOf(t.date) === month).sort((a, b) => b.date.localeCompare(a.date));
   const looseElsewhere = txs.filter((t) => t.amount < 0 && !t.category && monthOf(t.date) !== month);
   const elsewhereMonth = looseElsewhere.map((t) => monthOf(t.date)).sort().at(-1);
@@ -830,7 +858,7 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                 </div>
                 <div className="h-px bg-[#16171C]/10 dark:bg-white/10" aria-hidden />
                 <div ref={listRef} role="group" aria-label={`Where ${label(month)}'s money went`} className="flex flex-col gap-2">
-                  {rolls.map((r, i) => {
+                  {rolls.filter((r) => r.total > 0).map((r, i) => {
                     const over = r.budget != null && r.total > r.budget;
                     const span = Math.max(60, listW - 6);
                     const hpx = (v: number) => (v / tallest) * span;
@@ -865,6 +893,28 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                     );
                   })}
                 </div>
+                {/* The categories with nothing filed yet sleep in one line after the list, each still a place to file. */}
+                {sleeping.length > 0 && (
+                  <div role="group" aria-label="Categories with nothing filed yet" className="flex flex-col gap-2">
+                    <div className={cn("text-[14px] font-medium", MUTED)}>Nothing yet</div>
+                    <div className="flex flex-wrap gap-x-[18px] gap-y-1.5">
+                      {sleeping.map((r) => (
+                        <button
+                          key={r.name}
+                          type="button"
+                          data-roll={r.name}
+                          disabled={!pickedTx}
+                          onClick={() => pickedTx && file(pickedTx, r.name)}
+                          aria-label={`${r.name}: nothing filed yet${pickedTx ? `. File ${pickedTx.name} here` : ""}`}
+                          className={cn("flex min-h-11 items-center gap-2 rounded-full pr-1 text-[13px] font-medium disabled:cursor-default", FOCUS)}
+                        >
+                          <PaintedMini index={index.get(r.name) ?? 0} colour={wrapper(r.name)} />
+                          <span>{r.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
             <div className="relative mt-6 flex items-end gap-6 overflow-x-auto pb-1 sm:gap-8 lg:overflow-visible">
@@ -916,14 +966,22 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
 
               <div className="w-px shrink-0 self-stretch bg-[#16171C]/10 dark:bg-white/10" aria-hidden />
 
-              <div role="group" aria-label={`Where ${label(month)}'s money went`} className="flex min-w-max flex-1 items-end justify-between gap-4 sm:gap-5">
+              <div
+                ref={floorRef}
+                role="group"
+                aria-label={`Where ${label(month)}'s money went`}
+                className={cn("flex flex-1 items-end gap-y-6", painted ? "flex-wrap" : "min-w-max", floorFits ? "justify-between" : "justify-start")}
+                style={{ columnGap: floorGap }}
+              >
                 {rolls.map((r, i) => {
                   const over = r.budget != null && r.total > r.budget;
                   const colour = wrapper(r.name);
-                  const RW = narrow ? 46 : 60;
+                  // A narrower column gives up its side padding before its body: the body stays 44px or wider.
+                  const RW = painted ? Math.max(44, Math.min(60, colW - 24)) : narrow ? 46 : 60;
+                  const pad = painted ? (colW - RW) / 2 : 12;
                   const H = narrow ? 150 : 230;
                   return (
-                    <div key={r.name} className="flex shrink-0 flex-col items-center" style={{ width: RW + 24 }}>
+                    <div key={r.name} className="flex shrink-0 flex-col items-center" style={{ width: RW + pad * 2 }}>
                       <motion.button
                         type="button"
                         data-roll={r.name}
@@ -948,6 +1006,7 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                             gulping={gulp?.category === r.name}
                             height={H}
                             width={RW}
+                            pad={pad}
                             delay={0.15 + i * 0.05}
                           />
                         ) : (
@@ -967,7 +1026,7 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                         />
                         )}
                       </motion.button>
-                      <div className="mt-3 w-[68px] text-center sm:w-[84px] lg:w-[100px]">
+                      <div className={cn("mt-3 text-center", !painted && "w-[68px] sm:w-[84px] lg:w-[100px]")} style={painted ? { width: RW + pad * 2 } : undefined}>
                         <div className="truncate text-[13px] font-medium">{r.name}</div>
                         <div className={cn("truncate text-[13px] tabular-nums", over ? "font-medium" : MUTED)}>{eur.format(r.total)}</div>
                       </div>
