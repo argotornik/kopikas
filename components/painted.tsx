@@ -64,6 +64,9 @@ export function faceOffset(v: number): number {
 }
 // Marks drawn on the stage rather than on a wrapper take the stage's ink.
 const STAGE_INK = "var(--painted-stage-ink)";
+// A wrapper deepened a third toward Ink (a quarter toward Chalk in dark): the
+// sleeping footprint, and the part of a body past its limit.
+const deepened = (colour: string) => `color-mix(in srgb, ${colour} var(--painted-foot-keep), var(--painted-foot-to))`;
 
 // A stage changes as the body passes one of its lines, not when the amount
 // does: `useCrossing` is 0 or 1 as `value` sits under or over `line`, settling
@@ -232,12 +235,19 @@ export function PaintedRoll({
   const swap = { duration: reduce ? 0 : 0.3, ease: [0.16, 1, 0.3, 1] as const };
 
   const seed = index * 613 + 29;
-  const d = useTransform(hv, (v) => (v > 0 ? wobblyRect(PAD, H - FOOT - v, RW, v, 12, seed, 0.8, 32) : ""));
-  const dExtra = useTransform([hv, ev], ([v, e]: number[]) =>
-    e > 0 ? wobblyRect(PAD + 6, H - FOOT - v - e + 3, RW - 12, e, 8, seed + 3, 0.6, 28) : ""
+  // The body stands at its full amount. Past the limit, the dashed rim crosses it where
+  // the limit is, and the part above the rim is the wrapper deepened.
+  const d = useTransform([hv, ev], ([v, e]: number[]) => (v + e > 0 ? wobblyRect(PAD, H - FOOT - v - e, RW, v + e, 12, seed, 0.8, 32) : ""));
+  const dSpill = useTransform([hv, ev], ([v, e]: number[]) =>
+    e > 0 ? wobblyRect(PAD, H - FOOT - v - e, RW, e + 3, Math.min(12, (e + 3) / 2), seed + 3, 0.6, 32) : ""
   );
-  // The face box follows the body's top: 4 px clear above it as a hatchling, inside it once grown.
-  const faceY = useTransform([hv, drop], ([v, p]: number[]) => H - FOOT - v - 17.5 + (faceOffset(v) + 17.5) * p);
+  const dRim = useTransform([hv, ev], ([v, e]: number[]) => (e > 0 ? `M${PAD - 5} ${H - FOOT - v + 1.5} H${PAD + RW + 5}` : ""));
+  // The face box follows the body's top: 4 px clear above it as a hatchling, above the overflow too,
+  // and inside the body once grown, under the overflow.
+  const faceY = useTransform([hv, ev, drop], ([v, e, p]: number[]) => {
+    const above = H - FOOT - v - e - 17.5;
+    return above + (H - FOOT - v + faceOffset(v) - above) * p;
+  });
   const eyesOut = useTransform(drop, (p) => 1 - arrive(p));
   const faceIn = useTransform(drop, arrive);
   const ink = faceInk(colour);
@@ -246,7 +256,7 @@ export function PaintedRoll({
   const blink = index * 0.83 + 0.4;
   return (
     <svg width={RW + PAD * 2} height={H} viewBox={`0 0 ${RW + PAD * 2} ${H}`} aria-hidden className="block overflow-visible">
-      {budget != null && !over && (
+      {budget != null && !over && !asleep && (
         <path
           d={wobblyRect(PAD, H - FOOT - budget, RW, budget, 12, seed + 7, 0.6, 32)}
           fill="none"
@@ -268,7 +278,7 @@ export function PaintedRoll({
             strokeWidth="2"
             strokeDasharray="3 4"
             strokeLinecap="round"
-            style={{ stroke: `color-mix(in srgb, ${colour} var(--painted-foot-keep), var(--painted-foot-to))` }}
+            style={{ stroke: deepened(colour) }}
           />
         )}
         {asleep && (
@@ -287,8 +297,9 @@ export function PaintedRoll({
           </motion.g>
           <motion.g style={{ originY: 1 }} animate={gulping && !reduce ? { scaleY: [1, 0.9, 1.04, 1] } : { scaleY: 1 }} transition={{ duration: 0.6 }}>
             <g>
-              <motion.path d={dExtra} fill="#F0A3B4" />
               <motion.path d={d} fill={colour} />
+              <motion.path d={dSpill} style={{ fill: deepened(colour) }} />
+              <motion.path d={dRim} fill="none" stroke={BLUE} strokeWidth="2.2" strokeDasharray="3 7" strokeLinecap="round" />
             </g>
             <motion.g style={{ y: faceY }}>
               <g transform={`translate(${faceX} 0)`}>
@@ -381,8 +392,10 @@ export function PaintedBar({
   const face = useCrossing(lv, BAR_FACE_FROM, reduce);
 
   const seed = index * 613 + 29;
-  const d = useTransform(lv, (v) => (v > 0 ? wobblyRect(2, Y, v, BH, 9, seed, 0.7, 34) : ""));
-  const dExtra = useTransform([lv, ev], ([v, e]: number[]) => (e > 0 ? wobblyRect(v - 2, Y + 4, e + 2, BH - 8, 6, seed + 3, 0.5, 30) : ""));
+  // The bar runs to its full amount; past the limit the dashed rim stands across it and the part beyond is deepened.
+  const d = useTransform([lv, ev], ([v, e]: number[]) => (v + e > 0 ? wobblyRect(2, Y, v + e, BH, 9, seed, 0.7, 34) : ""));
+  const dSpill = useTransform([lv, ev], ([v, e]: number[]) => (e > 0 ? wobblyRect(v - 1, Y, e + 3, BH, Math.min(9, (e + 3) / 2), seed + 3, 0.5, 30) : ""));
+  const dRim = useTransform([lv, ev], ([v, e]: number[]) => (e > 0 ? `M${v + 0.5} ${Y - 5} V${Y + BH + 5}` : ""));
   // The eyes alone sit centred in the bar. The face box, at 0.68, is centred too until 33 px, then flush with the tip.
   const eyesX = useTransform(lv, (v) => 2 + v / 2 - 13.5);
   const eyesY = useTransform(face, (f) => 10.1 - 3.1 * f);
@@ -406,8 +419,9 @@ export function PaintedBar({
       )}
       <motion.g style={{ originX: 0 }} animate={gulping && !reduce ? { scaleX: [1, 0.93, 1.03, 1] } : { scaleX: 1 }} transition={{ duration: 0.6 }}>
         <g>
-          <motion.path d={dExtra} fill="#F0A3B4" />
           <motion.path d={d} fill={colour} />
+          <motion.path d={dSpill} style={{ fill: deepened(colour) }} />
+          <motion.path d={dRim} fill="none" stroke={BLUE} strokeWidth="2" strokeDasharray="3 7" strokeLinecap="round" />
         </g>
         <motion.g style={{ x: eyesX, y: eyesY, opacity: eyesIn }}>
           <g transform="scale(0.68)">

@@ -16,6 +16,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
+const eurWhole = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const dayName = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 const monthName = new Intl.DateTimeFormat("en-GB", { month: "long", timeZone: "UTC" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
@@ -468,6 +469,11 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
     .filter((c) => c.name !== SAVINGS && (painted || (now.byCat.get(c.name) ?? 0) > 0))
     .map((c) => ({ name: c.name, total: now.byCat.get(c.name) ?? 0, budget: c.budget }));
   const sleeping = rolls.filter((r) => r.total <= 0);
+  // A limit is set in whole euros as a rule, so it shows without cents unless it has them.
+  const limitText = (b: number) => (Number.isInteger(b) ? eurWhole : eur).format(b);
+  // How a roll's limit reads to a screen reader.
+  const limitNote = (r: { total: number; budget?: number | null }) =>
+    r.budget == null ? "" : r.total > r.budget ? `, ${eur.format(r.total - r.budget)} over its ${limitText(r.budget)} limit` : ` of a ${limitText(r.budget)} limit`;
   // Column width from the count: the full 84px while every roll fits in one row, else narrower, never under 60px,
   // then a tighter gap; only past that does the floor wrap to a second row on the same scale. It never scrolls.
   const colMax = narrow ? 70 : 84;
@@ -489,8 +495,9 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
   const elsewhereMonth = looseElsewhere.map((t) => monthOf(t.date)).sort().at(-1);
   const pickedTx = loose.find((t) => t.id === picked) ?? null;
 
-  // One shared scale: a euro is the same height on every roll.
-  const tallest = Math.max(1, ...rolls.map((r) => Math.max(r.total, r.budget ?? 0)));
+  // One shared scale: a euro is the same height on every roll. A sleeper's limit
+  // waits for its first coin, so it stretches nothing.
+  const tallest = Math.max(1, ...rolls.map((r) => Math.max(r.total, r.total > 0 ? (r.budget ?? 0) : 0)));
   const MAX = narrow ? 112 : 200;
   const px = (v: number) => (v / tallest) * MAX;
 
@@ -874,14 +881,17 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                         data-roll={r.name}
                         disabled={!pickedTx}
                         onClick={() => pickedTx && file(pickedTx, r.name)}
-                        aria-label={`${r.name}: ${eur.format(r.total)}${r.budget != null ? ` of a ${eur.format(r.budget)} limit` : ""}${pickedTx ? `. File ${pickedTx.name} here` : ""}`}
+                        aria-label={`${r.name}: ${eur.format(r.total)}${limitNote(r)}${pickedTx ? `. File ${pickedTx.name} here` : ""}`}
                         className={cn("w-full rounded-xl text-left disabled:cursor-default", FOCUS)}
                         animate={pickedTx && !reduce ? { x: [0, 4, 0] } : { x: 0 }}
                         transition={pickedTx ? { duration: 0.9, repeat: Infinity, delay: i * 0.06 } : SPRING}
                       >
                         <div className="flex items-baseline justify-between gap-3 text-[14px]">
                           <span className="truncate font-medium">{r.name}</span>
-                          <span className={cn("shrink-0 tabular-nums", over ? "font-medium" : MUTED)}>{eur.format(r.total)}</span>
+                          <span className="shrink-0 tabular-nums">
+                            <span className={over ? "font-medium" : MUTED}>{eur.format(r.total)}</span>
+                            {r.budget != null && <span className={MUTED}> of {limitText(r.budget)}</span>}
+                          </span>
                         </div>
                         <PaintedBar
                           index={index.get(r.name) ?? i}
@@ -992,7 +1002,7 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                         data-roll={r.name}
                         disabled={!pickedTx}
                         onClick={() => pickedTx && file(pickedTx, r.name)}
-                        aria-label={`${r.name}: ${eur.format(r.total)}${r.budget != null ? ` of a ${eur.format(r.budget)} limit` : ""}${pickedTx ? `. File ${pickedTx.name} here` : ""}`}
+                        aria-label={`${r.name}: ${eur.format(r.total)}${limitNote(r)}${pickedTx ? `. File ${pickedTx.name} here` : ""}`}
                         className={cn("relative flex w-full items-end justify-center rounded-[22px] disabled:cursor-default", FOCUS)}
                         style={{ height: H }}
                         animate={pickedTx && !reduce ? { y: [0, -5, 0] } : { y: 0 }}
@@ -1043,6 +1053,7 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                           <span className={cn(painted && "line-clamp-2")}>{painted ? breakable(r.name) : r.name}</span>
                         </div>
                         <div className={cn("truncate text-[13px] tabular-nums", over ? "font-medium" : MUTED)}>{eur.format(r.total)}</div>
+                        {painted && r.budget != null && <div className={cn("truncate text-[12px] tabular-nums", MUTED)}>of {limitText(r.budget)}</div>}
                       </div>
                     </div>
                   );
