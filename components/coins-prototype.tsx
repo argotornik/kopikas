@@ -193,11 +193,21 @@ const FLOATERS: { kind: MarkKind | "coin"; metal?: Metal; x: number; y: number; 
   { kind: "dash", x: 57, y: 18, s: 10, d: 7, c: 1, r: 70 },
 ];
 
-function Floater({ f, painted }: { f: (typeof FLOATERS)[number]; painted: boolean }) {
+// What floats around the loose change on the painted stage, in % of the pile's 120px
+// column, clear of every spot a coin can take. Squiggles and dots only: on the painted
+// stage a dash means a limit, and a floating coin would read as one more to file.
+const AIR: (typeof FLOATERS)[number][] = [
+  { kind: "squiggle", x: -82, y: 4, s: 30, d: 9, c: 3, r: -8 },
+  { kind: "squiggle", x: -63, y: 62, s: 30, d: 8, c: 0, r: 6 },
+  { kind: "dot", x: -18, y: 32, s: 8, d: 10, c: 1 },
+  { kind: "dot", x: 109, y: 43, s: 7, d: 9, c: 4 },
+];
+
+function Floater({ f, painted, always = false }: { f: (typeof FLOATERS)[number]; painted: boolean; always?: boolean }) {
   return (
     <span
       aria-hidden
-      className={cn("coins-float pointer-events-none absolute", f.x < 84 && "hidden sm:block")}
+      className={cn("coins-float pointer-events-none absolute", !always && f.x < 84 && "hidden sm:block")}
       style={{ left: `${f.x}%`, top: `${f.y}%`, animationDuration: `${f.d}s`, animationDelay: `${-f.d / 2}s` }}
     >
       {f.kind === "coin" ? (
@@ -498,7 +508,10 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
   // One shared scale: a euro is the same height on every roll. A sleeper's limit
   // waits for its first coin, so it stretches nothing.
   const tallest = Math.max(1, ...rolls.map((r) => Math.max(r.total, r.total > 0 ? (r.budget ?? 0) : 0)));
-  const MAX = narrow ? 112 : 200;
+  // The painted floor has the stage's full width, and in one row the height to match: the floor is the
+  // picture. A floor that wraps keeps the shorter stage, so its second shelf isn't mostly air.
+  const tall = painted && !narrow && floorFits;
+  const MAX = narrow ? 112 : tall ? 280 : 200;
   const px = (v: number) => (v / tallest) * MAX;
 
   // What Kopikas says and does, from the state of the tray.
@@ -594,6 +607,57 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
         />
       </button>
       {celebrating && !reduce && <Burst key={cheer} painted={painted} />}
+    </div>
+  );
+  // The loose change: a pile of coins to pick up, and its count. The painted stage keeps it in
+  // its head, top right, at 40px a coin; the goofy one stands it on the floor's row.
+  const pileScale = painted ? 0.8 : narrow ? 0.72 : 1;
+  const pileCoin = painted ? 40 : narrow ? 38 : 50;
+  const pileBox = (
+    <div className={cn("relative", painted ? "size-[120px]" : "h-[112px] w-[112px] sm:h-[150px] sm:w-[150px]")} role="group" aria-label={`Loose change: ${loose.length} to file`}>
+      {loose.slice(0, PILE.length).map((t, i) => {
+        const spot = PILE[i];
+        const isPicked = picked === t.id;
+        return (
+          <motion.button
+            key={t.id}
+            type="button"
+            data-coin={t.id}
+            aria-pressed={isPicked}
+            aria-label={`${t.name}, ${eur.format(Math.abs(t.amount))}, ${shortDate.format(new Date(t.date + "T00:00:00Z"))}. Pick up to file`}
+            onClick={() => setPicked(isPicked ? null : t.id)}
+            className={cn("absolute rounded-full", FOCUS, flight?.tx.id === t.id && "opacity-0")}
+            style={{ left: spot.x * pileScale, bottom: spot.y * pileScale, zIndex: isPicked ? 20 : 10 - i }}
+            initial={reduce ? false : { y: -28 }}
+            animate={
+              isPicked
+                ? { y: -16, scale: 1.18, rotate: [spot.r, spot.r - 10, spot.r + 10, spot.r] }
+                : { y: 0, scale: 1, rotate: spot.r }
+            }
+            transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : { ...SPRING, delay: reduce ? 0 : 0.2 + i * 0.05 }}
+            whileHover={{ y: isPicked ? -18 : -4 }}
+          >
+            {painted ? (
+              <PaintedCoin size={pileCoin} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "happy"} seed={i + 2} />
+            ) : (
+              <Coin size={pileCoin} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "happy"} blink={i * 0.9} seed={i + 2} />
+            )}
+          </motion.button>
+        );
+      })}
+      {loose.length === 0 && (
+        <div className="absolute inset-x-6 bottom-0 flex justify-center">
+          {painted ? <PaintedCoin size={36} mood="glad" seed={5} /> : <Coin size={42} metal="copper" mood="glad" blink={0.4} />}
+        </div>
+      )}
+    </div>
+  );
+  const pileLabel = (
+    <div className="mt-3 text-center">
+      <div className={cn(DISPLAY, "text-[16px] font-semibold")}>Loose change</div>
+      <div className={cn("text-[13px] tabular-nums", MUTED)}>
+        {loose.length === 0 ? "nothing to file" : `${loose.length} to file${loose.length > PILE.length ? ` · ${PILE.length} shown` : ""}`}
+      </div>
     </div>
   );
 
@@ -776,9 +840,11 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
             aria-labelledby="month-heading"
             className={cn(PANEL, "relative overflow-hidden px-5 pb-6 pt-6 sm:px-8 sm:pt-8", painted && "bg-[#EFEBE3] dark:bg-[#1F1D22]")}
           >
-            {FLOATERS.map((f, i) => (
-              <Floater key={i} f={f} painted={painted} />
-            ))}
+            {/* The painted phone keeps only the marks up by the month: lower ones would land on the list. */}
+            {(!painted || narrow) &&
+              FLOATERS.filter((f) => !painted || f.y < 25).map((f, i) => (
+                <Floater key={i} f={f} painted={painted} />
+              ))}
 
             <div className="relative flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
               <div>
@@ -815,14 +881,25 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                   </p>
                 )}
               </div>
-              {!narrow && (
-                <div className="flex items-start gap-3">
-                  {bubbleEl}
-                  {mascotEl}
-                </div>
-              )}
+              {!narrow &&
+                (painted ? (
+                  // The loose change, top right: pick a coin up here, drop it on a roll below.
+                  <div className="relative ml-auto flex w-[120px] flex-col items-center">
+                    {AIR.map((f, i) => (
+                      <Floater key={i} f={f} painted always />
+                    ))}
+                    {pileBox}
+                    {pileLabel}
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    {bubbleEl}
+                    {mascotEl}
+                  </div>
+                ))}
             </div>
-            {narrow && (
+            {/* Kopikas and his bubble stay on the goofy look only; the painted stage has no narrator. */}
+            {narrow && !painted && (
               <>
                 {mascotEl}
                 <div className="relative mt-4">{bubbleEl}</div>
@@ -933,53 +1010,15 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
               </div>
             ) : (
             <div className="relative mt-6 flex items-end gap-6 overflow-x-auto pb-1 sm:gap-8 lg:overflow-visible">
-              <div className="flex shrink-0 flex-col items-center">
-                <div className="relative h-[112px] w-[112px] sm:h-[150px] sm:w-[150px]" role="group" aria-label={`Loose change: ${loose.length} to file`}>
-                  {loose.slice(0, PILE.length).map((t, i) => {
-                    const spot = PILE[i];
-                    const isPicked = picked === t.id;
-                    return (
-                      <motion.button
-                        key={t.id}
-                        type="button"
-                        data-coin={t.id}
-                        aria-pressed={isPicked}
-                        aria-label={`${t.name}, ${eur.format(Math.abs(t.amount))}, ${shortDate.format(new Date(t.date + "T00:00:00Z"))}. Pick up to file`}
-                        onClick={() => setPicked(isPicked ? null : t.id)}
-                        className={cn("absolute rounded-full", FOCUS, flight?.tx.id === t.id && "opacity-0")}
-                        style={{ left: spot.x * (narrow ? 0.72 : 1), bottom: spot.y * (narrow ? 0.72 : 1), zIndex: isPicked ? 20 : 10 - i }}
-                        initial={reduce ? false : { y: -28 }}
-                        animate={
-                          isPicked
-                            ? { y: -16, scale: 1.18, rotate: [spot.r, spot.r - 10, spot.r + 10, spot.r] }
-                            : { y: 0, scale: 1, rotate: spot.r }
-                        }
-                        transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : { ...SPRING, delay: reduce ? 0 : 0.2 + i * 0.05 }}
-                        whileHover={{ y: isPicked ? -18 : -4 }}
-                      >
-                        {painted ? (
-                          <PaintedCoin size={narrow ? 38 : 50} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "happy"} seed={i + 2} />
-                        ) : (
-                          <Coin size={narrow ? 38 : 50} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "happy"} blink={i * 0.9} seed={i + 2} />
-                        )}
-                      </motion.button>
-                    );
-                  })}
-                  {loose.length === 0 && (
-                    <div className="absolute inset-x-6 bottom-0 flex justify-center">
-                      {painted ? <PaintedCoin size={42} mood="glad" seed={5} /> : <Coin size={42} metal="copper" mood="glad" blink={0.4} />}
-                    </div>
-                  )}
-                </div>
-                <div className="mt-3 text-center">
-                  <div className={cn(DISPLAY, "text-[16px] font-semibold")}>Loose change</div>
-                  <div className={cn("text-[13px] tabular-nums", MUTED)}>
-                    {loose.length === 0 ? "nothing to file" : `${loose.length} to file${loose.length > PILE.length ? ` · ${PILE.length} shown` : ""}`}
+              {!painted && (
+                <>
+                  <div className="flex shrink-0 flex-col items-center">
+                    {pileBox}
+                    {pileLabel}
                   </div>
-                </div>
-              </div>
-
-              <div className="w-px shrink-0 self-stretch bg-[#16171C]/10 dark:bg-white/10" aria-hidden />
+                  <div className="w-px shrink-0 self-stretch bg-[#16171C]/10 dark:bg-white/10" aria-hidden />
+                </>
+              )}
 
               <div
                 ref={floorRef}
@@ -994,7 +1033,7 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                   // A narrower column gives up its side padding before its body: the body stays 44px or wider.
                   const RW = painted ? Math.max(44, Math.min(60, colW - 24)) : narrow ? 46 : 60;
                   const pad = painted ? (colW - RW) / 2 : 12;
-                  const H = narrow ? 150 : 230;
+                  const H = narrow ? 150 : tall ? 310 : 230;
                   return (
                     <div key={r.name} className="flex shrink-0 flex-col items-center" style={{ width: RW + pad * 2 }}>
                       <motion.button

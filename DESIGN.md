@@ -147,7 +147,7 @@ components:
 
 Kopikas is a household's statement drawn as a picture book. Every page is painted in the manner of KAIA (@saiakuubik), credited in the README: flat matte shapes with gently uneven edges, round characters with faces of two dots and a curve, a white page with a warm Oat Paper stage. Underneath the storybook is a ledger, and the ledger never fudges: amounts are always text in tabular figures, and a drawing may decorate a number but never stand in for it or bend it.
 
-The mood is warm, playful and tidy. Warm comes from Oat Paper, copper and the painted wrapper colours. Playful comes from the cast, the coin rolls and Kopikas the coin, who blink, gulp, hop and narrate in plain, progress-first sentences. Tidy is the point of the product: filing a coin into its roll is a small satisfying act, and the layout stays orderly so the fun never gets in the way of reading the month. Density is relaxed on the stage and plain in the lists.
+The mood is warm, playful and tidy. Warm comes from Oat Paper, copper and the painted wrapper colours. Playful comes from the cast, the coin rolls and the loose coins, who blink, gulp and hop; every step is still said in plain, progress-first words for screen readers. Tidy is the point of the product: filing a coin into its roll is a small satisfying act, and the layout stays orderly so the fun never gets in the way of reading the month. Density is relaxed on the stage and plain in the lists.
 
 The world is built on the board's coin tray (`/coins`): every charge is a coin, every category a roll with a face, the month a row of rolls on one shared scale. It replaces the current board at `/` and its finance-dashboard vocabulary of stat cards, sparklines and grey cards, and refuses the cold bank register. A goofy alternative look (googly eyes, tongues, a boiling line) still sits one click away on the prototype; it was judged too goofy and is not to be extended.
 
@@ -155,7 +155,7 @@ The world is built on the board's coin tray (`/coins`): every charge is a coin, 
 - Painted characters with vector-smooth, gently wobbled edges; faces of two dots and a curve.
 - A white page, an Oat Paper stage, and bright-but-matte wrapper colours, one per category.
 - Fredoka for the voice (wordmark, month, total, section heads), Rubik for everything that is read.
-- Flat paper cut-outs: depth only from the oval each character stands on and the speech bubble's lift.
+- Flat paper cut-outs: depth only from the oval each character stands on.
 - Springy, small motion that rewards filing, and that keeps every state when motion is reduced.
 
 ## Colors
@@ -166,7 +166,7 @@ A white page, a warm oat stage, copper as the house colour, Crayon Blue for ever
 - **Kopikas Copper** (copper): the house colour, carried by the coin: Kopikas's body, the wordmark coin, the loose coins in the pile. Its darker **Copper Edge** shows the coin's turned rim, **Copper Ring** the struck ring, and **Copper K** the embossed k. Coins also come in **Brass** and **Nickel**, so a pile reads as loose change rather than one colour repeated.
 
 ### Secondary
-- **Crayon Blue** (crayon-blue): the ink of every painted face, Kopikas's eyes and mouth, and the fine dashes floating in the air. On a light wrapper a face is drawn in **Face Navy**, on a dark one in **Face Cream**, so it always reads on its own roll.
+- **Crayon Blue** (crayon-blue): the ink of every painted face, Kopikas's eyes and mouth, and every limit line. On a light wrapper a face is drawn in **Face Navy**, on a dark one in **Face Cream**, so it always reads on its own roll.
 
 ### Tertiary
 - **The wrappers** (wrapper-cornflower, -tomato, -pink, -grass, -brown, -sky, -lime, -lavender, -yolk, -grey, -brick, -mint, -apricot): one per category, in that order, by the category's place in the list. They are the brightest things on the page and the only large areas of colour; everything around them stays neutral so the month's shape reads first.
@@ -213,28 +213,27 @@ A white page, a warm oat stage, copper as the house colour, Crayon Blue for ever
 
 One centred column, 1200px wide at most, with 20px side padding on a phone and 24px from 640px up.
 
-The board opens on the **stage**: a full-width Oat Paper panel holding the month's name with a stepper, the total, the loose-change pile with its count, Kopikas with his speech bubble, and the rolls standing in one row on a shared floor. On desktop, decoration (floating coins, confetti, dashes) is kept to the stage's upper right, away from every number. Below the stage, on one grid with a 32px gap, the ledger by day fills the left and the to-file queue a 380px column on the right from 1024px up.
+The board opens on the **stage**: a full-width Oat Paper panel in two bands. The head holds the month's name with a stepper and the total on the left, and the loose-change pile with its count on the right: you pick a coin up there and drop it on a roll below. The stage has no narrator. The floor below takes the panel's full width, its tallest roll standing 280px while every roll fits in one row. On desktop, a few squiggles and dots float around the loose change, away from every number and from every spot a coin can take: never a dash, which on the stage means a limit, and never a coin, which would read as one more to file. Below the stage, on one grid with a 32px gap, the ledger by day fills the left and the to-file queue a 380px column on the right from 1024px up.
 
-On a phone (639px and below) the stage reflows instead of shrinking. The rolls lie down as horizontal bars in one list, each with its name and amount above it, and the categories with nothing filed yet gather in one "Nothing yet" line after the list; Kopikas moves to the stage's top-right corner at 62px; the speech bubble runs full width under the total. The phone's job is the to-file queue.
+On a phone (639px and below) the stage reflows instead of shrinking. The rolls lie down as horizontal bars in one list, each with its name and amount above it, and the categories with nothing filed yet gather in one "Nothing yet" line after the list; the loose change sits in one row between the total and the list. The phone's job is the to-file queue.
 
-Rolls sit in 84px columns with a 20px gap while they fit. The column narrows with the count, to 60px at the least, and past what fits in one row the floor wraps to a second shelf on the same scale; it never scrolls sideways. (Built state: fixed 84px columns, about eight at 1440px.)
+Rolls sit in 84px columns with a 20px gap while they fit. The column narrows with the count, to 60px at the least, and past what fits in one row the floor wraps to a second shelf on the same scale; it never scrolls sideways. A floor that wraps keeps the shorter 200px stage, so its second shelf isn't mostly air. At 1440px twelve categories stand in one row of 72px columns.
 
 **The Clear Air Rule.** Nothing decorative overlaps a figure. Floaters and confetti live where no number is.
 
 ## Elevation & Depth
 
-Flat paper cut-outs. Surfaces have no shadows; depth comes from tone (Page White, then Oat Paper, then white cards on it) and from two things only: the soft oval each character stands on, and the speech bubble's gentle lift.
+Flat paper cut-outs. Surfaces have no shadows; depth comes from tone (Page White, then Oat Paper, then white cards on it) and from one thing only: the soft oval each character stands on.
 
 ### Shadow Vocabulary
 - **Floor oval**: a flat ellipse in black at 12% (35% in dark) under every character and roll. It is what the character stands on, and it shrinks and fades when the character leaves the ground.
-- **Bubble lift** (`box-shadow: 0 10px 30px -14px rgb(0 0 0 / 0.3)`): the speech bubble only, so Kopikas's voice floats above the stage.
 
 ### Named Rules
-**The Paper Cut-Out Rule.** Nothing casts a drop shadow except the speech bubble. Stack with tone, not with shadows.
+**The Paper Cut-Out Rule.** Nothing casts a drop shadow. Stack with tone, not with shadows.
 
 ## Shapes
 
-Round and soft. Panels have generous corners (the stage and its siblings 28px), cards and the speech bubble 16px, rolls 22px, and every control that is pressed rather than read is a full pill. Characters are drawn as SVG with gently wobbled edges: each shape is sampled evenly and nudged in long, eased waves, so sides bend softly and corners stay round. The handmade feel comes from that wobble, never from a filter.
+Round and soft. Panels have generous corners (the stage and its siblings 28px), cards 16px, rolls 22px, and every control that is pressed rather than read is a full pill. Characters are drawn as SVG with gently wobbled edges: each shape is sampled evenly and nudged in long, eased waves, so sides bend softly and corners stay round. The handmade feel comes from that wobble, never from a filter.
 
 Coins are discs turned a touch so their darker rim shows below and to the right; rolls are upright wobbled rectangles with a face near the top; Kopikas is a copper coin with a struck k on his forehead, limbs of one curve each, and mitten hands.
 
@@ -247,7 +246,7 @@ Coins are discs turned a touch so their darker rim shows below and to the right;
 ### The Stage (signature)
 The month as one picture.
 - **Shape:** an Oat Paper panel with 28px corners, 32px padding on desktop (24px on a phone), clipping its floaters.
-- **Contents:** month and stepper, the total in Display, the loose-change pile, Kopikas and his bubble, and the floor of rolls.
+- **Contents:** in the head, month and stepper and the total in Display on the left, the loose-change pile and its count on the right; below, the floor of rolls across the full width.
 - **Motion:** rolls rise on load, floaters drift slowly, faces blink on their own clocks.
 
 ### Rolls
@@ -262,21 +261,16 @@ A category as a character, at one of four stages. It grows as coins go in.
   - *Over:* past its limit, the round "wow" mouth and the deepened overflow; a hatchling's eyes float above the whole roll, overflow included.
 - **The floor:** every category stands on it every month, in the list's order, so a roll keeps its address and a zero is seen. Roll width comes from the count, from the 84px column down to a 60px one; past what fits in one row the floor wraps to a second shelf on the same scale. It never scrolls sideways.
 - **States:** disabled until a coin is picked; while a coin is held, every roll that can take it bobs; on a drop it gulps (squashes to 0.9 and springs back) and grows to its new height. The first coin wakes a sleeper: its eyes open and a body starts under them; at the grown line the mouth arrives. With reduced motion the stages swap in place.
-- **Built state (2026-10-08):** the floor still ships with the 44px minimum (34px as a bar) and hides empties. The stages above are the agreed target, prototyped with the production drawing code (`wobblyRect`, `PaintedRoll`, `PaintedBar`) and nothing else changed.
+- **Built state (2026-10-15):** everything above is built in the `/coins` prototype; the board at `/` is still the older design.
 
 ### Coins
 A charge as a coin.
-- **Shape:** a painted disc in copper, brass or nickel with a face, 40px on the stage (50px in the desktop pile, 38px on a phone).
+- **Shape:** a painted disc in copper, brass or nickel with a face, 40px on the stage and in the pile (38px on a phone).
 - **Behaviour:** pick a coin and tap a roll; it hops along an arc into the roll. A picked coin turns and smiles. After filing on the stage, focus moves to the next loose coin, or to the month's name once the pile is empty.
 
-### Kopikas
-The coin who narrates.
-- **Shape:** a copper coin with the k, Crayon Blue face, limbs in Limb Brown. Eight poses, one per moment of the board, each with its own lean, arms and face.
-- **Behaviour:** he narrates in the speech bubble; his eyes follow the pointer except when held on a prop; seven poses play as animations, with the drawn figure underneath so poses still spring into each other.
-
-### Speech Bubble
-- **Style:** Page White (card-night in dark), Body type, 16px corners, 12px by 16px padding, with the Bubble lift. A small tail points at Kopikas.
-- **Voice:** progress first, never shaming ("Hi! 2 coins to sort in September.", "In it goes!", "All sorted! Every coin is in its roll."). It exits fast (0.15s).
+### Kopikas and the Speech Bubble (off the stage)
+Taken off the painted stage on 2026-10-15, with his bubble: the stage reads better with the rolls and the loose coins as the only characters. The coin beside the wordmark stays. His eight poses, their Lottie file and the bubble remain in the code (the goofy look still shows them) and are not to be put back on the painted stage without a new decision.
+- **Voice, kept for screen readers:** progress first, never shaming ("Hi! 2 coins to sort in September.", "In it goes!", "All sorted! Every coin is in its roll."), announced politely after every step.
 
 ### Buttons and Pills
 - **Shape:** full pill.
@@ -303,7 +297,7 @@ Springs everywhere: the general one at stiffness 260 and damping 18, rolls at 20
 - **Do** give each category its wrapper by its place in the list, the same in every look and on every screen.
 - **Do** keep decoration in clear air: floaters, confetti and dashes never overlap a number.
 - **Do** draw faces as two dots and a curve in Crayon Blue, or Face Navy and Face Cream on wrappers, and say every state in words as well.
-- **Do** stack depth with tone: Page White, then Oat Paper, then white cards; the only shadows are the floor oval and the bubble's lift.
+- **Do** stack depth with tone: Page White, then Oat Paper, then white cards; the only shadow is the floor oval.
 - **Do** keep text at 4.5:1 or better on its ground in both themes, including Received Green on Oat Paper.
 - **Do** honour reduced motion by keeping every state and dropping the movement.
 

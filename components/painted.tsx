@@ -241,7 +241,7 @@ export function PaintedRoll({
   const dSpill = useTransform([hv, ev], ([v, e]: number[]) =>
     e > 0 ? wobblyRect(PAD, H - FOOT - v - e, RW, e + 3, Math.min(12, (e + 3) / 2), seed + 3, 0.6, 32) : ""
   );
-  const dRim = useTransform([hv, ev], ([v, e]: number[]) => (e > 0 ? `M${PAD - 5} ${H - FOOT - v + 1.5} H${PAD + RW + 5}` : ""));
+  const dRim = useTransform([hv, ev], ([v, e]: number[]) => (e > 0 ? `M${PAD} ${H - FOOT - v + 1.5} H${PAD + RW}` : ""));
   // The face box follows the body's top: 4 px clear above it as a hatchling, above the overflow too,
   // and inside the body once grown, under the overflow.
   const faceY = useTransform([hv, ev, drop], ([v, e, p]: number[]) => {
@@ -395,7 +395,7 @@ export function PaintedBar({
   // The bar runs to its full amount; past the limit the dashed rim stands across it and the part beyond is deepened.
   const d = useTransform([lv, ev], ([v, e]: number[]) => (v + e > 0 ? wobblyRect(2, Y, v + e, BH, 9, seed, 0.7, 34) : ""));
   const dSpill = useTransform([lv, ev], ([v, e]: number[]) => (e > 0 ? wobblyRect(v - 1, Y, e + 3, BH, Math.min(9, (e + 3) / 2), seed + 3, 0.5, 30) : ""));
-  const dRim = useTransform([lv, ev], ([v, e]: number[]) => (e > 0 ? `M${v + 0.5} ${Y - 5} V${Y + BH + 5}` : ""));
+  const dRim = useTransform([lv, ev], ([v, e]: number[]) => (e > 0 ? `M${v + 0.5} ${Y} V${Y + BH}` : ""));
   // The eyes alone sit centred in the bar. The face box, at 0.68, is centred too until 33 px, then flush with the tip.
   const eyesX = useTransform(lv, (v) => 2 + v / 2 - 13.5);
   const eyesY = useTransform(face, (f) => 10.1 - 3.1 * f);
