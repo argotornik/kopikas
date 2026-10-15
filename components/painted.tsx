@@ -23,6 +23,7 @@ export const PAINTED_WRAPPERS = [
   "#C7432F", // brick
   "#8FCB9B", // mint
   "#E8A15C", // apricot
+  "#2E9E9A", // teal
 ];
 export const PAINTED_CONFETTI = ["#5B7FE0", "#5B7FE0", "#5B7FE0", "#E2553B", "#F0A3B4", "var(--painted-ink)"];
 const BROWN = "#3A2A20";

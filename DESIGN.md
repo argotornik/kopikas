@@ -40,6 +40,7 @@ colors:
   wrapper-brick: "#C7432F"
   wrapper-mint: "#8FCB9B"
   wrapper-apricot: "#E8A15C"
+  wrapper-teal: "#2E9E9A"
 typography:
   display:
     fontFamily: "Fredoka, ui-rounded, system-ui, sans-serif"
@@ -169,7 +170,7 @@ A white page, a warm oat stage, copper as the house colour, Crayon Blue for ever
 - **Crayon Blue** (crayon-blue): the ink of every painted face, Kopikas's eyes and mouth, and every limit line. On a light wrapper a face is drawn in **Face Navy**, on a dark one in **Face Cream**, so it always reads on its own roll.
 
 ### Tertiary
-- **The wrappers** (wrapper-cornflower, -tomato, -pink, -grass, -brown, -sky, -lime, -lavender, -yolk, -grey, -brick, -mint, -apricot): one per category, in that order, by the category's place in the list. They are the brightest things on the page and the only large areas of colour; everything around them stays neutral so the month's shape reads first.
+- **The wrappers** (wrapper-cornflower, -tomato, -pink, -grass, -brown, -sky, -lime, -lavender, -yolk, -grey, -brick, -mint, -apricot, -teal): one per category, in that order, by the category's place in the list; a fifteenth category starts the list again. They are the brightest things on the page and the only large areas of colour; everything around them stays neutral so the month's shape reads first.
 
 ### Neutral
 - **Page White** (page-white) and **Night** (night): the page ground in light and dark. Cards and the speech bubble sit on Page White (card-night in dark).
