@@ -14,11 +14,14 @@ export const toasts = Toast.createToastManager();
 // The most recent change that can still be taken back, for ⌘Z / Ctrl+Z.
 let latestUndo: { id: string; run: () => void } | null = null;
 
+// A second thing a notice offers beside Undo, such as Always after a filing.
+type Also = { label: string; onClick: () => void };
+
 // After a change that can be taken back: say what happened and offer Undo
 // for a while. `after` brings the page up to date once the undo has landed.
-export function announceUndoable(message: string, undo: Undo | undefined, after: () => unknown) {
+export function announceUndoable(message: string, undo: Undo | undefined, after: () => unknown, also?: Also) {
   if (!undo) {
-    toasts.add({ title: message, timeout: 4000 });
+    toasts.add({ title: message, timeout: 4000, data: also ? { also } : undefined });
     return;
   }
   const run = async () => {
@@ -32,6 +35,7 @@ export function announceUndoable(message: string, undo: Undo | undefined, after:
     title: message,
     timeout: 8000,
     actionProps: { children: "Undo", onClick: () => void run() },
+    data: also ? { also } : undefined,
     onClose: () => {
       if (latestUndo?.id === id) latestUndo = null;
     },
@@ -76,6 +80,10 @@ export function Toaster() {
   );
 }
 
+// A notice's buttons: Undo, Try again, and what a change offers beside them.
+const ACTION =
+  "h-8 shrink-0 rounded-lg px-2.5 pointer-coarse:h-11 pointer-coarse:px-3.5 text-sm font-medium text-foreground underline decoration-primary decoration-2 underline-offset-4 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
 function ToastList() {
   const { toasts: list } = Toast.useToastManager();
   return list.map((toast) => (
@@ -98,7 +106,19 @@ function ToastList() {
       <Toast.Content className="flex items-center gap-2.5 overflow-hidden py-2 pl-3.5 pr-2 transition-opacity duration-200 data-behind:opacity-0 data-expanded:opacity-100">
         {toast.type === "error" && <CircleAlertIcon aria-hidden className="size-4 shrink-0 text-destructive" />}
         <Toast.Title className="min-w-0 flex-1 text-sm leading-snug" />
-        {toast.actionProps && <Toast.Action className="h-8 shrink-0 rounded-lg px-2.5 pointer-coarse:h-11 pointer-coarse:px-3.5 text-sm font-medium text-foreground underline decoration-primary decoration-2 underline-offset-4 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />}
+        {toast.data?.also && (
+          <button
+            type="button"
+            onClick={() => {
+              toasts.close(toast.id);
+              toast.data.also.onClick();
+            }}
+            className={ACTION}
+          >
+            {toast.data.also.label}
+          </button>
+        )}
+        {toast.actionProps && <Toast.Action className={ACTION} />}
         <Toast.Close
           aria-label="Dismiss"
           className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:size-11"

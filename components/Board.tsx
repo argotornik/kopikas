@@ -363,7 +363,8 @@ export default function Board({
   // file it, no prompt, since a subscription always means "always".
   const subscribe = (tx: BoardTx) => {
     void run({ type: "subscribe", txId: tx.id }).then((r) => {
-      if (!r.ok) announceError(r.error);
+      if (!r.ok) return announceError(r.error);
+      announceUndoable(`Now tracking ${tx.name} as a subscription.`, r.undo, refetch);
     });
   };
   const fileUnder = (tx: BoardTx, category: string) => {
@@ -444,16 +445,16 @@ export default function Board({
   };
   const file = async (always: boolean) => {
     if (!prompt || filing) return;
-    const { txId, category } = prompt;
+    const { txId, category, name } = prompt;
     setFiling(always ? "always" : "one");
     setPromptErr("");
-    // Always teaches the rule first, then pins this row, as before.
-    let result = always ? await act({ type: "rule", txId, category }) : { ok: true as const };
-    if (result.ok) result = await run({ type: "override", txId, category });
+    // Always teaches the rule and pins this row in one change, so one Undo takes back both.
+    const result = await run({ type: "override", txId, category, ...(always ? { always: true } : {}) });
     setFiling(null);
     if (!result.ok) return setPromptErr(result.error);
     closePrompt();
     acknowledge(category);
+    announceUndoable(always ? `Every ${name} charge now goes under ${category}.` : `Filed ${name} under ${category}.`, result.undo, refetch);
   };
   const share = async (always: boolean) => {
     if (!sharePrompt || filing) return;

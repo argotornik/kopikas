@@ -240,7 +240,8 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
       budget: c.budget ?? null,
       total: Math.round((totals[c.name] ?? 0) * 100) / 100,
     })),
-    uncategorizedCount: txs.filter((t) => !t.category && t.amount < 0).length,
+    // Round-ups are money moved, not spent: never something to file (as the To file filter has it).
+    uncategorizedCount: txs.filter((t) => !t.category && t.amount < 0 && !t.micro).length,
     balance: bal,
     sharedItems,
     settlements: db.settlements,

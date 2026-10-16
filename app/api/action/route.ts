@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { Db, Merchant } from "@/lib/types";
+import type { Db, Merchant, Tx } from "@/lib/types";
 import { getAccounts, newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
 import { buildBoard } from "@/lib/board";
 import { sharedView } from "@/lib/shared-view";
@@ -23,7 +23,8 @@ export const dynamic = "force-dynamic";
 
 type Action =
   | { type: "rule"; txId: string; category: string }
-  | { type: "override"; txId: string; category: string }
+  | { type: "override"; txId: string; category: string; always?: boolean }
+  | { type: "unoverride"; txId: string; previous: string | null; ruleId?: string }
   | { type: "unrule"; ruleId: string }
   | { type: "share"; txId: string; partnerShare?: number; always?: boolean }
   | { type: "unshare"; shareId: string }
@@ -32,6 +33,7 @@ type Action =
   | { type: "settle"; amount: number; date: string; txId?: string; note?: string }
   | { type: "unsettle"; settlementId: string }
   | { type: "subscribe"; txId: string }
+  | { type: "unsubscribe-new"; subId?: string; ruleId?: string }
   | { type: "unsubscribe"; subId: string }
   | { type: "resubscribe"; subId: string }
   | { type: "accept-price"; subId: string }
@@ -71,16 +73,10 @@ export async function POST(req: Request) {
 
   switch (action.type) {
     case "rule": {
-      // The pattern comes from the transaction, never from the client: the
-      // merchant token for known merchants, the counterparty minus per-charge
-      // noise otherwise (see rulePattern).
       const tx = db.transactions.find((t) => t.id === action.txId);
       if (!tx || !action.category) return bad("txId and category required");
-      const match = rulePattern(tx);
-      if (!db.rules.some((r) => r.match === match && r.category === action.category)) {
-        db.rules.push({ id: newId("rule"), match, category: action.category, createdAt: now });
-        await writeCollection("rules", db.rules);
-      }
+      const ruleId = await teachRule(db, tx, action.category, now);
+      if (ruleId) undo = { type: "unrule", ruleId };
       break;
     }
     case "unrule": {
@@ -94,9 +90,32 @@ export async function POST(req: Request) {
       break;
     }
     case "override": {
+      // Always teaches the rule first, then pins this row, so one Undo takes back both.
+      let ruleId: string | undefined;
+      if (action.always) {
+        const tx = db.transactions.find((t) => t.id === action.txId);
+        if (!tx || !action.category) return bad("txId and category required");
+        ruleId = await teachRule(db, tx, action.category, now);
+      }
+      const previous = db.overrides.find((o) => o.txId === action.txId)?.category ?? null;
       db.overrides = db.overrides.filter((o) => o.txId !== action.txId);
       db.overrides.push({ txId: action.txId, category: action.category });
       await writeCollection("overrides", db.overrides);
+      undo = { type: "unoverride", txId: action.txId, previous, ...(ruleId ? { ruleId } : {}) };
+      break;
+    }
+    case "unoverride": {
+      // Puts back the hand-filing this one replaced, if any; without one the
+      // charge goes back to what its rules say, or to the loose change.
+      db.overrides = db.overrides.filter((o) => o.txId !== action.txId);
+      if (typeof action.previous === "string" && db.categories.some((c) => c.name === action.previous)) {
+        db.overrides.push({ txId: action.txId, category: action.previous });
+      }
+      await writeCollection("overrides", db.overrides);
+      if (action.ruleId) {
+        db.rules = db.rules.filter((r) => r.id !== action.ruleId);
+        await writeCollection("rules", db.rules);
+      }
       break;
     }
     case "share": {
@@ -207,9 +226,13 @@ export async function POST(req: Request) {
           s.match === match &&
           (!s.matchAmount || Math.abs(s.expectedAmount - txAmount) <= 0.01)
       );
+      // What this creates, Undo removes again: the subscription and its rule.
+      let subId: string | undefined;
+      let ruleId: string | undefined;
       if (!duplicate) {
+        subId = newId("sub");
         db.subscriptions.push({
-          id: newId("sub"),
+          id: subId,
           name: cleanName,
           matchAmount: isAggregator,
           match,
@@ -223,7 +246,21 @@ export async function POST(req: Request) {
         await writeCollection("subscriptions", db.subscriptions);
       }
       if (!db.rules.some((r) => r.match === match)) {
-        db.rules.push({ id: newId("rule"), match, category: SUBSCRIPTIONS, createdAt: now });
+        ruleId = newId("rule");
+        db.rules.push({ id: ruleId, match, category: SUBSCRIPTIONS, createdAt: now });
+        await writeCollection("rules", db.rules);
+      }
+      if (subId || ruleId) undo = { type: "unsubscribe-new", ...(subId ? { subId } : {}), ...(ruleId ? { ruleId } : {}) };
+      break;
+    }
+    case "unsubscribe-new": {
+      // Takes back a subscription made a moment ago, rule and all, so its charges are loose again.
+      if (action.subId) {
+        db.subscriptions = db.subscriptions.filter((s) => s.id !== action.subId);
+        await writeCollection("subscriptions", db.subscriptions);
+      }
+      if (action.ruleId) {
+        db.rules = db.rules.filter((r) => r.id !== action.ruleId);
         await writeCollection("rules", db.rules);
       }
       break;
@@ -442,6 +479,19 @@ function categoryName(raw: unknown): string | null {
   if (!name || name.length > 32) return null;
   if (["uncategorized", "incoming"].includes(name.toLowerCase())) return null;
   return name;
+}
+
+// "Always": a rule that files every charge like this one under `category`.
+// The pattern comes from the transaction, never from the client: the merchant
+// token for known merchants, the counterparty minus per-charge noise otherwise
+// (see rulePattern). Returns the new rule's id, or nothing when it already exists.
+async function teachRule(db: Db, tx: Tx, category: string, now: string): Promise<string | undefined> {
+  const match = rulePattern(tx);
+  if (db.rules.some((r) => r.match === match && r.category === category)) return undefined;
+  const id = newId("rule");
+  db.rules.push({ id, match, category, createdAt: now });
+  await writeCollection("rules", db.rules);
+  return id;
 }
 
 function bad(message: string) {
