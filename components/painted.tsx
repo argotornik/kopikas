@@ -71,11 +71,13 @@ const deepened = (colour: string) => `color-mix(in srgb, ${colour} var(--painted
 
 // A stage changes as the body passes one of its lines, not when the amount
 // does: `useCrossing` is 0 or 1 as `value` sits under or over `line`, settling
-// with a small spring when it crosses, or at once with reduced motion. Marks
-// that arrive as a stage settles, the mouth for one, take `arrive` of it.
+// with a small spring when it crosses. With reduced motion it takes the stage
+// of `settled`, the height the body is heading for, so a roll rebuilt mid-way
+// (a resize, a new month) never keeps the wrong face. Marks that arrive as a
+// stage settles, the mouth for one, take `arrive` of it.
 const SETTLE = { type: "spring", stiffness: 260, damping: 26 } as const;
 const arrive = (p: number) => Math.min(1, Math.max(0, (p - 0.5) * 2));
-function useCrossing(value: MotionValue<number>, line: number, reduce: boolean | null): MotionValue<number> {
+function useCrossing(value: MotionValue<number>, line: number, reduce: boolean | null, settled: number): MotionValue<number> {
   const over = useMotionValue(0);
   useLayoutEffect(() => {
     let at = -1;
@@ -95,6 +97,9 @@ function useCrossing(value: MotionValue<number>, line: number, reduce: boolean |
       a?.stop();
     };
   }, [value, line, reduce, over]);
+  useLayoutEffect(() => {
+    if (reduce) over.jump(settled >= line ? 1 : 0);
+  }, [reduce, settled, line, over]);
   return over;
 }
 
@@ -210,9 +215,14 @@ export function PaintedRoll({
   const hv = useSpring(target, { stiffness: 200, damping: 20 });
   const first = useRef(true);
   useLayoutEffect(() => {
+    // With reduced motion the body stands at its height at once, every time.
+    if (reduce) {
+      first.current = false;
+      hv.jump(target);
+      return;
+    }
     if (first.current) {
       first.current = false;
-      if (reduce) return;
       hv.jump(0);
       const t = setTimeout(() => hv.set(target), delay * 1000);
       return () => clearTimeout(t);
@@ -220,14 +230,17 @@ export function PaintedRoll({
     hv.set(target);
   }, [hv, target, reduce, delay]);
   const ev = useSpring(extra, { stiffness: 200, damping: 20 });
-  useEffect(() => ev.set(extra), [ev, extra]);
+  useEffect(() => {
+    if (reduce) ev.jump(extra);
+    else ev.set(extra);
+  }, [ev, extra, reduce]);
   // The stage follows the body as it springs, not the amount it is heading for.
   // As the body passes the grown line the eyes settle into it, and the mouth
   // and the wrapper's ink arrive as they land; shrinking back past it, the
   // mouth goes first and the eyes lift out. The first coin wakes a sleeper: the
   // footprint fades, the shut eyes open and the z floats off, the legs arrive,
   // and the body grows under the eyes. With reduced motion the stages swap.
-  const drop = useCrossing(hv, FACE_FROM, reduce);
+  const drop = useCrossing(hv, FACE_FROM, reduce, target);
   const wasAsleep = useRef(asleep);
   const waking = !asleep && wasAsleep.current;
   useEffect(() => {
@@ -375,9 +388,14 @@ export function PaintedBar({
   const lv = useSpring(target, { stiffness: 200, damping: 22 });
   const first = useRef(true);
   useLayoutEffect(() => {
+    // With reduced motion the bar stands at its length at once, every time.
+    if (reduce) {
+      first.current = false;
+      lv.jump(target);
+      return;
+    }
     if (first.current) {
       first.current = false;
-      if (reduce) return;
       lv.jump(0);
       const t = setTimeout(() => lv.set(target), delay * 1000);
       return () => clearTimeout(t);
@@ -385,12 +403,15 @@ export function PaintedBar({
     lv.set(target);
   }, [lv, target, reduce, delay]);
   const ev = useSpring(extra, { stiffness: 200, damping: 22 });
-  useEffect(() => ev.set(extra), [ev, extra]);
+  useEffect(() => {
+    if (reduce) ev.jump(extra);
+    else ev.set(extra);
+  }, [ev, extra, reduce]);
   // The stages follow the bar as it springs: the eyes arrive as it passes 14 px,
   // and as it passes 26 px they rise to make room for the mouth and hand over
   // to the face's own. With reduced motion the stages swap.
-  const eyes = useCrossing(lv, BAR_EYES_FROM, reduce);
-  const face = useCrossing(lv, BAR_FACE_FROM, reduce);
+  const eyes = useCrossing(lv, BAR_EYES_FROM, reduce, target);
+  const face = useCrossing(lv, BAR_FACE_FROM, reduce, target);
 
   const seed = index * 613 + 29;
   // The bar runs to its full amount; past the limit the dashed rim stands across it and the part beyond is deepened.
