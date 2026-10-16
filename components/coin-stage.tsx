@@ -12,7 +12,7 @@ import type { MascotPose } from "@/components/kopikas-mascot";
 import type { PaintedPose } from "@/components/kopikas-painted";
 import { PAINTED_CONFETTI, PAINTED_WRAPPERS, PaintedBar, PaintedCoin, PaintedDefs, PaintedMini, PaintedRoll } from "@/components/painted";
 import { RollingNumber } from "@/components/rolling-number";
-import { cn } from "@/lib/utils";
+import { cn, shareLabel } from "@/lib/utils";
 
 // The coin tray's stage: the month, its total and the loose change in the head, the
 // rolls on the floor below. The page that shows it owns the month and decides what
@@ -359,6 +359,16 @@ function RollTarget({ name, children }: { name: string; children: ReactNode }) {
   );
 }
 
+// The Pooleks jar as a place to drop a ledger row dragged onto it.
+function JarTarget({ children }: { children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: "jar" });
+  return (
+    <div ref={setNodeRef} className={cn("transition-transform duration-150", isOver && "scale-[1.08]")}>
+      {children}
+    </div>
+  );
+}
+
 // Where the loose coins sit in the pile, from the floor up.
 const PILE = [
   { x: 4, y: 0, r: -8 },
@@ -410,7 +420,8 @@ function Burst({ painted }: { painted: boolean }) {
   );
 }
 
-type Flight = { tx: BoardTx; category: string; from: { x: number; y: number }; dx: number; dy: number };
+// Where a coin in the air is going: a roll by its category, or the Pooleks jar (null).
+type Flight = { tx: BoardTx; to: string | null; from: { x: number; y: number }; dx: number; dy: number };
 
 // Unfiled money, newest first: the coins in the pile, and the queue's rows. One
 // month's, or every month's when `month` is null. Round-ups are never loose.
@@ -428,7 +439,10 @@ export const wrapperOf = (categories: { name: string }[], name: string, painted:
 // What a page can ask of the stage: file a charge from outside it, such as a queue or
 // ledger row, with the coin hopping from that row to its roll. False when a coin is
 // already in the air.
-export type CoinStageHandle = { file: (tx: BoardTx, category: string, from?: Element | null) => boolean };
+export type CoinStageHandle = {
+  file: (tx: BoardTx, category: string, from?: Element | null) => boolean;
+  split: (tx: BoardTx, from?: Element | null) => boolean;
+};
 
 export function CoinStage({
   txs,
@@ -441,6 +455,8 @@ export function CoinStage({
   look,
   selected = null,
   onSelect,
+  figures,
+  jar,
   ref,
 }: {
   txs: BoardTx[];
@@ -455,12 +471,19 @@ export function CoinStage({
   selected?: string | null;
   // With no coin in hand, a roll picks its category for the page to show.
   onSelect?: (category: string) => void;
+  // More of the month in words, under the total: what the page knows beyond the rolls.
+  figures?: ReactNode;
+  // The Pooleks jar beside the loose change, when the household has a partner: a coin
+  // dropped in is split with them. Its drawing (glad as it takes a coin) and the caption
+  // under it are the page's.
+  jar?: { partner: string; draw: (mood: Mood) => ReactNode; caption: ReactNode; onSplit: (tx: BoardTx) => void };
   ref?: Ref<CoinStageHandle>;
 }) {
   const reduce = useReducedMotion();
   const [picked, setPicked] = useState<string | null>(null);
   const [flight, setFlight] = useState<Flight | null>(null);
   const [gulp, setGulp] = useState<{ category: string; n: number } | null>(null);
+  const [jarGulp, setJarGulp] = useState(0);
   const [cheer, setCheer] = useState(0);
   const [celebrating, setCelebrating] = useState(false);
   const [lastFiled, setLastFiled] = useState<{ category: string; n: number } | null>(null);
@@ -658,6 +681,17 @@ export function CoinStage({
   );
   // The loose change: a pile of coins to pick up, and its count. The painted stage keeps it in
   // its head, top right, at 40px a coin; the goofy one stands it on the floor's row.
+  // A loose coin already split with the partner wears its part; it still needs a roll.
+  const splitNote = (t: BoardTx) => (t.shared ? `, split with ${jar?.partner ?? "your partner"}` : "");
+  const splitMark = (t: BoardTx) =>
+    t.shared && (
+      <span
+        aria-hidden
+        className="absolute -bottom-1 -right-1.5 rounded-full bg-white px-1 text-[10px] font-semibold leading-4 tabular-nums text-[#16171C] ring-1 ring-[#16171C]/10 dark:bg-[#23252E] dark:text-[#F3F2EE] dark:ring-white/10"
+      >
+        {shareLabel(t.partnerShare)}
+      </span>
+    );
   const pileScale = painted ? 0.8 : narrow ? 0.72 : 1;
   const pileCoin = painted ? 40 : narrow ? 38 : 50;
   const pileBox = (
@@ -671,7 +705,7 @@ export function CoinStage({
             type="button"
             data-coin={t.id}
             aria-pressed={isPicked}
-            aria-label={`${t.name}, ${eur.format(Math.abs(t.amount))}, ${shortDate.format(new Date(t.date + "T00:00:00Z"))}. Pick up to file`}
+            aria-label={`${t.name}, ${eur.format(Math.abs(t.amount))}, ${shortDate.format(new Date(t.date + "T00:00:00Z"))}${splitNote(t)}. Pick up to file`}
             onClick={() => setPicked(isPicked ? null : t.id)}
             className={cn("absolute rounded-full", FOCUS, flight?.tx.id === t.id && "opacity-0")}
             style={{ left: spot.x * pileScale, bottom: spot.y * pileScale, zIndex: isPicked ? 20 : 10 - i }}
@@ -689,6 +723,7 @@ export function CoinStage({
             ) : (
               <Coin size={pileCoin} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "happy"} blink={i * 0.9} seed={i + 2} />
             )}
+            {splitMark(t)}
           </motion.button>
         );
       })}
@@ -729,6 +764,11 @@ export function CoinStage({
     const t = setTimeout(() => setGulp(null), 1100);
     return () => clearTimeout(t);
   }, [gulp]);
+  useEffect(() => {
+    if (!jarGulp) return;
+    const t = setTimeout(() => setJarGulp(0), 1100);
+    return () => clearTimeout(t);
+  }, [jarGulp]);
   useEffect(() => {
     if (!cheer) return;
     setCelebrating(true);
@@ -772,11 +812,19 @@ export function CoinStage({
     if (last) setCheer((c) => c + 1);
   };
 
-  // A coin hops from where it lies to the top of its roll; the change lands
-  // when the coin does. With reduced motion, or no roll to aim at, it lands at once.
-  // A row outside the stage keeps its page's focus, and the coin hops from it.
-  const file = (tx: BoardTx, category: string, from?: Element | null) => {
-    if (!category || flight) return false;
+  const commitSplit = (tx: BoardTx) => {
+    jar?.onSplit(tx);
+    setJarGulp((n) => n + 1);
+    setTip(null);
+  };
+  const land = (tx: BoardTx, to: string | null) => (to === null ? commitSplit(tx) : commit(tx, to));
+
+  // A coin hops from where it lies to where it goes: the top of its roll, or the jar.
+  // The change lands when the coin does. With reduced motion, or nothing on screen to
+  // aim at, it lands at once. A row outside the stage keeps its page's focus, and the
+  // coin hops from it.
+  const fly = (tx: BoardTx, to: string | null, target: Element | null, from?: Element | null) => {
+    if (flight) return false;
     setPicked(null);
     if (!from) {
       // Filing on the stage disables the rolls, so the roll just pressed would
@@ -785,24 +833,26 @@ export function CoinStage({
       (next ?? monthHeading.current)?.focus();
     }
     const src = from ?? document.querySelector(`[data-coin="${tx.id}"]`);
-    // A charge from another month has no roll on this floor to land in.
-    const dst = monthOf(tx.date) === month ? document.querySelector(`[data-roll="${CSS.escape(category)}"]`) : null;
-    if (reduce || !src || !dst) {
-      commit(tx, category);
+    if (reduce || !src || !target) {
+      land(tx, to);
       return true;
     }
     const a = src.getBoundingClientRect();
-    const b = dst.getBoundingClientRect();
+    const b = target.getBoundingClientRect();
     setFlight({
       tx,
-      category,
+      to,
       from: { x: a.left + a.width / 2 - 20, y: a.top + a.height / 2 - 20 },
       dx: b.left + b.width / 2 - (a.left + a.width / 2),
       dy: b.top - 6 - (a.top + a.height / 2),
     });
     return true;
   };
-  useImperativeHandle(ref, () => ({ file }));
+  // A charge from another month has no roll on this floor to land in.
+  const file = (tx: BoardTx, category: string, from?: Element | null) =>
+    !!category && fly(tx, category, monthOf(tx.date) === month ? document.querySelector(`[data-roll="${CSS.escape(category)}"]`) : null, from);
+  const split = (tx: BoardTx, from?: Element | null) => !!jar && fly(tx, null, document.querySelector("[data-jar]"), from);
+  useImperativeHandle(ref, () => ({ file, split }));
   // A roll takes the coin in hand; with none held, it picks its category for the page.
   const pressRoll = (name: string) => {
     if (pickedTx) file(pickedTx, name);
@@ -834,8 +884,10 @@ export function CoinStage({
             <Floater key={i} f={f} painted={painted} />
           ))}
 
-        <div className="relative flex flex-wrap items-start justify-between gap-x-8 gap-y-4">
-          <div>
+        {/* One row from 1024px: the month gives way and its figures wrap, so the jar and the
+            loose change keep their place beside it instead of dropping below. */}
+        <div className="relative flex flex-wrap items-start justify-between gap-x-8 gap-y-4 lg:flex-nowrap">
+          <div className="min-w-0 lg:flex-1">
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -868,16 +920,48 @@ export function CoinStage({
                 {label(shiftMonth(month, -1))} ended at <span className="tabular-nums">{eur.format(before.total)}</span>
               </p>
             )}
+            {figures && <div className={cn("mt-2 max-w-[44rem] text-balance text-[13px]", MUTED)}>{figures}</div>}
           </div>
           {!narrow &&
             (painted ? (
-              // The loose change, top right: pick a coin up here, drop it on a roll below.
-              <div className="relative ml-auto flex w-[120px] flex-col items-center">
-                {AIR.map((f, i) => (
-                  <Floater key={i} f={f} painted always />
-                ))}
-                {pileBox}
-                {pileLabel}
+              // The loose change, top right: pick a coin up here, drop it on a roll below,
+              // or in the Pooleks jar beside it. The air marks float in the gap between them.
+              <div className="ml-auto flex shrink-0 items-start gap-[104px]">
+                {jar && (
+                  <div className="flex w-[164px] flex-col items-center">
+                    <div className="flex h-[120px] items-end">
+                      <JarTarget>
+                        <motion.button
+                          type="button"
+                          data-jar
+                          disabled={!pickedTx}
+                          onClick={() => pickedTx && split(pickedTx)}
+                          aria-label={pickedTx ? `Split ${pickedTx.name} with ${jar.partner}` : `Pooleks with ${jar.partner}. Pick up a coin to split it`}
+                          className={cn("block rounded-[22px] disabled:cursor-default", FOCUS)}
+                          animate={pickedTx && !reduce ? { y: [0, -5, 0] } : { y: 0 }}
+                          transition={pickedTx ? { duration: 0.9, repeat: Infinity } : SPRING}
+                          whileHover={pickedTx ? { scale: 1.06, rotate: -2 } : undefined}
+                        >
+                          <motion.div
+                            style={{ originY: 1 }}
+                            animate={jarGulp && !reduce ? { scaleY: [1, 0.88, 1.06, 1] } : { scaleY: 1 }}
+                            transition={{ duration: 0.6 }}
+                          >
+                            {jar.draw(jarGulp ? "glad" : "happy")}
+                          </motion.div>
+                        </motion.button>
+                      </JarTarget>
+                    </div>
+                    <div className="mt-3 text-center">{jar.caption}</div>
+                  </div>
+                )}
+                <div className="relative flex w-[120px] flex-col items-center">
+                  {AIR.map((f, i) => (
+                    <Floater key={i} f={f} painted always />
+                  ))}
+                  {pileBox}
+                  {pileLabel}
+                </div>
               </div>
             ) : (
               <div className="flex items-start gap-3">
@@ -913,7 +997,7 @@ export function CoinStage({
                         type="button"
                         data-coin={t.id}
                         aria-pressed={isPicked}
-                        aria-label={`${t.name}, ${eur.format(Math.abs(t.amount))}, ${shortDate.format(new Date(t.date + "T00:00:00Z"))}. Pick up to file`}
+                        aria-label={`${t.name}, ${eur.format(Math.abs(t.amount))}, ${shortDate.format(new Date(t.date + "T00:00:00Z"))}${splitNote(t)}. Pick up to file`}
                         onClick={() => setPicked(isPicked ? null : t.id)}
                         className={cn("relative rounded-full", FOCUS, flight?.tx.id === t.id && "opacity-0")}
                         style={{ zIndex: isPicked ? 20 : 10 - i }}
@@ -921,6 +1005,7 @@ export function CoinStage({
                         transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : SPRING}
                       >
                         <PaintedCoin size={40} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "happy"} seed={i + 2} />
+                        {splitMark(t)}
                       </motion.button>
                     );
                   })
@@ -1113,7 +1198,7 @@ export function CoinStage({
           }}
           transition={{ duration: 0.7, times: [0, 0.45, 1], ease: ["easeOut", "easeIn"] }}
           onAnimationComplete={() => {
-            commit(flight.tx, flight.category);
+            land(flight.tx, flight.to);
             setFlight(null);
           }}
         >

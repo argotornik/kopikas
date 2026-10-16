@@ -97,9 +97,12 @@ function useCrossing(value: MotionValue<number>, line: number, reduce: boolean |
       a?.stop();
     };
   }, [value, line, reduce, over]);
-  useLayoutEffect(() => {
-    if (reduce) over.jump(settled >= line ? 1 : 0);
-  }, [reduce, settled, line, over]);
+  // Set while rendering, not after: the marks drawn from the stage read it in this
+  // same render, so a sleeper that wakes shows its face at once.
+  if (reduce) {
+    const want = settled >= line ? 1 : 0;
+    if (over.get() !== want) over.jump(want);
+  }
   return over;
 }
 

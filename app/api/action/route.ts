@@ -27,7 +27,7 @@ type Action =
   | { type: "unoverride"; txId: string; previous: string | null; ruleId?: string }
   | { type: "unrule"; ruleId: string }
   | { type: "share"; txId: string; partnerShare?: number; always?: boolean }
-  | { type: "unshare"; shareId: string }
+  | { type: "unshare"; shareId: string; ruleId?: string }
   | { type: "unshare-rule"; ruleId: string }
   | { type: "quickadd"; description: string; amount: number; date: string; partnerShare?: number; category?: string }
   | { type: "settle"; amount: number; date: string; txId?: string; note?: string }
@@ -124,17 +124,22 @@ export async function POST(req: Request) {
       if (!(fraction > 0 && fraction < 1)) return bad("partnerShare must be between 0 and 1");
       const tx = db.transactions.find((t) => t.id === action.txId)!;
       const existing = db.shares.find((s) => s.txId === action.txId);
+      // Each split answers with its own way back: a new one is taken off again, a
+      // changed one goes back to its old part, and Always forgets the rule it taught.
       if (!existing) {
+        const id = newId("share");
         db.shares.push({
-          id: newId("share"),
+          id,
           paidBy: "owner",
           txId: action.txId,
           partnerShare: fraction,
           createdAt: now,
         });
         await writeCollection("shares", db.shares);
+        undo = { type: "unshare", shareId: id };
       } else if (partnerShareOf(existing) !== fraction) {
         // Re-dropping with a different toggle just changes the split.
+        undo = { type: "share", txId: action.txId, partnerShare: partnerShareOf(existing) };
         existing.partnerShare = fraction;
         await writeCollection("shares", db.shares);
       }
@@ -144,7 +149,12 @@ export async function POST(req: Request) {
         const match = rulePattern(tx);
         const rule = db.shareRules.find((r) => r.match === match);
         if (rule) rule.partnerShare = fraction;
-        else db.shareRules.push({ id: newId("srule"), match, partnerShare: fraction, createdAt: now });
+        else {
+          const id = newId("srule");
+          db.shareRules.push({ id, match, partnerShare: fraction, createdAt: now });
+          // A split made and taught in one go is taken back in one go.
+          undo = undo?.type === "unshare" ? { ...undo, ruleId: id } : { type: "unshare-rule", ruleId: id };
+        }
         await writeCollection("shareRules", db.shareRules);
       }
       break;
@@ -159,6 +169,10 @@ export async function POST(req: Request) {
     }
     case "unshare": {
       const removed = db.shares.find((s) => s.id === action.shareId);
+      if (action.ruleId) {
+        db.shareRules = db.shareRules.filter((r) => r.id !== action.ruleId);
+        await writeCollection("shareRules", db.shareRules);
+      }
       if (!removed) break;
       db.shares = db.shares.filter((s) => s.id !== action.shareId);
       await writeCollection("shares", db.shares);

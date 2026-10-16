@@ -4,15 +4,16 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { ChevronDownIcon, SearchIcon, SettingsIcon, UsersIcon, XIcon } from "lucide-react";
 import { DndContext, DragOverlay, MouseSensor, pointerWithin, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import type { Board, BoardTx } from "@/lib/board";
-import { SUBSCRIPTIONS } from "@/lib/engine";
+import { SAVINGS, SUBSCRIPTIONS } from "@/lib/engine";
 import { act } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";
 import { PaintedCoin } from "@/components/painted";
 import { CoinStage, DISPLAY, FOCUS, MUTED, PANEL, eur, label, looseCoins, monthOf, shortDate, type CoinStageHandle } from "@/components/coin-stage";
 import { CoinLedger } from "@/components/coin-ledger";
+import { CoinSubscriptions } from "@/components/coin-subscriptions";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { cn } from "@/lib/utils";
+import { cn, shareLabel } from "@/lib/utils";
 
 // The new board, growing at /coins until it can take over from the one at /: the
 // coin tray on top, the charges below. The old board's features come over one by
@@ -34,7 +35,18 @@ function sinceLabel(iso: string | null | undefined): string | null {
   return `Synced ${rel.format(-Math.round(mins / 1440), "day")}`;
 }
 
-export function CoinBoard({ initial, syncedAt, fontClass }: { initial: Board; syncedAt?: string | null; fontClass: string }) {
+export function CoinBoard({
+  initial,
+  syncedAt,
+  fontClass,
+  partner,
+}: {
+  initial: Board;
+  syncedAt?: string | null;
+  fontClass: string;
+  // Who shared costs are split with; null for a household of one.
+  partner: string | null;
+}) {
   const [board, setBoard] = useState(initial);
   const [month, setMonth] = useState(initial.month);
   // Back to the first month with a charge; forward to this one.
@@ -101,6 +113,83 @@ export function CoinBoard({ initial, syncedAt, fontClass }: { initial: Board; sy
     if (!r.ok) return announceError(r.error);
     announceUndoable(`Every ${tx.name} charge now goes under ${category}.`, r.undo, refetch);
   };
+
+  // A split picked in a row's menu: shared at once, the notice offering Always (every
+  // charge from this merchant) beside Undo. Splitting does not file: an unfiled charge
+  // still needs a roll, and its coin wears its part in the pile.
+  const onSplit = (tx: BoardTx, share: number) => {
+    if (!partner) return;
+    setBoard((b) => ({ ...b, txs: b.txs.map((t) => (t.id === tx.id ? { ...t, shared: true, partnerShare: share } : t)) }));
+    void run({ type: "share", txId: tx.id, partnerShare: share }).then((r) => {
+      if (!r.ok) {
+        announceError(r.error);
+        return refetch();
+      }
+      announceUndoable(`Split ${tx.name} with ${partner}, who pays ${shareLabel(share)}.`, r.undo, refetch, {
+        label: "Always",
+        onClick: () => void splitAlways(tx, share),
+      });
+    });
+  };
+  const splitAlways = async (tx: BoardTx, share: number) => {
+    const r = await run({ type: "share", txId: tx.id, partnerShare: share, always: true });
+    if (!r.ok) return announceError(r.error);
+    announceUndoable(`Every ${tx.name} charge is now split with ${partner}.`, r.undo, refetch);
+  };
+  const onUnshare = (tx: BoardTx) => {
+    if (!tx.shareId) return;
+    void run({ type: "unshare", shareId: tx.shareId }).then((r) => {
+      if (!r.ok) return announceError(r.error);
+      announceUndoable(`Took ${tx.name} off Pooleks.`, r.undo, refetch);
+    });
+  };
+  // A subscription's two actions, each with its Undo.
+  const subAction = (action: object, done: string) =>
+    void run(action).then((r) => (r.ok ? announceUndoable(done, r.undo, refetch) : announceError(r.error)));
+
+  // The month in words beyond the rolls: what came in, your share when something was
+  // split, and the balances and investments as they stand today.
+  const inMonth = (date: string) => monthOf(date) === month;
+  const cameIn = board.txs.filter((t) => inMonth(t.date) && t.amount > 0 && !t.micro).reduce((sum, t) => sum + t.amount, 0);
+  const partnerPaid = board.sharedItems.filter((i) => i.paidBy === "partner" && inMonth(i.date));
+  const splitThisMonth = partnerPaid.length > 0 || board.txs.some((t) => inMonth(t.date) && t.amount < 0 && t.shared);
+  const yourShare = splitThisMonth
+    ? board.txs
+        .filter((t) => inMonth(t.date) && t.amount < 0 && !t.micro && t.category !== SAVINGS)
+        .reduce((sum, t) => sum - t.amount * (t.shared ? 1 - (t.partnerShare ?? 0.5) : 1), 0) +
+      partnerPaid.reduce((sum, i) => sum + i.total * (1 - i.partnerShare), 0)
+    : null;
+  const accountName = (name: string) => {
+    const n = name.replace(/^LHV · /, "");
+    return n.charAt(0).toUpperCase() + n.slice(1);
+  };
+  const standing = [
+    ...board.accounts.map((a) => ({ name: accountName(a.name), value: a.balance })),
+    ...(board.investments.total != null ? [{ name: "Investments", value: board.investments.total }] : []),
+  ];
+  const amount = (v: number, tone = "text-[#16171C] dark:text-[#F3F2EE]", sign = "") => (
+    <span className={cn("tabular-nums", tone)}>
+      {sign}
+      {eur.format(v)}
+    </span>
+  );
+  const figureParts: React.ReactNode[] = [
+    <>Received {amount(cameIn, "text-[#0A763F] dark:text-[#4FD18B]", "+")}</>,
+    ...(yourShare != null ? [<>Your share {amount(yourShare)}</>] : []),
+    ...standing.map((x, i) => (
+      <>
+        {i === 0 && month !== initial.month && "Today: "}
+        {x.name} {amount(x.value)}
+      </>
+    )),
+  ];
+  // Each figure keeps its name and amount together; the line breaks between them.
+  const figures = figureParts.map((part, i) => (
+    <span key={i}>
+      {i > 0 && " · "}
+      <span className="whitespace-nowrap">{part}</span>
+    </span>
+  ));
 
   // What the list shows: the month's charges, or one category's (picked on its
   // roll), or the money that came in. A search looks through every month.
@@ -219,12 +308,13 @@ export function CoinBoard({ initial, syncedAt, fontClass }: { initial: Board; sy
             look="painted"
             selected={only === MONEY_IN ? null : only}
             onSelect={toggle}
+            figures={figures}
           />
 
           <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
             <aside className="flex flex-col gap-8 lg:col-start-2 lg:row-start-1">
               {/* The same loose change as the pile, as rows: the way to file from the keyboard. */}
-              <section aria-labelledby="tofile-heading" className={cn(PANEL, OAT, "p-5 sm:p-6")}>
+              <section aria-labelledby="tofile-heading" className={cn(PANEL, OAT, "p-5 sm:p-6 lg:hidden")}>
                 <h2 id="tofile-heading" className={cn(DISPLAY, "flex items-baseline justify-between text-[20px] font-semibold")}>
                   To file
                   <span className={cn("font-sans text-[13px] font-normal tabular-nums", MUTED)}>{label(month)}</span>
@@ -286,6 +376,15 @@ export function CoinBoard({ initial, syncedAt, fontClass }: { initial: Board; sy
                   </p>
                 )}
               </section>
+              <CoinSubscriptions
+                subscriptions={board.subscriptions}
+                monthly={board.monthlyBurn}
+                month={initial.month}
+                onAcceptPrice={(sub) =>
+                  sub.lastCharge && subAction({ type: "accept-price", subId: sub.sub.id }, `${sub.label} now expects ${eur.format(sub.lastCharge.amount)}.`)
+                }
+                onStop={(sub) => subAction({ type: "unsubscribe", subId: sub.sub.id }, `Stopped tracking ${sub.label}.`)}
+              />
             </aside>
 
             <section aria-labelledby="ledger-heading" className={cn(PANEL, OAT, "min-w-0 p-5 sm:p-6 lg:col-start-1 lg:row-start-1")}>
@@ -354,6 +453,9 @@ export function CoinBoard({ initial, syncedAt, fontClass }: { initial: Board; sy
                 onFile={(tx, category, from) => {
                   if (!stage.current?.file(tx, category, from)) onFile(tx, category);
                 }}
+                partner={partner}
+                onSplit={(tx, share) => onSplit(tx, share)}
+                onUnshare={onUnshare}
               />
               {rows.length === 0 && (
                 <p className={cn("pt-4 text-[15px]", MUTED)}>

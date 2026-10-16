@@ -6,7 +6,7 @@ import { cn, shareLabel } from "@/lib/utils";
 // The partner's part of a shared expense: one of three. Used by the Pooleks
 // zone on the board, the share prompt, and the add dialog on Pooleks, so the
 // three read and behave the same.
-const SPLITS = [0.5, 1 / 3, 0.25];
+export const SPLITS = [0.5, 1 / 3, 0.25];
 
 export function SplitPicker({
   label,

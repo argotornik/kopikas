@@ -6,7 +6,8 @@ import { CheckIcon } from "lucide-react";
 import type { BoardTx } from "@/lib/board";
 import { FOCUS, MUTED, eur, wrapperOf } from "@/components/coin-stage";
 import { MerchantIcon } from "@/components/merchant-icon";
-import { cn } from "@/lib/utils";
+import { SPLITS } from "@/components/split-picker";
+import { cn, shareLabel } from "@/lib/utils";
 
 // The new board's charges, by day: every row's category opens the File menu,
 // and a day's micro-investing round-ups fold into one line.
@@ -19,17 +20,16 @@ const ITEM =
   "flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2 text-[15px] outline-none select-none data-highlighted:bg-[#F4F5F7] dark:data-highlighted:bg-[#2C2F3A]";
 
 type Category = { name: string };
-
-export function CoinLedger({
-  txs,
-  categories,
-  onFile,
-}: {
-  txs: BoardTx[];
-  categories: Category[];
-  // The row that asked, so the coin can hop from it.
+// What filing and splitting from a row hand to the page, with the row the coin hops from.
+type Actions = {
   onFile: (tx: BoardTx, category: string, from: Element | null) => void;
-}) {
+  // Split with the partner, the household has one; null when it has none.
+  partner: string | null;
+  onSplit: (tx: BoardTx, share: number, from: Element | null) => void;
+  onUnshare: (tx: BoardTx) => void;
+};
+
+export function CoinLedger({ txs, categories, ...actions }: { txs: BoardTx[]; categories: Category[] } & Actions) {
   const days: { day: string; rows: BoardTx[]; micro: BoardTx[] }[] = [];
   for (const t of txs) {
     let d = days.at(-1);
@@ -43,20 +43,22 @@ export function CoinLedger({
           <h3 className={cn("pb-1 pt-5 text-[13px] font-medium", MUTED)}>{dayName.format(new Date(d.day + "T00:00:00Z"))}</h3>
           <ul className="flex flex-col">
             {d.rows.map((t) => (
-              <Row key={t.id} t={t} categories={categories} />
+              <Row key={t.id} t={t} categories={categories} partner={actions.partner} />
             ))}
             {d.micro.length > 0 && <RoundUps micro={d.micro} />}
           </ul>
         </div>
       ))}
-      <FileMenu txs={txs} categories={categories} onFile={onFile} />
+      <FileMenu txs={txs} categories={categories} {...actions} />
     </>
   );
 }
 
 // A charge. Dragged by the mouse onto a roll, it files there; its category chip
 // opens the File menu, which is the way in for the keyboard and for a finger.
-function Row({ t, categories }: { t: BoardTx; categories: Category[] }) {
+function Row({ t, categories, partner }: { t: BoardTx; categories: Category[]; partner: string | null }) {
+  const split = t.shared && partner ? `${partner} pays ${shareLabel(t.partnerShare)}` : null;
+  const sub = [split, t.note].filter(Boolean).join(" · ");
   const { listeners, setNodeRef, isDragging } = useDraggable({ id: t.id, disabled: t.amount >= 0 });
   return (
     <li
@@ -72,7 +74,7 @@ function Row({ t, categories }: { t: BoardTx; categories: Category[] }) {
       <MerchantIcon name={t.name} domain={t.domain} emoji={t.emoji} />
       <div className="min-w-0">
         <div className="truncate text-[15px] font-medium">{t.name}</div>
-        {t.note && <div className={cn("truncate text-[13px]", MUTED)}>{t.note}</div>}
+        {sub && <div className={cn("truncate text-[13px]", MUTED)}>{sub}</div>}
       </div>
       {/* Under the name on a phone, in its own column from 640px. */}
       <div className="col-start-2 row-start-2 min-w-0 sm:col-start-3 sm:row-start-1">
@@ -130,16 +132,9 @@ function RoundUps({ micro }: { micro: BoardTx[] }) {
 }
 
 // The categories a charge can go under, the one it has ticked. Picking one files
-// it there at once, the way a coin goes into a roll.
-function FileMenu({
-  txs,
-  categories,
-  onFile,
-}: {
-  txs: BoardTx[];
-  categories: Category[];
-  onFile: (tx: BoardTx, category: string, from: Element | null) => void;
-}) {
+// it there at once, the way a coin goes into a roll; below them, its split with the
+// partner, which works the same way.
+function FileMenu({ txs, categories, onFile, partner, onSplit, onUnshare }: { txs: BoardTx[]; categories: Category[] } & Actions) {
   return (
     <Menu.Root handle={fileMenu}>
       {({ payload }) => {
@@ -175,6 +170,40 @@ function FileMenu({
                       ))}
                     </Menu.RadioGroup>
                   </Menu.Group>
+                )}
+                {tx && partner && (
+                  <>
+                    <Menu.Separator className="mx-2.5 my-1 h-px bg-[#16171C]/10 dark:bg-white/10" />
+                    <Menu.Group>
+                      <Menu.GroupLabel className={cn("px-2.5 pb-1.5 pt-1 text-[13px]", MUTED)}>Split with {partner}</Menu.GroupLabel>
+                      <Menu.RadioGroup
+                        value={tx.shared ? String(SPLITS.find((f) => Math.abs(f - (tx.partnerShare ?? 0.5)) < 0.01) ?? "") : ""}
+                        onValueChange={(v) => {
+                          const row = document.querySelector(`[data-row="${tx.id}"]`);
+                          fileMenu.close();
+                          setTimeout(() => onSplit(tx, Number(v), row), 0);
+                        }}
+                      >
+                        {SPLITS.map((f) => (
+                          <Menu.RadioItem key={f} value={String(f)} closeOnClick className={ITEM}>
+                            <span aria-hidden className="w-3 shrink-0" />
+                            <span className="min-w-0 flex-1 truncate">
+                              {partner} pays {shareLabel(f)}
+                            </span>
+                            <Menu.RadioItemIndicator>
+                              <CheckIcon aria-hidden className="size-4" />
+                            </Menu.RadioItemIndicator>
+                          </Menu.RadioItem>
+                        ))}
+                      </Menu.RadioGroup>
+                      {tx.shared && (
+                        <Menu.Item className={ITEM} onClick={() => onUnshare(tx)}>
+                          <span aria-hidden className="w-3 shrink-0" />
+                          Take off Pooleks
+                        </Menu.Item>
+                      )}
+                    </Menu.Group>
+                  </>
                 )}
               </Menu.Popup>
             </Menu.Positioner>
