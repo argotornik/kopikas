@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDownIcon, SettingsIcon, UsersIcon } from "lucide-react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDownIcon, SearchIcon, SettingsIcon, UsersIcon, XIcon } from "lucide-react";
+import { DndContext, DragOverlay, MouseSensor, pointerWithin, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import type { Board, BoardTx } from "@/lib/board";
 import { SUBSCRIPTIONS } from "@/lib/engine";
 import { act } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";
 import { PaintedCoin } from "@/components/painted";
-import { CoinStage, DISPLAY, FOCUS, MUTED, PANEL, eur, label, looseCoins, monthOf, shortDate, wrapperOf, type CoinStageHandle } from "@/components/coin-stage";
+import { CoinStage, DISPLAY, FOCUS, MUTED, PANEL, eur, label, looseCoins, monthOf, shortDate, type CoinStageHandle } from "@/components/coin-stage";
+import { CoinLedger } from "@/components/coin-ledger";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -16,8 +18,11 @@ import { cn } from "@/lib/utils";
 // coin tray on top, the charges below. The old board's features come over one by
 // one, in the new look, on the same server actions.
 
-const dayName = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 const OAT = "bg-[#EFEBE3] dark:bg-[#1F1D22]";
+// The list's view of money that came in, beside the categories a roll can pick.
+const MONEY_IN = "money-in";
+// A row starts to drag only once the mouse has moved, so a click stays a click.
+const MOUSE_DRAG = { activationConstraint: { distance: 5 } };
 
 function sinceLabel(iso: string | null | undefined): string | null {
   if (!iso) return null;
@@ -76,7 +81,7 @@ export function CoinBoard({ initial, syncedAt, fontClass }: { initial: Board; sy
     setBoard((b) => ({
       ...b,
       txs: b.txs.map((t) => (t.id === tx.id ? { ...t, category, categorySource: "override" as const } : t)),
-      uncategorizedCount: b.uncategorizedCount - 1,
+      uncategorizedCount: b.uncategorizedCount - (tx.category ? 0 : 1),
     }));
     const subscription = category === SUBSCRIPTIONS;
     void run(subscription ? { type: "subscribe", txId: tx.id } : { type: "override", txId: tx.id, category }).then((r) => {
@@ -97,13 +102,43 @@ export function CoinBoard({ initial, syncedAt, fontClass }: { initial: Board; sy
     announceUndoable(`Every ${tx.name} charge now goes under ${category}.`, r.undo, refetch);
   };
 
-  const ledger = board.txs.filter((t) => monthOf(t.date) === month).sort((a, b) => b.date.localeCompare(a.date));
-  const days: { day: string; rows: BoardTx[] }[] = [];
-  for (const t of ledger) {
-    const last = days.at(-1);
-    if (last?.day === t.date) last.rows.push(t);
-    else days.push({ day: t.date, rows: [t] });
-  }
+  // What the list shows: the month's charges, or one category's (picked on its
+  // roll), or the money that came in. A search looks through every month.
+  const [query, setQuery] = useState("");
+  const [only, setOnly] = useState<string | null>(null);
+  const q = useDeferredValue(query).trim().toLowerCase();
+  const rows = board.txs
+    .filter(
+      (t) =>
+        (q ? true : monthOf(t.date) === month) &&
+        (only === MONEY_IN ? t.amount > 0 : only ? t.category === only : true) &&
+        (!q || [t.name, t.counterparty, t.description, t.note, t.category].join(" ").toLowerCase().includes(q))
+    )
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const out = rows.filter((t) => t.amount < 0 && !t.micro);
+  const spent = out.reduce((s, t) => s - t.amount, 0);
+  const received = rows.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+  const toggle = (v: string) => setOnly((o) => (o === v ? null : v));
+  const showing = only === MONEY_IN ? "Money in" : only;
+
+  // A ledger row dragged onto a roll files there, the same as a coin. Mouse only:
+  // the keyboard and a finger file through the row's File menu.
+  const sensors = useSensors(useSensor(MouseSensor, MOUSE_DRAG));
+  const [dragged, setDragged] = useState<BoardTx | null>(null);
+  const named = (id: unknown) => {
+    const t = board.txs.find((x) => x.id === id);
+    return t ? `${t.name}, ${eur.format(Math.abs(t.amount))}` : "the charge";
+  };
+  const rollOf = (id: unknown) => (typeof id === "string" && id.startsWith("roll:") ? id.slice(5) : null);
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    setDragged(null);
+    const tx = board.txs.find((t) => t.id === active.id);
+    const category = rollOf(over?.id);
+    if (!tx || !category || category === tx.category) return;
+    // The coin drops in from the roll it was let go over.
+    const roll = document.querySelector(`[data-roll="${CSS.escape(category)}"]`);
+    if (!stage.current?.file(tx, category, roll)) onFile(tx, category);
+  };
 
   // The next loose coin is already waiting: filing one moves focus to the
   // queue row that took its place.
@@ -153,6 +188,23 @@ export function CoinBoard({ initial, syncedAt, fontClass }: { initial: Board; sy
           </nav>
         </header>
 
+        <DndContext
+          id="coin-board"
+          sensors={sensors}
+          collisionDetection={pointerWithin}
+          autoScroll={false}
+          onDragStart={({ active }) => setDragged(board.txs.find((t) => t.id === active.id) ?? null)}
+          onDragEnd={onDragEnd}
+          onDragCancel={() => setDragged(null)}
+          accessibility={{
+            announcements: {
+              onDragStart: ({ active }) => `Picked up ${named(active.id)}.`,
+              onDragOver: ({ active, over }) => (rollOf(over?.id) ? `${named(active.id)} is over ${rollOf(over?.id)}.` : `${named(active.id)} is not over a roll.`),
+              onDragEnd: ({ active, over }) => (rollOf(over?.id) ? `Filed ${named(active.id)} under ${rollOf(over?.id)}.` : `Put ${named(active.id)} back.`),
+              onDragCancel: ({ active }) => `Put ${named(active.id)} back.`,
+            },
+          }}
+        >
         <main>
           {/* The stage: the month's rolls on one floor, its loose change beside them. */}
           <CoinStage
@@ -165,6 +217,8 @@ export function CoinBoard({ initial, syncedAt, fontClass }: { initial: Board; sy
             onMonthChange={setMonth}
             onFile={onFile}
             look="painted"
+            selected={only === MONEY_IN ? null : only}
+            onSelect={toggle}
           />
 
           <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -197,7 +251,7 @@ export function CoinBoard({ initial, syncedAt, fontClass }: { initial: Board; sy
                             defaultValue=""
                             aria-label={`File ${t.name}, ${eur.format(Math.abs(t.amount))}, under`}
                             onChange={(e) => {
-                              if (stage.current?.file(t, e.target.value, true)) refocus.current = i;
+                              if (stage.current?.file(t, e.target.value, e.currentTarget.closest("li"))) refocus.current = i;
                             }}
                             className={cn(
                               "h-10 w-full cursor-pointer appearance-none rounded-full border-2 border-[#16171C]/10 bg-[#F4F5F7] pl-4 pr-9 text-[15px] font-medium hover:border-[#16171C]/25 dark:border-white/10 dark:bg-[#191B22] dark:hover:border-white/25",
@@ -235,53 +289,97 @@ export function CoinBoard({ initial, syncedAt, fontClass }: { initial: Board; sy
             </aside>
 
             <section aria-labelledby="ledger-heading" className={cn(PANEL, OAT, "min-w-0 p-5 sm:p-6 lg:col-start-1 lg:row-start-1")}>
-              <h2 id="ledger-heading" className={cn(DISPLAY, "text-[20px] font-semibold")}>
-                Every charge
-              </h2>
-              {days.map((d) => (
-                <div key={d.day}>
-                  <h3 className={cn("pb-1 pt-5 text-[13px] font-medium", MUTED)}>{dayName.format(new Date(d.day + "T00:00:00Z"))}</h3>
-                  <ul className="flex flex-col">
-                    {d.rows.map((t) => (
-                      <li
-                        key={t.id}
-                        className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 rounded-2xl px-2 py-2.5 hover:bg-white sm:grid-cols-[28px_minmax(0,1fr)_150px_100px] dark:hover:bg-[#23252E]"
-                      >
-                        <MerchantIcon name={t.name} domain={t.domain} emoji={t.emoji} />
-                        <div className="min-w-0">
-                          <div className="truncate text-[15px] font-medium">{t.name}</div>
-                          <div className={cn("truncate text-[13px] sm:hidden", MUTED)}>
-                            {[t.note, t.amount >= 0 ? "Received" : (t.category ?? "To file")].filter(Boolean).join(" · ")}
-                          </div>
-                          {t.note && <div className={cn("hidden truncate text-[13px] sm:block", MUTED)}>{t.note}</div>}
-                        </div>
-                        <div className="hidden min-w-0 sm:block">
-                          {t.amount >= 0 ? (
-                            <span className={cn("text-[13px]", MUTED)}>Received</span>
-                          ) : t.category ? (
-                            <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[13px] font-medium dark:bg-[#23252E]">
-                              <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: wrapperOf(categories, t.category, true) }} />
-                              <span className="truncate">{t.category}</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-dashed border-[#16171C]/20 px-2.5 py-0.5 text-[13px] font-medium dark:border-white/25">
-                              To file
-                            </span>
-                          )}
-                        </div>
-                        <div className={cn("text-right text-[15px] font-medium tabular-nums", t.amount >= 0 && "text-[#0A763F] dark:text-[#4FD18B]")}>
-                          {t.amount >= 0 ? "+" : ""}
-                          {eur.format(t.amount)}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+                <h2 id="ledger-heading" className={cn(DISPLAY, "mr-auto text-[20px] font-semibold")}>
+                  Every charge
+                </h2>
+                <button
+                  type="button"
+                  aria-pressed={only === MONEY_IN}
+                  onClick={() => toggle(MONEY_IN)}
+                  className={cn(
+                    "h-10 rounded-full px-4 text-[15px] font-medium",
+                    only === MONEY_IN
+                      ? "bg-[#16171C] text-white dark:bg-[#F3F2EE] dark:text-[#16171C]"
+                      : "bg-white hover:bg-[#F4F5F7] dark:bg-[#23252E] dark:hover:bg-[#2C2F3A]",
+                    FOCUS
+                  )}
+                >
+                  Money in
+                </button>
+                <div className="relative w-full sm:w-64">
+                  <SearchIcon aria-hidden className={cn("pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2", MUTED)} />
+                  <input
+                    type="search"
+                    name="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search every month"
+                    aria-label="Search charges in every month"
+                    className={cn(
+                      "h-10 w-full rounded-full border-2 border-transparent bg-white pl-10 pr-10 text-[15px] placeholder:text-[#63666F] focus:border-[#16171C]/20 dark:bg-[#23252E] dark:placeholder:text-[#A7A9B4] dark:focus:border-white/25 [&::-webkit-search-cancel-button]:hidden",
+                      FOCUS
+                    )}
+                  />
+                  {query && (
+                    <button
+                      type="button"
+                      onClick={() => setQuery("")}
+                      aria-label="Clear the search"
+                      className={cn("absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full hover:bg-[#F4F5F7] dark:hover:bg-[#2C2F3A]", FOCUS)}
+                    >
+                      <XIcon aria-hidden className="size-4" />
+                    </button>
+                  )}
                 </div>
-              ))}
-              {days.length === 0 && <p className={cn("pt-3 text-[15px]", MUTED)}>No charges in this month yet.</p>}
+              </div>
+              {(q || showing) && (
+                <p className={cn("pt-3 text-[13px]", MUTED)} aria-live="polite">
+                  {q ? `${rows.length} ${rows.length === 1 ? "match" : "matches"}${showing ? ` in ${showing}` : ""}, every month` : `${showing}, ${label(month)}`}
+                  {" · "}
+                  <span className="tabular-nums">{only === MONEY_IN ? `+${eur.format(received)}` : `${eur.format(spent)} spent`}</span>
+                  {" · "}
+                  <button
+                    type="button"
+                    onClick={() => (setQuery(""), setOnly(null))}
+                    className={cn("underline decoration-1 underline-offset-2 hover:text-[#16171C] dark:hover:text-white", FOCUS)}
+                  >
+                    Show all
+                  </button>
+                </p>
+              )}
+              <CoinLedger
+                txs={rows}
+                categories={categories}
+                onFile={(tx, category, from) => {
+                  if (!stage.current?.file(tx, category, from)) onFile(tx, category);
+                }}
+              />
+              {rows.length === 0 && (
+                <p className={cn("pt-4 text-[15px]", MUTED)}>
+                  {q
+                    ? `No charges match “${query.trim()}”.`
+                    : only === MONEY_IN
+                      ? `No money came in during ${label(month)}.`
+                      : only
+                        ? `Nothing in ${only} in ${label(month)} yet.`
+                        : "No charges in this month yet."}
+                </p>
+              )}
             </section>
           </div>
         </main>
+        {/* What the mouse carries: the charge as a coin, with its name and amount. */}
+        <DragOverlay dropAnimation={null} style={{ width: "auto", height: "auto" }}>
+          {dragged && (
+            <div className="flex cursor-grabbing items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3.5 text-[13px] font-medium ring-1 ring-[#16171C]/10 dark:bg-[#23252E] dark:ring-white/10">
+              <PaintedCoin size={30} mood="glad" seed={9} />
+              <span className="max-w-[16rem] truncate">{dragged.name}</span>
+              <span className="tabular-nums">{eur.format(Math.abs(dragged.amount))}</span>
+            </div>
+          )}
+        </DragOverlay>
+        </DndContext>
       </div>
     </div>
   );

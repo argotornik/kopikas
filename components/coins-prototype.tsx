@@ -183,7 +183,7 @@ export function CoinsPrototype({ initial, syncedAt, fontClass }: { initial: Boar
                             defaultValue=""
                             aria-label={`File ${t.name}, ${eur.format(Math.abs(t.amount))}, under`}
                             onChange={(e) => {
-                              if (stage.current?.file(t, e.target.value, true)) refocus.current = i;
+                              if (stage.current?.file(t, e.target.value, e.currentTarget.closest("li"))) refocus.current = i;
                             }}
                             className={cn(
                               "h-10 w-full cursor-pointer appearance-none rounded-full border-2 border-[#16171C]/10 bg-[#F4F5F7] pl-4 pr-9 text-[15px] font-medium hover:border-[#16171C]/25 dark:border-white/10 dark:bg-[#191B22] dark:hover:border-white/25",

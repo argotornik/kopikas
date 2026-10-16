@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref } from "react";
+import { useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
+import { useDroppable } from "@dnd-kit/core";
 import { AnimatePresence, motion, useReducedMotion, useSpring, useTransform } from "motion/react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { Board, BoardTx } from "@/lib/board";
@@ -348,6 +349,16 @@ function GoofyRoll({
   );
 }
 
+// A roll as a place to drop a ledger row dragged onto it, when the page lets rows be dragged.
+function RollTarget({ name, children }: { name: string; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `roll:${name}` });
+  return (
+    <div ref={setNodeRef} className={cn("w-full transition-transform duration-150", isOver && "scale-[1.06]")}>
+      {children}
+    </div>
+  );
+}
+
 // Where the loose coins sit in the pile, from the floor up.
 const PILE = [
   { x: 4, y: 0, r: -8 },
@@ -414,9 +425,10 @@ export const wrapperOf = (categories: { name: string }[], name: string, painted:
   return list[Math.max(0, categories.findIndex((c) => c.name === name)) % list.length];
 };
 
-// What a page can ask of the stage: file a charge from outside it, such as a queue row,
-// with the same hop from the row to its roll. False when a coin is already in the air.
-export type CoinStageHandle = { file: (tx: BoardTx, category: string, fromQueue?: boolean) => boolean };
+// What a page can ask of the stage: file a charge from outside it, such as a queue or
+// ledger row, with the coin hopping from that row to its roll. False when a coin is
+// already in the air.
+export type CoinStageHandle = { file: (tx: BoardTx, category: string, from?: Element | null) => boolean };
 
 export function CoinStage({
   txs,
@@ -427,6 +439,8 @@ export function CoinStage({
   onMonthChange,
   onFile,
   look,
+  selected = null,
+  onSelect,
   ref,
 }: {
   txs: BoardTx[];
@@ -437,6 +451,10 @@ export function CoinStage({
   onMonthChange: (month: string) => void;
   onFile: (tx: BoardTx, category: string) => void;
   look: "painted" | "goofy";
+  // The category the page is showing on its own, marked on its roll.
+  selected?: string | null;
+  // With no coin in hand, a roll picks its category for the page to show.
+  onSelect?: (category: string) => void;
   ref?: Ref<CoinStageHandle>;
 }) {
   const reduce = useReducedMotion();
@@ -756,18 +774,19 @@ export function CoinStage({
 
   // A coin hops from where it lies to the top of its roll; the change lands
   // when the coin does. With reduced motion, or no roll to aim at, it lands at once.
-  // A queue row is outside the stage, so its page keeps its focus.
-  const file = (tx: BoardTx, category: string, fromQueue = false) => {
+  // A row outside the stage keeps its page's focus, and the coin hops from it.
+  const file = (tx: BoardTx, category: string, from?: Element | null) => {
     if (!category || flight) return false;
     setPicked(null);
-    if (!fromQueue) {
+    if (!from) {
       // Filing on the stage disables the rolls, so the roll just pressed would
       // drop focus to the page: hand it to the next loose coin, or the month.
       const next = [...document.querySelectorAll<HTMLElement>("[data-coin]")].find((el) => el.dataset.coin !== tx.id && el.getBoundingClientRect().width > 0);
       (next ?? monthHeading.current)?.focus();
     }
-    const src = document.querySelector(`[data-coin="${tx.id}"]`) ?? document.querySelector(`[data-queue="${tx.id}"]`);
-    const dst = document.querySelector(`[data-roll="${CSS.escape(category)}"]`);
+    const src = from ?? document.querySelector(`[data-coin="${tx.id}"]`);
+    // A charge from another month has no roll on this floor to land in.
+    const dst = monthOf(tx.date) === month ? document.querySelector(`[data-roll="${CSS.escape(category)}"]`) : null;
     if (reduce || !src || !dst) {
       commit(tx, category);
       return true;
@@ -784,6 +803,15 @@ export function CoinStage({
     return true;
   };
   useImperativeHandle(ref, () => ({ file }));
+  // A roll takes the coin in hand; with none held, it picks its category for the page.
+  const pressRoll = (name: string) => {
+    if (pickedTx) file(pickedTx, name);
+    else onSelect?.(name);
+  };
+  const rollAction = (name: string) =>
+    pickedTx ? `. File ${pickedTx.name} here` : onSelect ? (selected === name ? ". Show every category" : `. Show only ${name}`) : "";
+  // With a category chosen, the other rolls step back, unless a coin is in hand and every roll can take it.
+  const faded = (name: string) => !!selected && !pickedTx && selected !== name && "opacity-40";
 
   return (
     <>
@@ -917,10 +945,11 @@ export function CoinStage({
                     key={r.name}
                     type="button"
                     data-roll={r.name}
-                    disabled={!pickedTx}
-                    onClick={() => pickedTx && file(pickedTx, r.name)}
-                    aria-label={`${r.name}: ${eur.format(r.total)}${limitNote(r)}${pickedTx ? `. File ${pickedTx.name} here` : ""}`}
-                    className={cn("w-full rounded-xl text-left disabled:cursor-default", FOCUS)}
+                    disabled={!pickedTx && !onSelect}
+                    aria-pressed={onSelect && !pickedTx ? selected === r.name : undefined}
+                    onClick={() => pressRoll(r.name)}
+                    aria-label={`${r.name}: ${eur.format(r.total)}${limitNote(r)}${rollAction(r.name)}`}
+                    className={cn("w-full rounded-xl text-left transition-opacity duration-200 disabled:cursor-default", faded(r.name), FOCUS)}
                     animate={pickedTx && !reduce ? { x: [0, 4, 0] } : { x: 0 }}
                     transition={pickedTx ? { duration: 0.9, repeat: Infinity, delay: i * 0.06 } : SPRING}
                   >
@@ -956,10 +985,11 @@ export function CoinStage({
                       key={r.name}
                       type="button"
                       data-roll={r.name}
-                      disabled={!pickedTx}
-                      onClick={() => pickedTx && file(pickedTx, r.name)}
-                      aria-label={`${r.name}: nothing filed yet${pickedTx ? `. File ${pickedTx.name} here` : ""}`}
-                      className={cn("flex min-h-11 items-center gap-2 rounded-full pr-1 text-[13px] font-medium disabled:cursor-default", FOCUS)}
+                      disabled={!pickedTx && !onSelect}
+                      aria-pressed={onSelect && !pickedTx ? selected === r.name : undefined}
+                      onClick={() => pressRoll(r.name)}
+                      aria-label={`${r.name}: nothing filed yet${rollAction(r.name)}`}
+                      className={cn("flex min-h-11 items-center gap-2 rounded-full pr-1 text-[13px] font-medium transition-opacity duration-200 disabled:cursor-default", faded(r.name), FOCUS)}
                     >
                       <PaintedMini index={index.get(r.name) ?? 0} colour={wrapper(r.name)} />
                       <span>{r.name}</span>
@@ -998,51 +1028,54 @@ export function CoinStage({
               const pad = painted ? (colW - RW) / 2 : 12;
               const H = narrow ? 150 : empty ? 56 : tall ? 310 : 230;
               return (
-                <div key={r.name} className="flex shrink-0 flex-col items-center" style={{ width: RW + pad * 2 }}>
-                  <motion.button
-                    type="button"
-                    data-roll={r.name}
-                    disabled={!pickedTx}
-                    onClick={() => pickedTx && file(pickedTx, r.name)}
-                    aria-label={`${r.name}: ${eur.format(r.total)}${limitNote(r)}${pickedTx ? `. File ${pickedTx.name} here` : ""}`}
-                    className={cn("relative flex w-full items-end justify-center rounded-[22px] disabled:cursor-default", FOCUS)}
-                    style={{ height: H }}
-                    animate={pickedTx && !reduce ? { y: [0, -5, 0] } : { y: 0 }}
-                    transition={pickedTx ? { duration: 0.9, repeat: Infinity, delay: i * 0.08 } : SPRING}
-                    whileHover={pickedTx ? { scale: 1.06, rotate: -2 } : undefined}
-                  >
-                    {painted ? (
-                      <PaintedRoll
-                        key={`p-${RW}-${H}`}
+                <div key={r.name} className={cn("flex shrink-0 flex-col items-center transition-opacity duration-200", faded(r.name))} style={{ width: RW + pad * 2 }}>
+                  <RollTarget name={r.name}>
+                    <motion.button
+                      type="button"
+                      data-roll={r.name}
+                      disabled={!pickedTx && !onSelect}
+                      aria-pressed={onSelect && !pickedTx ? selected === r.name : undefined}
+                      onClick={() => pressRoll(r.name)}
+                      aria-label={`${r.name}: ${eur.format(r.total)}${limitNote(r)}${rollAction(r.name)}`}
+                      className={cn("relative flex w-full items-end justify-center rounded-[22px] disabled:cursor-default", FOCUS)}
+                      style={{ height: H }}
+                      animate={pickedTx && !reduce ? { y: [0, -5, 0] } : { y: 0 }}
+                      transition={pickedTx ? { duration: 0.9, repeat: Infinity, delay: i * 0.08 } : SPRING}
+                      whileHover={pickedTx ? { scale: 1.06, rotate: -2 } : undefined}
+                    >
+                      {painted ? (
+                        <PaintedRoll
+                          key={`p-${RW}-${H}`}
+                          index={index.get(r.name) ?? i}
+                          colour={colour}
+                          body={px(over ? (r.budget as number) : r.total)}
+                          extra={over ? px(r.total - (r.budget as number)) : 0}
+                          budget={r.budget != null ? px(r.budget) : null}
+                          over={over}
+                          gulping={gulp?.category === r.name}
+                          height={H}
+                          width={RW}
+                          pad={pad}
+                          delay={0.15 + i * 0.05}
+                        />
+                      ) : (
+                      <GoofyRoll
+                        key={`g-${RW}-${H}`}
                         index={index.get(r.name) ?? i}
                         colour={colour}
                         body={px(over ? (r.budget as number) : r.total)}
                         extra={over ? px(r.total - (r.budget as number)) : 0}
                         budget={r.budget != null ? px(r.budget) : null}
                         over={over}
+                        picking={!!pickedTx}
                         gulping={gulp?.category === r.name}
                         height={H}
                         width={RW}
-                        pad={pad}
                         delay={0.15 + i * 0.05}
                       />
-                    ) : (
-                    <GoofyRoll
-                      key={`g-${RW}-${H}`}
-                      index={index.get(r.name) ?? i}
-                      colour={colour}
-                      body={px(over ? (r.budget as number) : r.total)}
-                      extra={over ? px(r.total - (r.budget as number)) : 0}
-                      budget={r.budget != null ? px(r.budget) : null}
-                      over={over}
-                      picking={!!pickedTx}
-                      gulping={gulp?.category === r.name}
-                      height={H}
-                      width={RW}
-                      delay={0.15 + i * 0.05}
-                    />
-                    )}
-                  </motion.button>
+                      )}
+                    </motion.button>
+                  </RollTarget>
                   {/* A painted name may use the gap on either side and run to two lines, hyphenated where the
                       browser can; two lines are kept for every name, so the floor stays level when one wraps. */}
                   <div
