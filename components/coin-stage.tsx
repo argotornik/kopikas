@@ -75,13 +75,13 @@ const shiftMonth = (m: string, by: number) => {
 };
 export const label = (m: string) => monthName.format(new Date(m + "-01T00:00:00Z"));
 
-// What left the account in a month, by category; savings set aside, shared
-// costs at full price (the board's Paid out). Unfiled money is loose change.
+// What left the account in a month, by category; savings and round-ups set aside,
+// shared costs at full price (the board's Paid out). Unfiled money is loose change.
 function paidOut(txs: BoardTx[], month: string) {
   const byCat = new Map<string, number>();
   let loose = 0;
   for (const t of txs) {
-    if (t.amount >= 0 || monthOf(t.date) !== month || t.category === SAVINGS) continue;
+    if (t.amount >= 0 || t.micro || monthOf(t.date) !== month || t.category === SAVINGS) continue;
     if (t.category) byCat.set(t.category, (byCat.get(t.category) ?? 0) - t.amount);
     else loose -= t.amount;
   }
@@ -401,9 +401,12 @@ function Burst({ painted }: { painted: boolean }) {
 
 type Flight = { tx: BoardTx; category: string; from: { x: number; y: number }; dx: number; dy: number };
 
-// The month's unfiled money, newest first: the coins in the pile, and the queue's rows.
-export const looseCoins = (txs: BoardTx[], month: string) =>
-  txs.filter((t) => t.amount < 0 && !t.category && monthOf(t.date) === month).sort((a, b) => b.date.localeCompare(a.date));
+// Unfiled money, newest first: the coins in the pile, and the queue's rows. One
+// month's, or every month's when `month` is null. Round-ups are never loose.
+export const looseCoins = (txs: BoardTx[], month: string | null) =>
+  txs
+    .filter((t) => t.amount < 0 && !t.category && !t.micro && (month === null || monthOf(t.date) === month))
+    .sort((a, b) => b.date.localeCompare(a.date));
 
 // A category's wrapper colour, by its place in the list.
 export const wrapperOf = (categories: { name: string }[], name: string, painted: boolean) => {
@@ -521,6 +524,11 @@ export function CoinStage({
   }
   const floorFits = fitsAt(colW, floorGap);
   const loose = looseCoins(txs, month);
+  // The tray is one month's picture, so a coin always lands in a roll you can see
+  // grow; coins from other months wait there, and the way to them is under the pile.
+  const elsewhere = looseCoins(txs, null).filter((t) => monthOf(t.date) !== month);
+  const elsewhereMonth = elsewhere.map((t) => monthOf(t.date)).sort().at(-1);
+  const oneMonth = elsewhere.every((t) => monthOf(t.date) === elsewhereMonth);
   const pickedTx = loose.find((t) => t.id === picked) ?? null;
 
   // One shared scale: a euro is the same height on every roll. A sleeper's limit
@@ -530,6 +538,9 @@ export function CoinStage({
   // picture. A floor that wraps keeps the shorter stage, so its second shelf isn't mostly air.
   const tall = painted && !narrow && floorFits;
   const MAX = narrow ? 112 : tall ? 280 : 200;
+  // A month with nothing filed yet stands its sleepers on a short floor, under a line that says so:
+  // the tall one would be empty air. It grows back with the first coin.
+  const empty = painted && !narrow && rolls.every((r) => r.total <= 0);
   const px = (v: number) => (v / tallest) * MAX;
 
   // What Kopikas says and does, from the state of the tray.
@@ -670,12 +681,27 @@ export function CoinStage({
       )}
     </div>
   );
+  const elsewhereNote = elsewhereMonth && (
+    <div className={cn("text-[13px]", MUTED)}>
+      <div>
+        {elsewhere.length} in {oneMonth ? label(elsewhereMonth) : "other months"}
+      </div>
+      <button
+        type="button"
+        onClick={() => onMonthChange(elsewhereMonth)}
+        className={cn("underline decoration-1 underline-offset-2 hover:text-[#16171C] dark:hover:text-white", FOCUS)}
+      >
+        {oneMonth ? "Go there" : `Go to ${label(elsewhereMonth)}`}
+      </button>
+    </div>
+  );
   const pileLabel = (
     <div className="mt-3 text-center">
       <div className={cn(DISPLAY, "text-[16px] font-semibold")}>Loose change</div>
       <div className={cn("text-[13px] tabular-nums", MUTED)}>
         {loose.length === 0 ? "nothing to file" : `${loose.length} to file${loose.length > PILE.length ? ` · ${PILE.length} shown` : ""}`}
       </div>
+      {elsewhereNote}
     </div>
   );
 
@@ -877,6 +903,7 @@ export function CoinStage({
                 <div className={cn("text-[13px] tabular-nums", MUTED)}>
                   {loose.length === 0 ? "nothing to file" : `${loose.length} to file${loose.length > 6 ? " · 6 shown" : ""}`}
                 </div>
+                {elsewhereNote}
               </div>
             </div>
             <div className="h-px bg-[#16171C]/10 dark:bg-white/10" aria-hidden />
@@ -943,6 +970,8 @@ export function CoinStage({
             )}
           </div>
         ) : (
+        <>
+        {empty && <p className={cn("relative mt-6 text-[15px]", MUTED)}>Nothing filed in {label(month)} yet.</p>}
         <div className="relative mt-6 flex items-end gap-6 overflow-x-auto pb-1 sm:gap-8 lg:overflow-visible">
           {!painted && (
             <>
@@ -967,7 +996,7 @@ export function CoinStage({
               // A narrower column gives up its side padding before its body: the body stays 44px or wider.
               const RW = painted ? Math.max(44, Math.min(60, colW - 24)) : narrow ? 46 : 60;
               const pad = painted ? (colW - RW) / 2 : 12;
-              const H = narrow ? 150 : tall ? 310 : 230;
+              const H = narrow ? 150 : empty ? 56 : tall ? 310 : 230;
               return (
                 <div key={r.name} className="flex shrink-0 flex-col items-center" style={{ width: RW + pad * 2 }}>
                   <motion.button
@@ -1033,6 +1062,7 @@ export function CoinStage({
             })}
           </div>
         </div>
+        </>
         )}
       </section>
 
