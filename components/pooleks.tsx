@@ -23,6 +23,7 @@ import { SplitPicker } from "@/components/split-picker";
 import { CoinHeader } from "@/components/coin-header";
 import { PaintedCoin } from "@/components/painted";
 import { DISPLAY, FOCUS, MUTED, PANEL, wrapperOf } from "@/components/coin-stage";
+import { CARD, INK, INK_TEXT, OAT, PAGE, PILL, WHITE } from "@/components/coin-look";
 
 const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
@@ -81,13 +82,6 @@ function groupMonths(rows: Row[]): Month[] {
   });
 }
 
-// The new look's surfaces and pills, as on the board.
-const OAT = "bg-[#EFEBE3] dark:bg-[#1F1D22]";
-const CARD = "bg-white dark:bg-[#23252E]";
-const INK = "bg-[#16171C] text-white hover:bg-[#2B2D35] disabled:opacity-40 dark:bg-[#F3F2EE] dark:text-[#16171C] dark:hover:bg-white";
-const WHITE = "bg-white hover:bg-[#F4F5F7] dark:bg-[#23252E] dark:hover:bg-[#2C2F3A]";
-const PILL = "h-11 rounded-full px-5 text-[15px] font-medium";
-const INK_TEXT = "text-[#16171C] dark:text-[#F3F2EE]";
 // Each person keeps a metal, whoever is looking: the owner's coins are copper, the partner's brass.
 const METAL = { owner: "copper", partner: "brass" } as const;
 
@@ -401,7 +395,7 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
 
   return (
     <MotionConfig reducedMotion="user">
-    <div className={cn(fontClass, "relative isolate min-h-dvh overflow-x-clip bg-white text-[#16171C] selection:bg-[#FFB020]/40 dark:bg-[#0F1015] dark:text-[#F3F2EE]")}>
+    <div className={cn(fontClass, PAGE)}>
     <div className="mx-auto max-w-[1200px] px-5 pb-28 sm:px-6 sm:pb-20">
       <CoinHeader
         links={

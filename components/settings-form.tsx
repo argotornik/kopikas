@@ -8,8 +8,8 @@ import { runSync, type SyncOutcome } from "@/lib/sync-report";
 import { cn } from "@/lib/utils";
 import { Pending } from "@/components/form-status";
 import { TokenField } from "@/components/token-field";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-stage";
+import { CARD, INK, INK_TEXT, OAT, PILL, WHITE } from "@/components/coin-look";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const when = (iso: string | null) => (iso ? dateFmt.format(new Date(iso)) : "never");
@@ -43,6 +43,8 @@ export function SettingsForm({
   const [syncStatus, setSyncStatus] = useState<SyncOutcome | null>(null);
   // Sync needs a token; the button waits for one stored earlier or saved just now.
   const [stored, setStored] = useState(!!tokenUpdatedAt);
+  // The token's form: open until one is stored, then only for replacing it.
+  const [tokenOpen, setTokenOpen] = useState(!tokenUpdatedAt);
 
   // The server tries the token with LHV before it replaces anything, so a
   // refusal leaves the working token in place — and the pasted one in the
@@ -57,6 +59,7 @@ export function SettingsForm({
     if (!result.ok) return setSaveStatus({ tone: "error", text: result.error });
     setToken("");
     setStored(true);
+    setTokenOpen(false);
     setSaveStatus({ tone: "ok", text: "Saved. LHV accepted the token; run a sync to fetch the latest." });
     router.refresh(); // the "Token stored" line below reads the server
   };
@@ -77,73 +80,85 @@ export function SettingsForm({
   const overdue = now !== null && accountsFetchedAt !== null && now - Date.parse(accountsFetchedAt) > 26 * 3600_000;
   const state = !stored ? "none" : !accountsFetchedAt ? "unsynced" : overdue ? "overdue" : "ok";
 
-  // One block for the connection: its state first, with the action that
-  // changes it beside it; the setup, needed once, folded beneath.
+  // One block for the connection: its state first, with what changes it beside it; the
+  // token's form, needed once, under it.
   return (
-    <Card id="connection" className="scroll-mt-4 gap-3 py-4">
-      <CardHeader className="border-b px-4">
-        <CardTitle>LHV connection</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3 px-4">
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="min-w-0">
-            <p className="flex items-center gap-2 text-sm font-medium">
-              <span
-                aria-hidden
-                className={cn(
-                  "size-2 shrink-0 rounded-full",
-                  state === "ok" ? "bg-gain" : state === "none" ? "bg-muted-foreground/40" : "bg-attention"
-                )}
-              />
-              {state === "none"
-                ? "Not connected yet"
-                : state === "unsynced"
-                  ? "Connected, not synced yet"
-                  : state === "overdue"
-                    ? "Connected, but the last sync is overdue"
-                    : "Connected"}
-            </p>
-            {stored && (
-              <p className="text-xs text-muted-foreground">
-                <span className="font-mono tabular-nums">{accountCount}</span> {accountCount === 1 ? "account" : "accounts"} ·
-                last synced <span className="font-mono">{when(accountsFetchedAt)}</span> · token renewed{" "}
-                <span className="font-mono">{when(tokenUpdatedAt)}</span>
-              </p>
-            )}
-          </div>
+    <section id="connection" aria-labelledby="connection-heading" className={cn(PANEL, OAT, "scroll-mt-4 p-5 sm:p-6")}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+        <div className="min-w-0 flex-1">
+          <h2 id="connection-heading" className={cn(DISPLAY, "text-[20px] font-semibold")}>
+            LHV connection
+          </h2>
+          <p className="mt-2 flex items-center gap-2 text-[15px] font-medium">
+            <span
+              aria-hidden
+              className={cn(
+                "size-2.5 shrink-0 rounded-full",
+                state === "ok" ? "bg-[#0A763F] dark:bg-[#4FD18B]" : state === "none" ? "bg-[#63666F]/40 dark:bg-[#A7A9B4]/40" : "bg-[#FFB020]"
+              )}
+            />
+            {state === "none"
+              ? "Not connected yet"
+              : state === "unsynced"
+                ? "Connected, not synced yet"
+                : state === "overdue"
+                  ? "Connected, but the last sync is overdue"
+                  : "Connected"}
+          </p>
           {stored && (
-            <Button onClick={() => void syncNow()} disabled={syncing}>
-              <Pending on={syncing}>{syncing ? "Syncing…" : "Sync now"}</Pending>
-            </Button>
+            <p className={cn("mt-0.5 text-[13px]", MUTED)}>
+              <span className="tabular-nums">{accountCount}</span> {accountCount === 1 ? "account" : "accounts"} · last synced{" "}
+              <span className="tabular-nums">{when(accountsFetchedAt)}</span> · token renewed{" "}
+              <span className="tabular-nums">{when(tokenUpdatedAt)}</span>
+            </p>
           )}
         </div>
-        <div aria-live="polite">
-          <StatusLine status={syncStatus} />
-        </div>
         {stored && (
-          <p className="text-xs text-muted-foreground">
-            Syncs by itself every morning at {cronTime()} (Tallinn time), and every hour if the GitHub workflow from
-            the README is set up. Running it now is safe: nothing is fetched twice.
-          </p>
+          // Stacked on a phone, Sync now on top; side by side from 640px.
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <button
+              type="button"
+              aria-expanded={tokenOpen}
+              aria-controls="token-section"
+              onClick={() => setTokenOpen((o) => !o)}
+              className={cn(PILL, WHITE, "whitespace-nowrap", FOCUS)}
+            >
+              Replace the token
+            </button>
+            <button type="button" onClick={() => void syncNow()} disabled={syncing} className={cn(PILL, INK, "inline-flex items-center justify-center gap-2 whitespace-nowrap", FOCUS)}>
+              <Pending on={syncing}>{syncing ? "Syncing…" : "Sync now"}</Pending>
+            </button>
+          </div>
         )}
-
-        {/* Open until a token is stored; afterwards only for replacing it. */}
-        <details open={!stored} className="border-t pt-3">
-          <summary className="cursor-pointer select-none text-sm font-medium hover:text-foreground pointer-coarse:py-2">
-            {stored ? "Replace the token" : "Connect LHV"}
-          </summary>
-          <div className="mt-2 flex flex-col gap-2">
-            <p className="max-w-prose text-sm text-muted-foreground">
-              Sign in at{" "}
-              <a href="https://api.lhv.ai/api-access" className="underline" target="_blank" rel="noreferrer">
-                api.lhv.ai/api-access
-                <span className="sr-only"> (opens in a new tab)</span>
-              </a>{" "}
-              with Smart-ID, Mobile-ID or ID-card, allow the two read-only permissions (accounts and transactions),
-              and paste the refresh token it shows. Kopikas can see balances and transactions; it cannot make
-              payments. The token renews itself with every sync and lapses only after 30 days without one
-              {encrypted ? "; it is kept encrypted and never shown again." : "."}
-            </p>
+      </div>
+      <div aria-live="polite">
+        {syncStatus && (
+          <div className="mt-3">
+            <StatusLine status={syncStatus} />
+          </div>
+        )}
+      </div>
+      {stored && (
+        <p className={cn("mt-3 max-w-[72ch] text-[13px]", MUTED)}>
+          Syncs by itself every morning at {cronTime()} (Tallinn time), and every hour if the GitHub workflow from the
+          README is set up. Running it now is safe: nothing is fetched twice.
+        </p>
+      )}
+      {tokenOpen && (
+        <div id="token-section" className={cn("mt-4 rounded-2xl p-4", CARD)}>
+          <h3 className="text-[15px] font-medium">{stored ? "Replace the token" : "Connect LHV"}</h3>
+          <p className={cn("mt-1 max-w-[72ch] text-[13px]", MUTED)}>
+            Sign in at{" "}
+            <a href="https://api.lhv.ai/api-access" className={cn("underline underline-offset-2", INK_TEXT, FOCUS)} target="_blank" rel="noreferrer">
+              api.lhv.ai/api-access
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>{" "}
+            with Smart-ID, Mobile-ID or ID-card, allow the two read-only permissions (accounts and transactions), and
+            paste the refresh token it shows. Kopikas can see balances and transactions; it cannot make payments. The
+            token renews itself with every sync and lapses only after 30 days without one
+            {encrypted ? "; it is kept encrypted and never shown again." : "."}
+          </p>
+          <div className="mt-3">
             <TokenField
               value={token}
               onChange={setToken}
@@ -154,13 +169,17 @@ export function SettingsForm({
               describedBy="token-status"
             />
           </div>
-        </details>
-        {/* Outside the fold: a saved token closes it, and the word "Saved" must still show. */}
-        <div id="token-status" aria-live="polite">
-          <StatusLine status={saveStatus} />
         </div>
-      </CardContent>
-    </Card>
+      )}
+      {/* Outside the form: a saved token closes it, and the word "Saved" must still show. */}
+      <div id="token-status" aria-live="polite">
+        {saveStatus && (
+          <div className="mt-3">
+            <StatusLine status={saveStatus} />
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -169,19 +188,19 @@ function StatusLine({ status }: { status: Status }) {
   if (!status) return null;
   return (
     <div className="flex flex-col gap-1.5">
-      <p className="flex items-start gap-1.5 text-xs leading-snug text-foreground">
+      <p className="flex items-start gap-1.5 text-[13px] leading-snug">
         {status.tone !== "ok" && (
           <CircleAlertIcon
             aria-hidden
-            className={cn("mt-px size-3.5 shrink-0", status.tone === "error" ? "text-destructive" : "text-attention")}
+            className={cn("mt-px size-4 shrink-0", status.tone === "error" ? "text-[#C7432F] dark:text-[#FF8A75]" : "text-[#B07A12] dark:text-[#FFB020]")}
           />
         )}
         <span>{status.text}</span>
       </p>
       {status.detail && (
-        <details className="text-xs text-muted-foreground">
-          <summary className="cursor-pointer select-none hover:text-foreground pointer-coarse:py-3">Technical details</summary>
-          <pre className="mt-1.5 overflow-x-auto rounded-md bg-muted p-3 font-mono">{status.detail}</pre>
+        <details className={cn("text-[13px]", MUTED)}>
+          <summary className={cn("w-fit cursor-pointer select-none rounded-full hover:underline pointer-coarse:py-3", FOCUS)}>Technical details</summary>
+          <pre className={cn("mt-1.5 overflow-x-auto whitespace-pre-wrap rounded-2xl p-3 text-[12px]", CARD)}>{status.detail}</pre>
         </details>
       )}
     </div>

@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { XIcon } from "lucide-react";
 import { PARTNER_NAME } from "@/lib/names";
-import { shareLabel } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn, shareLabel } from "@/lib/utils";
+import { DISPLAY, MUTED, PANEL } from "@/components/coin-stage";
+import { OAT } from "@/components/coin-look";
+import { RuleChip } from "@/components/rules-list";
 import { act, focusAfterRemoval } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";
 
@@ -47,56 +47,41 @@ export function ShareRulesList({ initial }: { initial: ShareRuleRow[] }) {
   };
 
   return (
-    <Card id="pooleks-rules" className="scroll-mt-4 gap-3 py-4">
-      <CardHeader className="border-b px-4">
-        <CardTitle className="flex items-baseline justify-between">
-          <span>Pooleks rules</span>
-          <span className="font-mono text-sm font-normal tracking-normal tabular-nums text-muted-foreground">{rules.length}</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="px-4">
-        <p className="mb-2 max-w-prose text-sm text-muted-foreground">
-          Made when you choose Always while splitting a charge with {PARTNER_NAME}. New charges that match go
-          on Pooleks at that split. Charges already there stay, even if you remove the rule.
+    <section id="pooleks-rules" aria-labelledby="pooleks-rules-heading" className={cn(PANEL, OAT, "scroll-mt-4 p-4 sm:p-6")}>
+      <div className="flex items-baseline justify-between gap-3 px-1">
+        <h2 id="pooleks-rules-heading" className={cn(DISPLAY, "text-[20px] font-semibold")}>
+          Pooleks rules
+        </h2>
+        <span className={cn("text-[15px] tabular-nums", MUTED)}>{rules.length}</span>
+      </div>
+      <p className={cn("mt-1 max-w-[80ch] px-1 text-[13px]", MUTED)}>
+        Made when you choose Always while splitting a charge with {PARTNER_NAME}. New charges that match go on Pooleks at
+        that split. Charges already there stay, even if you remove the rule.
+      </p>
+      {rules.length === 0 && (
+        <p className={cn("mt-3 px-1 text-[15px]", MUTED)}>
+          No Pooleks rules yet. Choose Always while splitting a charge with {PARTNER_NAME} and it appears here.
         </p>
-        {rules.length === 0 && (
-          <p className="py-2 text-sm text-muted-foreground">
-            No Pooleks rules yet. Choose Always while splitting a charge with {PARTNER_NAME} and it appears here.
-          </p>
-        )}
-        {/* Same row shape as the filing rules: one line wide, the detail under the pattern on a phone. */}
-        <ul className="divide-y outline-none" data-list>
+      )}
+      {rules.length > 0 && (
+        <ul className="mt-4 flex flex-wrap gap-1.5 outline-none" data-list>
           {rules.map((r) => (
-            <li
-              className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 py-1.5 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+            <RuleChip
               key={r.id}
-              data-row
+              title={`${r.match} · ${PARTNER_NAME}'s part ${shareLabel(r.partnerShare)} · added ${taught(r.createdAt)}`}
+              removeLabel={`Stop sharing ${r.match} automatically: ${PARTNER_NAME}'s part ${shareLabel(r.partnerShare)}, added ${taught(r.createdAt)}`}
+              focusKey="stop"
+              busy={busy.has(r.id)}
+              onRemove={(from) => void stop(r, from)}
             >
-              <span className="truncate font-mono text-sm" title={r.match}>
-                {r.match}
+              <span className="truncate font-medium">{r.match}</span>
+              <span className={cn("shrink-0 text-[13px]", MUTED)}>
+                {PARTNER_NAME}&apos;s part {shareLabel(r.partnerShare)}
               </span>
-              <span className="hidden text-xs text-muted-foreground sm:block">
-                {PARTNER_NAME}&apos;s part {shareLabel(r.partnerShare)} · added {taught(r.createdAt)}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="row-span-2 size-6 shrink-0 text-muted-foreground sm:row-span-1"
-                title="Stop sharing new charges from this merchant"
-                aria-label={`Stop sharing ${r.match} automatically`}
-                data-focus-key="stop"
-                disabled={busy.has(r.id)}
-                onClick={(e) => void stop(r, e.currentTarget)}
-              >
-                <XIcon className="size-3.5" />
-              </Button>
-              <span className="text-xs text-muted-foreground sm:hidden">
-                {PARTNER_NAME}&apos;s part {shareLabel(r.partnerShare)} · added {taught(r.createdAt)}
-              </span>
-            </li>
+            </RuleChip>
           ))}
         </ul>
-      </CardContent>
-    </Card>
+      )}
+    </section>
   );
 }
