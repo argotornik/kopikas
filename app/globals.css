@@ -5,9 +5,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-    --font-heading: var(--font-heading-var), "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-    --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, "SF Mono", monospace;
+    --font-sans: var(--font-coins-body), ui-sans-serif, system-ui, sans-serif;
+    --font-heading: var(--font-coins-display), ui-rounded, system-ui, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
     --color-gain: var(--gain);
     /* Text tier of two colours that are also fills: the copper of buttons and
        bars, the amber of tints. Text needs 4.5:1 where a fill does not. */
@@ -163,8 +163,7 @@
 .coins-panel { --popover: #EFEBE3; --popover-foreground: #16171C; --background: #EFEBE3; --foreground: #16171C;
   --muted: #F4F5F7; --muted-foreground: #63666F; --accent: #FFFFFF; --accent-foreground: #16171C;
   --border: rgb(22 23 28 / 0.12); --input: rgb(22 23 28 / 0.2); --ring: #16171C;
-  --primary: #16171C; --primary-foreground: #FFFFFF; --primary-ink: #16171C; --radius: 1.25rem;
-  --font-heading-var: var(--font-coins-display); }
+  --primary: #16171C; --primary-foreground: #FFFFFF; --primary-ink: #16171C; --radius: 1.25rem; }
 .dark .coins-panel { --popover: #1F1D22; --popover-foreground: #F3F2EE; --background: #1F1D22; --foreground: #F3F2EE;
   --muted: #191B22; --muted-foreground: #A7A9B4; --accent: #23252E; --accent-foreground: #F3F2EE;
   --border: rgb(255 255 255 / 0.12); --input: rgb(255 255 255 / 0.22); --ring: #F3F2EE;

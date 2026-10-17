@@ -150,7 +150,7 @@ Kopikas is a household's statement drawn as a picture book. Every page is painte
 
 The mood is warm, playful and tidy. Warm comes from Oat Paper, copper and the painted wrapper colours. Playful comes from the cast, the coin rolls and the loose coins, who blink, gulp and hop; every step is still said in plain, progress-first words for screen readers. Tidy is the point of the product: filing a coin into its roll is a small satisfying act, and the layout stays orderly so the fun never gets in the way of reading the month. Density is relaxed on the stage and plain in the lists.
 
-The board at `/` is the coin tray: every charge is a coin, every category a roll with a face, the month a row of rolls on one shared scale. It replaced the older board and its finance-dashboard vocabulary of stat cards, sparklines and grey cards on 2026-10-17, and refuses the cold bank register. Sign-in still wears the older look until it gets its own pass. A goofy alternative look (googly eyes, tongues, a boiling line) survives only on the prototype at `/coins/sketch`; it was judged too goofy and is not to be extended.
+The board at `/` is the coin tray: every charge is a coin, every category a roll with a face, the month a row of rolls on one shared scale. It replaced the older board and its finance-dashboard vocabulary of stat cards, sparklines and grey cards on 2026-10-17, and refuses the cold bank register. Every screen around it wears the same look, from the first run to sign-in and the page for a wrong address, and the whole app is set in Rubik and Fredoka. A goofy alternative look (googly eyes, tongues, a boiling line) survives only on the prototype at `/coins/sketch`; it was judged too goofy and is not to be extended.
 
 **Key Characteristics:**
 - Painted characters with vector-smooth, gently wobbled edges; faces of two dots and a curve.
@@ -294,6 +294,10 @@ A fresh deployment's board, waiting: an empty board is not a quiet month.
 - **Shape:** the tray itself. Its head says "Before your first month", then "Connect your LHV account" in Fredoka, a line on what happens, the two steps in Ink discs, the token field (a white pill with its own border, and an Ink Connect pill) and the read-only note with a lock. Below, every category but Savings asleep on the floor in its colour at 0,00 €, in rows that balance (one from 1024px, two halves below that); on a phone they sleep in one "Nothing yet" list. Connecting opens the board with those rolls growing.
 - **States:** the line under the field says where the connection is (checking with LHV, fetching, opening the board), a failure in a sun-yellow tint with its technical details folded beneath, and a token stored without a sync offers to run it.
 - **Before it:** "Who owns this board?" and "Not on this board" wear the same frame, without the floor.
+
+### Sign-in and Not Found
+- **Sign-in:** the coin, "Kopikas" in Fredoka and "iga kopikas loeb" over Clerk's card, which wears the board's look: Oat Paper with 28px corners, white fields, an Ink pill, Rubik with a Fredoka title, in both themes. The same theme dresses Clerk's account menu in every header.
+- **Not found:** one coin, surprised and tilted as if it rolled off, "This page isn't on the board", a sentence on why, and Back to the board.
 
 ### Settings
 The bank connection and what the board has been taught.

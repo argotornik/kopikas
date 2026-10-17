@@ -1,32 +1,12 @@
 import type { Metadata } from "next";
 import { SignIn } from "@clerk/nextjs";
 import { authEnabled } from "@/lib/auth";
-import { CoinMark } from "@/components/coin-mark";
+import { SignInFrame } from "@/components/sign-in-frame";
 
 export const metadata: Metadata = { title: "Sign in · Kopikas" };
 
-// Sign-in inside the app's own frame — coin, wordmark, tagline — instead of
-// Clerk's hosted portal. The Clerk card itself is themed in ClerkThemed.
+// Sign-in inside the app's own frame: the coin, the wordmark and the tagline over
+// Clerk's card, which wears the board's look (ClerkThemed).
 export default function SignInPage() {
-  return (
-    <div className="mx-auto flex min-h-screen max-w-sm flex-col items-center justify-center gap-6 px-5 py-10">
-      <div className="flex flex-col items-center gap-1.5">
-        <div className="flex items-center gap-2 font-heading text-xl font-semibold tracking-tight">
-          <CoinMark />
-          Kopikas
-        </div>
-        <p className="text-sm italic text-muted-foreground">iga kopikas loeb</p>
-      </div>
-      {authEnabled ? (
-        <SignIn />
-      ) : (
-        <p className="text-center text-sm text-muted-foreground">
-          Sign-in is off in local development, so the board treats you as the owner.{" "}
-          <a href="/" className="underline">
-            Open the board
-          </a>
-        </p>
-      )}
-    </div>
-  );
+  return <SignInFrame>{authEnabled ? <SignIn /> : null}</SignInFrame>;
 }
