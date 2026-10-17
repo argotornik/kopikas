@@ -3,7 +3,8 @@
 import type { Board, BoardTx } from "@/lib/board";
 import { wobblyRect } from "@/components/goofy";
 import { deepened } from "@/components/painted";
-import { FOCUS, MUTED, eur, eurWhole, label, monthOf, shiftMonth, wrapperOf } from "@/components/coin-stage";
+import { eur, eurWhole, label, monthOf, shiftMonth, wrapperOf } from "@/components/coin-stage";
+import { FOCUS, MUTED } from "@/components/coin-look";
 import { cn } from "@/lib/utils";
 
 // A chosen roll's year, in the tray's head where the month's figures sit otherwise: a

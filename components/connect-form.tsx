@@ -9,8 +9,7 @@ import { runSync } from "@/lib/sync-report";
 import { cn } from "@/lib/utils";
 import { TokenField } from "@/components/token-field";
 import { CoinMark } from "@/components/coin-mark";
-import { FOCUS, MUTED } from "@/components/coin-stage";
-import { CARD, PILL, WHITE } from "@/components/coin-look";
+import { CARD, FOCUS, MUTED, PILL, WHITE } from "@/components/coin-look";
 
 type Phase =
   | { step: "idle" }

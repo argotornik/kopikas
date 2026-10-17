@@ -5,8 +5,8 @@ import { SAVINGS } from "@/lib/engine";
 import { ConnectForm } from "@/components/connect-form";
 import { CoinHeader } from "@/components/coin-header";
 import { PaintedDefs, PaintedMini, PaintedRoll } from "@/components/painted";
-import { DISPLAY, FOCUS, MUTED, PANEL, breakable, wrapperOf } from "@/components/coin-stage";
-import { INK_TEXT, OAT, PAGE } from "@/components/coin-look";
+import { breakable, wrapperOf } from "@/components/coin-stage";
+import { DISPLAY, FOCUS, INK_TEXT, MUTED, OAT, PAGE, PANEL } from "@/components/coin-look";
 import { cn } from "@/lib/utils";
 
 // An empty board is a fresh deployment, not a quiet month: the tray itself, waiting,

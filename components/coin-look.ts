@@ -1,4 +1,13 @@
-// The new look's surfaces and pills, shared by the pages around the board.
+// The new look's surfaces and pills, shared by the pages around the board. No "use client"
+// here: a server component importing from a client module gets references, not the strings.
+export const MUTED = "text-[#63666F] dark:text-[#A7A9B4]";
+export const PANEL = "rounded-[28px] bg-[#F4F5F7] dark:bg-[#191B22]";
+// In Tailwind 4 both outline-none and outline-hidden also cancel a later
+// outline's style, so focus sets it back (outline-solid); without that, no
+// control showed its focus. outline-hidden keeps a ring in forced colours.
+export const FOCUS =
+  "outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17181D] dark:focus-visible:outline-[#F3F2EE]";
+export const DISPLAY = "coins-display";
 export const OAT = "bg-[#EFEBE3] dark:bg-[#1F1D22]";
 export const CARD = "bg-white dark:bg-[#23252E]";
 export const INK = "bg-[#16171C] text-white hover:bg-[#2B2D35] disabled:opacity-40 dark:bg-[#F3F2EE] dark:text-[#16171C] dark:hover:bg-white";

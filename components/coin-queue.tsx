@@ -5,7 +5,8 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS } from "@/lib/engine";
 import { PaintedCoin } from "@/components/painted";
-import { DISPLAY, FOCUS, MUTED, PANEL, eur, label, looseCoins, monthOf, wrapperOf } from "@/components/coin-stage";
+import { eur, label, looseCoins, monthOf, wrapperOf } from "@/components/coin-stage";
+import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 import { cn, shareLabel } from "@/lib/utils";
 
 // The phone's To file tab: the backlog one coin at a time. The coin on top shows its

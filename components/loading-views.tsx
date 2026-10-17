@@ -1,12 +1,6 @@
-"use client";
-// Client, though nothing here is interactive: the shared look (PANEL, DISPLAY) lives in
-// coin-stage.tsx, a client module, and a server component importing it gets references
-// instead of the class strings.
-
 import type { ReactNode } from "react";
 import { CoinHeader } from "@/components/coin-header";
-import { PANEL } from "@/components/coin-stage";
-import { OAT, PAGE } from "@/components/coin-look";
+import { OAT, PAGE, PANEL } from "@/components/coin-look";
 import { coinFonts } from "@/components/coin-fonts";
 import { cn } from "@/lib/utils";
 

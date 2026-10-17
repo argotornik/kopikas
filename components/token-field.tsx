@@ -1,8 +1,7 @@
 "use client";
 
 import { Field, Pending } from "@/components/form-status";
-import { FOCUS } from "@/components/coin-stage";
-import { INK, PILL } from "@/components/coin-look";
+import { FOCUS, INK, PILL } from "@/components/coin-look";
 import { cn } from "@/lib/utils";
 
 // Pasting an LHV refresh token: the one field first run and Settings share, in the

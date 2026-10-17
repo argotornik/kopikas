@@ -8,8 +8,7 @@ import { runSync, type SyncOutcome } from "@/lib/sync-report";
 import { cn } from "@/lib/utils";
 import { Pending } from "@/components/form-status";
 import { TokenField } from "@/components/token-field";
-import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-stage";
-import { CARD, INK, INK_TEXT, OAT, PILL, WHITE } from "@/components/coin-look";
+import { CARD, DISPLAY, FOCUS, INK, INK_TEXT, MUTED, OAT, PANEL, PILL, WHITE } from "@/components/coin-look";
 
 const dateFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 const when = (iso: string | null) => (iso ? dateFmt.format(new Date(iso)) : "never");

@@ -2,8 +2,7 @@
 
 import { HouseIcon, UsersIcon } from "lucide-react";
 import { CoinHeader } from "@/components/coin-header";
-import { DISPLAY, FOCUS, MUTED } from "@/components/coin-stage";
-import { PAGE } from "@/components/coin-look";
+import { DISPLAY, FOCUS, MUTED, PAGE } from "@/components/coin-look";
 import { SettingsForm } from "@/components/settings-form";
 import { RulesList, type RuleRow } from "@/components/rules-list";
 import { ShareRulesList, type ShareRuleRow } from "@/components/share-rules-list";

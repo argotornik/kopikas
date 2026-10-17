@@ -22,8 +22,8 @@ import { Field, FormError, Pending } from "@/components/form-status";
 import { SplitPicker } from "@/components/split-picker";
 import { CoinHeader } from "@/components/coin-header";
 import { PaintedCoin } from "@/components/painted";
-import { DISPLAY, FOCUS, MUTED, PANEL, wrapperOf } from "@/components/coin-stage";
-import { CARD, INK, INK_TEXT, OAT, PAGE, PILL, WHITE } from "@/components/coin-look";
+import { wrapperOf } from "@/components/coin-stage";
+import { CARD, DISPLAY, FOCUS, INK, INK_TEXT, MUTED, OAT, PAGE, PANEL, PILL, WHITE } from "@/components/coin-look";
 
 const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });

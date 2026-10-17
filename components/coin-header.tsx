@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { PaintedCoin } from "@/components/painted";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
-import { DISPLAY, FOCUS } from "@/components/coin-stage";
+import { DISPLAY, FOCUS } from "@/components/coin-look";
 import { cn } from "@/lib/utils";
 
 // The header of every page in the new look: the coin and the wordmark, a line under it

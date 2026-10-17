@@ -6,6 +6,7 @@ import { AnimatePresence, motion, useReducedMotion, useSpring, useTransform } fr
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS } from "@/lib/engine";
+import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 import { GOOFY_CSS, GoofyFace, INK, PERSONAS, rng, wobblyCircle, wobblyRect, type Mood } from "@/components/goofy";
 import { KopikasAnimated } from "@/components/kopikas-animated";
 import type { MascotPose } from "@/components/kopikas-mascot";
@@ -54,14 +55,6 @@ const SHADES: Record<Metal, { light: string; mid: string; dark: string; edge: st
   nickel: { light: "#F7F9FB", mid: "#D3D8DF", dark: "#9EA6B1", edge: "#8E96A1", reed: "#5E6670", glint: "#FFFFFF" },
 };
 
-export const MUTED = "text-[#63666F] dark:text-[#A7A9B4]";
-export const PANEL = "rounded-[28px] bg-[#F4F5F7] dark:bg-[#191B22]";
-// In Tailwind 4 both outline-none and outline-hidden also cancel a later
-// outline's style, so focus sets it back (outline-solid); without that, no
-// control showed its focus. outline-hidden keeps a ring in forced colours.
-export const FOCUS =
-  "outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17181D] dark:focus-visible:outline-[#F3F2EE]";
-export const DISPLAY = "coins-display";
 const SPRING = { type: "spring" as const, stiffness: 260, damping: 18 };
 // A roll pressed squashes a little toward where it stands, fast, and springs
 // back on SPRING. With reduced motion the press does nothing; what it does

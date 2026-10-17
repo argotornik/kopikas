@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
-import { DISPLAY, FOCUS, MUTED, PANEL, wrapperOf } from "@/components/coin-stage";
-import { CARD, OAT } from "@/components/coin-look";
+import { wrapperOf } from "@/components/coin-stage";
+import { CARD, DISPLAY, FOCUS, MUTED, OAT, PANEL } from "@/components/coin-look";
 import { cn } from "@/lib/utils";
 import { act, focusAfterRemoval } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";

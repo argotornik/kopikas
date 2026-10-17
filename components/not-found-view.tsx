@@ -2,8 +2,7 @@
 
 import { CoinHeader } from "@/components/coin-header";
 import { PaintedCoin } from "@/components/painted";
-import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-stage";
-import { INK, OAT, PAGE, PILL } from "@/components/coin-look";
+import { DISPLAY, FOCUS, INK, MUTED, OAT, PAGE, PANEL, PILL } from "@/components/coin-look";
 import { coinFonts } from "@/components/coin-fonts";
 import { cn } from "@/lib/utils";
 

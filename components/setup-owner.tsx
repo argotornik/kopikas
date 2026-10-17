@@ -3,8 +3,7 @@
 import { CoinHeader } from "@/components/coin-header";
 import { PaintedCoin } from "@/components/painted";
 import { StepNumber } from "@/components/first-run";
-import { DISPLAY, MUTED, PANEL } from "@/components/coin-stage";
-import { CARD, INK_TEXT, OAT, PAGE } from "@/components/coin-look";
+import { CARD, DISPLAY, INK_TEXT, MUTED, OAT, PAGE, PANEL } from "@/components/coin-look";
 import { OWNER_NAME } from "@/lib/names";
 import { cn } from "@/lib/utils";
 

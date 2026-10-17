@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { PARTNER_NAME } from "@/lib/names";
 import { cn, shareLabel } from "@/lib/utils";
-import { DISPLAY, MUTED, PANEL } from "@/components/coin-stage";
-import { OAT } from "@/components/coin-look";
+import { DISPLAY, MUTED, OAT, PANEL } from "@/components/coin-look";
 import { RuleChip } from "@/components/rules-list";
 import { act, focusAfterRemoval } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";
