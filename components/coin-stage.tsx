@@ -881,11 +881,9 @@ export function CoinStage({
         aria-labelledby="month-heading"
         className={cn(PANEL, "relative overflow-hidden px-5 pb-6 pt-6 sm:px-8 sm:pt-8", painted && "bg-[#EFEBE3] dark:bg-[#1F1D22]")}
       >
-        {/* The painted phone keeps only the marks up by the month: lower ones would land on the list. */}
-        {(!painted || narrow) &&
-          FLOATERS.filter((f) => !painted || f.y < 25).map((f, i) => (
-            <Floater key={i} f={f} painted={painted} />
-          ))}
+        {/* The painted tray floats nothing up by the month: on the phone the marks there sat on
+            the panel's edge and read as strays. On desktop its air is around the loose change. */}
+        {!painted && FLOATERS.map((f, i) => <Floater key={i} f={f} painted={false} />)}
 
         {/* One row from 1024px: the month gives way and its figures wrap, so the jar and the
             loose change keep their place beside it instead of dropping below. */}

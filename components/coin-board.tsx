@@ -10,6 +10,7 @@ import { announceError, announceUndoable } from "@/components/toaster";
 import { PaintedCoin } from "@/components/painted";
 import { CoinStage, DISPLAY, FOCUS, MUTED, PANEL, eur, label, looseCoins, monthOf, shortDate, type CoinStageHandle } from "@/components/coin-stage";
 import { CoinLedger } from "@/components/coin-ledger";
+import { CoinQueue } from "@/components/coin-queue";
 import { CoinSubscriptions } from "@/components/coin-subscriptions";
 import { CategoriesEditor, type CategoryAction } from "@/components/categories-editor";
 import { MerchantEditor, type MerchantSubject } from "@/components/merchant-editor";
@@ -40,6 +41,7 @@ const PANEL_CSS = `
     --primary: #F3F2EE; --primary-foreground: #16171C; --primary-ink: #F3F2EE; }
   .coins-panel [data-slot="input"] { background-color: var(--accent); }
   .coins-panel .font-mono { font-family: inherit; font-variant-numeric: tabular-nums; }
+  @media (max-width: 639px) { :root { --bottom-bar: 4.5rem; } }
   .coins-panel [data-slot="dialog-footer"] { margin: 0 -1.5rem -1.5rem; padding: 0.5rem 1.5rem 1.5rem; background: transparent; border-top: 0; }
 `;
 // A row starts to drag only once the mouse has moved, so a click stays a click.
@@ -69,6 +71,15 @@ export function CoinBoard({
 }) {
   const [board, setBoard] = useState(initial);
   const [month, setMonth] = useState(initial.month);
+  // The phone has two tabs: To file, the backlog one coin at a time, and Month, the tray
+  // with the charges below it. It opens on To file while anything waits. Wider screens
+  // show the month only, with the loose change on the tray.
+  const [tab, setTab] = useState<"queue" | "month">(() => (looseCoins(initial.txs, null).length > 0 ? "queue" : "month"));
+  const toFile = looseCoins(board.txs, null).length;
+  const showTab = (t: "queue" | "month") => {
+    setTab(t);
+    window.scrollTo({ top: 0 });
+  };
   // Back to the first month with a charge; forward to this one.
   const months = useMemo(
     () => [board.txs.reduce((m, t) => (monthOf(t.date) < m ? monthOf(t.date) : m), initial.month), initial.month],
@@ -298,7 +309,7 @@ export function CoinBoard({
         "relative isolate min-h-dvh overflow-x-clip bg-white text-[#16171C] selection:bg-[#FFB020]/40 dark:bg-[#0F1015] dark:text-[#F3F2EE]"
       )}
     >
-      <div className="mx-auto max-w-[1200px] px-5 pb-20 sm:px-6">
+      <div className="mx-auto max-w-[1200px] px-5 pb-28 sm:px-6 sm:pb-20">
         <header className="flex items-center gap-x-6 gap-y-3 py-5">
           <div className="flex items-center gap-3">
             <PaintedCoin size={38} seed={3} />
@@ -346,6 +357,10 @@ export function CoinBoard({
           }}
         >
         <main>
+          <div className={cn("sm:hidden", tab !== "queue" && "hidden")}>
+            <CoinQueue txs={board.txs} categories={categories} partner={partner} onFile={onFile} onSplit={onSplit} onDone={() => showTab("month")} />
+          </div>
+          <div className={cn(tab === "queue" && "max-sm:hidden")}>
           {/* The stage: the month's rolls on one floor, its loose change beside them. */}
           <CoinStage
             ref={stage}
@@ -374,7 +389,7 @@ export function CoinBoard({
           <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
             <aside className="flex flex-col gap-8 lg:col-start-2 lg:row-start-1">
               {/* The same loose change as the pile, as rows: the way to file from the keyboard. */}
-              <section aria-labelledby="tofile-heading" className={cn(PANEL, OAT, "p-5 sm:p-6 lg:hidden")}>
+              <section aria-labelledby="tofile-heading" className={cn(PANEL, OAT, "p-5 max-sm:hidden sm:p-6 lg:hidden")}>
                 <h2 id="tofile-heading" className={cn(DISPLAY, "flex items-baseline justify-between text-[20px] font-semibold")}>
                   To file
                   <span className={cn("font-sans text-[13px] font-normal tabular-nums", MUTED)}>{label(month)}</span>
@@ -562,6 +577,7 @@ export function CoinBoard({
               )}
             </section>
           </div>
+          </div>
         </main>
         {/* What the mouse carries: the charge as a coin, with its name and amount. */}
         <DragOverlay dropAnimation={null} style={{ width: "auto", height: "auto" }}>
@@ -574,6 +590,26 @@ export function CoinBoard({
           )}
         </DragOverlay>
         </DndContext>
+        {/* The phone's two tabs, in thumb reach. */}
+        <nav aria-label="Board views" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#16171C]/10 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:hidden dark:border-white/10 dark:bg-[#0F1015]">
+          <div className="mx-auto flex max-w-md gap-2">
+            {(["queue", "month"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                aria-pressed={tab === t}
+                onClick={() => showTab(t)}
+                className={cn(
+                  "h-11 flex-1 rounded-full text-[15px] font-medium tabular-nums",
+                  tab === t ? "bg-[#16171C] text-white dark:bg-[#F3F2EE] dark:text-[#16171C]" : MUTED,
+                  FOCUS
+                )}
+              >
+                {t === "queue" ? (toFile > 0 ? `To file · ${toFile}` : "To file") : "Month"}
+              </button>
+            ))}
+          </div>
+        </nav>
         <style>{PANEL_CSS}</style>
         <CategoriesEditor
           open={catsOpen}
