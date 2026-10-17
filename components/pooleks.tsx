@@ -396,7 +396,7 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
   return (
     <MotionConfig reducedMotion="user">
     <div className={cn(fontClass, PAGE)}>
-    <div className="mx-auto max-w-[1200px] px-5 pb-28 sm:px-6 sm:pb-20">
+    <div className="mx-auto max-w-[1200px] px-5 pb-28 sm:px-6 sm:pb-20 wide:max-w-[1848px]">
       <CoinHeader
         links={
           role === "owner"
@@ -408,10 +408,12 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
         }
       />
 
-      <main className="flex flex-col gap-8">
+      {/* From 1900px, as on the board: where the tab stands on the left, staying put, and the
+          statement beside it at the board's charges width. */}
+      <main className="flex flex-col gap-8 wide:grid wide:grid-cols-[720px_minmax(0,1fr)] wide:items-start">
         <h1 className="sr-only">Pooleks</h1>
         {/* Where the tab stands, and who has been paying since the last repayment. */}
-        <section aria-label="Where the tab stands" className={cn(PANEL, OAT, "flex flex-col gap-6 p-5 sm:p-8 lg:flex-row lg:items-center")}>
+        <section aria-label="Where the tab stands" className={cn(PANEL, OAT, "flex flex-col gap-6 p-5 sm:p-8 lg:flex-row lg:items-center wide:sticky wide:top-5")}>
           <div className="min-w-0 lg:flex-1">
             <p className={cn("text-[15px]", MUTED)}>{since}</p>
             {!flat && <p className={cn(DISPLAY, "mt-1 text-[22px] font-semibold sm:text-[26px]")}>{balanceText}</p>}
