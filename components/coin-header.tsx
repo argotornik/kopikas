@@ -2,11 +2,13 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { PaintedCoin } from "@/components/painted";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/user-menu";
 import { DISPLAY, FOCUS } from "@/components/coin-stage";
 import { cn } from "@/lib/utils";
 
 // The header of every page in the new look: the coin and the wordmark, a line under it
-// when the page has one to say, the other pages (icons on a phone), the theme.
+// when the page has one to say, the other pages (icons on a phone), the theme, and the
+// account button, so signing out works from every screen.
 export function CoinHeader({
   links,
   sub,
@@ -40,6 +42,7 @@ export function CoinHeader({
           </a>
         ))}
         <ThemeToggle />
+        <UserMenu />
       </nav>
     </header>
   );
