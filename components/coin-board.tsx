@@ -333,7 +333,7 @@ export function CoinBoard({
         "relative isolate min-h-dvh overflow-x-clip bg-white text-[#16171C] selection:bg-[#FFB020]/40 dark:bg-[#0F1015] dark:text-[#F3F2EE]"
       )}
     >
-      <div className="mx-auto max-w-[1200px] px-5 pb-28 sm:px-6 sm:pb-20">
+      <div className="mx-auto max-w-[1200px] px-5 pb-28 sm:px-6 sm:pb-20 wide:max-w-[2280px]">
         {/* Past the tray's rolls and the cards, to the list; on a phone, from either tab. */}
         <a
           href="#charges"
@@ -378,7 +378,13 @@ export function CoinBoard({
           <div className={cn("sm:hidden", tab !== "queue" && "hidden")}>
             <CoinQueue txs={board.txs} categories={categories} partner={partner} onFile={onFile} onSplit={onSplit} onDone={() => showTab("month")} />
           </div>
-          <div className={cn(tab === "queue" && "max-sm:hidden")}>
+          {/* From 1900px the month spreads out: the tray with the cards under it on the left,
+              every charge on the right, so any row can be dragged onto a roll without
+              scrolling back up. */}
+          <div className={cn(tab === "queue" && "max-sm:hidden", "wide:grid wide:grid-cols-[1152px_minmax(0,1fr)] wide:grid-rows-[auto_1fr] wide:items-start wide:gap-x-8")}>
+          {/* On a screen tall enough, the tray stays put while the charges scroll; the cards slide
+              under it, behind a strip of page above and below so nothing shows past its corners. */}
+          <div className="wide:col-start-1 wide:row-start-1 wide:pb-8 wide:tall:sticky wide:tall:top-0 wide:tall:z-10 wide:tall:-mt-5 wide:tall:bg-white wide:tall:pt-5 dark:wide:tall:bg-[#0F1015]">
           {/* The stage: the month's rolls on one floor, its loose change beside them. */}
           <CoinStage
             ref={stage}
@@ -418,9 +424,10 @@ export function CoinBoard({
               </button>
             }
           />
+          </div>
 
-          <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
-            <aside className="flex flex-col gap-8 lg:col-start-2 lg:row-start-1">
+          <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px] wide:contents">
+            <aside className="flex flex-col gap-8 lg:col-start-2 lg:row-start-1 wide:col-start-1 wide:row-start-2 wide:grid wide:grid-cols-2 wide:items-start">
               {/* The same loose change as the pile, as rows: the way to file from the keyboard. */}
               <section aria-labelledby="tofile-heading" className={cn(PANEL, OAT, "p-5 max-sm:hidden sm:p-6 lg:hidden")}>
                 <h2 id="tofile-heading" className={cn(DISPLAY, "flex items-baseline justify-between text-[20px] font-semibold")}>
@@ -545,7 +552,7 @@ export function CoinBoard({
               id="charges"
               tabIndex={-1}
               aria-labelledby="ledger-heading"
-              className={cn(PANEL, OAT, "min-w-0 scroll-mt-4 p-5 outline-none sm:p-6 lg:col-start-1 lg:row-start-1")}
+              className={cn(PANEL, OAT, "min-w-0 scroll-mt-4 p-5 outline-none sm:p-6 lg:col-start-1 lg:row-start-1 wide:col-start-2 wide:row-span-2 wide:row-start-1")}
             >
               <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
                 <h2 id="ledger-heading" className={cn(DISPLAY, "mr-auto text-[20px] font-semibold")}>

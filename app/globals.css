@@ -6,6 +6,13 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+/* A screen tall enough for the 727px tray to stay put while the charges scroll. */
+@custom-variant tall (@media (min-height: 50rem));
+
+/* From 1900px the board lays the tray and the charges side by side (coin-board.tsx). */
+@theme {
+    --breakpoint-wide: 118.75rem;
+}
 
 @theme inline {
     --font-sans: var(--font-coins-body), ui-sans-serif, system-ui, sans-serif;

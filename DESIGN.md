@@ -212,9 +212,11 @@ A white page, a warm oat stage, copper as the house colour, Crayon Blue for ever
 
 ## Layout
 
-One centred column, 1200px wide at most, with 20px side padding on a phone and 24px from 640px up.
+One centred column, 1200px wide at most, with 20px side padding on a phone and 24px from 640px up. From 1900px the board spreads out instead (below).
 
 The board opens on the **stage**: a full-width Oat Paper panel in two bands. The head holds the month's name with a stepper, the total, last month's total and one muted line of figures on the left (Received, your share in a month with splits, the account balances and Investments, marked "Today:" in past months), and the loose-change pile with its count on the right: you pick a coin up there and drop it on a roll below. The stage has no narrator. The floor below takes the panel's full width, its tallest roll standing 280px while every roll fits in one row, with "Edit categories" under it. On desktop, a few squiggles and dots float around the loose change, away from every number and from every spot a coin can take: never a dash, which on the stage means a limit, and never a coin, which would read as one more to file. Nothing floats up by the month. Below the stage, on one grid with a 32px gap, "Every charge" fills the left and a 380px column on the right holds Pooleks and Subscriptions from 1024px up. Below 1024px the column's cards sit above the list, led from 640px by a To file card of the month's loose change as rows.
+
+On a wide screen (1900px and up) the board shows the month at once: the column grows to 2280px at most, the stage keeps its 1152px on the left with Pooleks and Subscriptions side by side under it, and every charge fills the right-hand side, starting at the top beside the stage. On a screen at least 800px tall the stage stays put while the charges scroll, so any row can be dragged onto a roll from anywhere in the list; the cards slide under it, behind a strip of page above and below the stage so nothing shows past its corners. Shorter screens let it scroll, since the stage alone is 727px tall. Below 1900px nothing changes.
 
 The stage shows one month at a time: its pile holds that month's loose change, and a line under it leads to other months with coins waiting. A month, a chosen roll and a search live in the address (`?month=`, `?cat=`, `?q=`; `cat=Incoming` for money in), so a view can be linked.
 
