@@ -17,7 +17,7 @@ import { CategoriesEditor, type CategoryAction } from "@/components/categories-e
 import { MerchantEditor, type MerchantSubject } from "@/components/merchant-editor";
 import { SnapshotEditor } from "@/components/snapshot-editor";
 import { MerchantIcon } from "@/components/merchant-icon";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { CoinHeader } from "@/components/coin-header";
 import { cn, shareLabel } from "@/lib/utils";
 
 // The board: the coin tray on top, the charges below, and on a phone the backlog one
@@ -26,24 +26,8 @@ import { cn, shareLabel } from "@/lib/utils";
 const OAT = "bg-[#EFEBE3] dark:bg-[#1F1D22]";
 // The list's view of money that came in, beside the categories a roll can pick.
 const MONEY_IN = "money-in";
-// The old board's editors in the new look: Oat Paper, generous corners, Rubik and
-// Fredoka, Ink for the action. They read the theme from CSS variables, so the
-// variables are re-tinted inside them here.
-const PANEL_CSS = `
-  .coins-panel { --popover: #EFEBE3; --popover-foreground: #16171C; --background: #EFEBE3; --foreground: #16171C;
-    --muted: #F4F5F7; --muted-foreground: #63666F; --accent: #FFFFFF; --accent-foreground: #16171C;
-    --border: rgb(22 23 28 / 0.12); --input: rgb(22 23 28 / 0.2); --ring: #16171C;
-    --primary: #16171C; --primary-foreground: #FFFFFF; --primary-ink: #16171C; --radius: 1.25rem;
-    --font-heading-var: var(--font-coins-display); }
-  .dark .coins-panel { --popover: #1F1D22; --popover-foreground: #F3F2EE; --background: #1F1D22; --foreground: #F3F2EE;
-    --muted: #191B22; --muted-foreground: #A7A9B4; --accent: #23252E; --accent-foreground: #F3F2EE;
-    --border: rgb(255 255 255 / 0.12); --input: rgb(255 255 255 / 0.22); --ring: #F3F2EE;
-    --primary: #F3F2EE; --primary-foreground: #16171C; --primary-ink: #F3F2EE; }
-  .coins-panel [data-slot="input"] { background-color: var(--accent); }
-  .coins-panel .font-mono { font-family: inherit; font-variant-numeric: tabular-nums; }
-  @media (max-width: 639px) { :root { --bottom-bar: 4.5rem; } }
-  .coins-panel [data-slot="dialog-footer"] { margin: 0 -1.5rem -1.5rem; padding: 0.5rem 1.5rem 1.5rem; background: transparent; border-top: 0; }
-`;
+// Notices sit above the phone's tab bar. The editors' new look is `.coins-panel`, in globals.css.
+const PANEL_CSS = `@media (max-width: 639px) { :root { --bottom-bar: 4.5rem; } }`;
 // A row starts to drag only once the mouse has moved, so a click stays a click.
 const MOUSE_DRAG = { activationConstraint: { distance: 5 } };
 
@@ -361,34 +345,14 @@ export function CoinBoard({
         >
           Skip to the charges
         </a>
-        <header className="flex items-center gap-x-6 gap-y-3 py-5">
-          <div className="flex items-center gap-3">
-            <PaintedCoin size={38} seed={3} />
-            <div>
-              <h1 className={cn(DISPLAY, "text-[26px] font-semibold leading-none tracking-[-0.01em]")}>Kopikas</h1>
-              {stale ? <div className="mt-1 flex max-sm:hidden">{stale}</div> : synced && <p className={cn("mt-1 text-[13px]", MUTED)}>Synced {synced.ago}</p>}
-            </div>
-          </div>
-          <nav aria-label="Pages" className="ml-auto flex items-center gap-1.5 text-[15px] font-medium">
-            <a
-              href="/pooleks"
-              aria-label="Pooleks"
-              className={cn("rounded-full p-2.5 hover:bg-[#F4F5F7] sm:px-3.5 sm:py-2 dark:hover:bg-[#191B22]", FOCUS)}
-            >
-              <UsersIcon aria-hidden className="size-5 sm:hidden" />
-              <span className="hidden sm:inline">Pooleks</span>
-            </a>
-            <a
-              href="/settings"
-              aria-label="Settings"
-              className={cn("rounded-full p-2.5 hover:bg-[#F4F5F7] sm:px-3.5 sm:py-2 dark:hover:bg-[#191B22]", FOCUS)}
-            >
-              <SettingsIcon aria-hidden className="size-5 sm:hidden" />
-              <span className="hidden sm:inline">Settings</span>
-            </a>
-            <ThemeToggle />
-          </nav>
-        </header>
+        <CoinHeader
+          heading
+          links={[
+            { href: "/pooleks", label: "Pooleks", icon: UsersIcon },
+            { href: "/settings", label: "Settings", icon: SettingsIcon },
+          ]}
+          sub={stale ? <div className="mt-1 flex max-sm:hidden">{stale}</div> : synced && <p className={cn("mt-1 text-[13px]", MUTED)}>Synced {synced.ago}</p>}
+        />
         {/* A phone gives the warning the full width: beside the icons it ran to three lines. */}
         {stale && <div className="-mt-1 mb-5 flex sm:hidden">{stale}</div>}
 

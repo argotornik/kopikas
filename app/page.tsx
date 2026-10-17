@@ -1,16 +1,12 @@
 import { redirect } from "next/navigation";
-import { Fredoka, Rubik } from "next/font/google";
 import { CoinBoard } from "@/components/coin-board";
+import { coinFonts } from "@/components/coin-fonts";
 import { getAccounts, getLhvTokens, readDb } from "@/lib/storage";
 import { FirstRun } from "@/components/first-run";
 import { buildBoard } from "@/lib/board";
 import { currentEmail, currentRole, ownerConfigured } from "@/lib/auth";
 import { PARTNER_NAME } from "@/lib/names";
 import { NotOnBoard, SetupOwner } from "@/components/setup-owner";
-
-// The board's own faces: Fredoka for display, Rubik for everything else.
-const fredoka = Fredoka({ subsets: ["latin", "latin-ext"], variable: "--font-coins-display" });
-const rubik = Rubik({ subsets: ["latin", "latin-ext"] });
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +32,7 @@ export default async function Home({
       initial={buildBoard(db, new Date(), accounts)}
       syncedAt={fetchedAt}
       view={view}
-      fontClass={`${rubik.className} ${fredoka.variable}`}
+      fontClass={coinFonts}
       // A household with a partner splits costs with them: one is configured, or something was split.
       partner={process.env.PARTNER_EMAIL || db.shares.length > 0 ? PARTNER_NAME : null}
     />

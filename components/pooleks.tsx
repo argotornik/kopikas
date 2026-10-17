@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRightIcon, ReceiptTextIcon, UsersIcon, XIcon } from "lucide-react";
+import { ArrowRightIcon, HouseIcon, PlusIcon, SettingsIcon, XIcon } from "lucide-react";
 import { motion, MotionConfig } from "motion/react";
 import { amountInput, cn, parseAmount, shareLabel } from "@/lib/utils";
 import { act, focusAfterRemoval } from "@/lib/act";
 import { OWNER_NAME, PARTNER_NAME } from "@/lib/names";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -17,12 +16,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useRollingNumber } from "@/components/rolling-number";
-import { HeaderLink, PageHeader } from "@/components/page-header";
 import { announceError, announceUndoable } from "@/components/toaster";
 import { Field, FormError, Pending } from "@/components/form-status";
 import { SplitPicker } from "@/components/split-picker";
+import { CoinHeader } from "@/components/coin-header";
+import { PaintedCoin } from "@/components/painted";
+import { DISPLAY, FOCUS, MUTED, PANEL, wrapperOf } from "@/components/coin-stage";
 
 const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
@@ -81,24 +81,33 @@ function groupMonths(rows: Row[]): Month[] {
   });
 }
 
-// Clean by default: date · what · what moved the tab. Details adds the running
-// balance, and folds the bill and the share into the row's text — a statement
-// shows what moved and where it leaves you; the working is there to read, not
-// to scan.
-const GRID_CLEAN = "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1fr)_5.5rem_1.5rem] sm:grid-cols-[3.25rem_minmax(0,1fr)_5.5rem_1.5rem]";
-// On phones the running balance stacks under the movement (one figure column),
-// so the description keeps its width.
-const GRID_FULL =
-  "grid items-baseline gap-x-3 px-3 grid-cols-[3rem_minmax(0,1fr)_5.5rem_1.5rem] sm:grid-cols-[3.25rem_minmax(0,1fr)_5.5rem_5.5rem_1.5rem]";
+// The new look's surfaces and pills, as on the board.
+const OAT = "bg-[#EFEBE3] dark:bg-[#1F1D22]";
+const CARD = "bg-white dark:bg-[#23252E]";
+const INK = "bg-[#16171C] text-white hover:bg-[#2B2D35] disabled:opacity-40 dark:bg-[#F3F2EE] dark:text-[#16171C] dark:hover:bg-white";
+const WHITE = "bg-white hover:bg-[#F4F5F7] dark:bg-[#23252E] dark:hover:bg-[#2C2F3A]";
+const PILL = "h-11 rounded-full px-5 text-[15px] font-medium";
+const INK_TEXT = "text-[#16171C] dark:text-[#F3F2EE]";
+// Each person keeps a metal, whoever is looking: the owner's coins are copper, the partner's brass.
+const METAL = { owner: "copper", partner: "brass" } as const;
 
+// A statement line: the payer's coin, then the name beside the amount, the category and
+// day beside which way it goes, and who paid under both on a phone (beside the balance
+// after it, with Details, from 640px).
+const LINE = "group grid grid-cols-[2rem_minmax(0,1fr)_auto_2rem] items-start gap-x-2.5 gap-y-0.5 rounded-2xl py-3 pl-3 pr-2 sm:gap-x-3";
+const WIDE = "col-[2/4] row-start-3 sm:col-[2/3]";
 // The quiet ✕ at the end of a row: always there on touch, revealed on hover
 // or keyboard focus where there is a pointer.
-const REMOVE =
-  "relative flex size-6 items-center justify-center justify-self-end rounded text-muted-foreground hover:text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100 pointer-coarse:after:absolute pointer-coarse:after:-inset-2.5 pointer-coarse:after:content-['']";
+const REMOVE = cn(
+  "relative -my-1 flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-[#F4F5F7] hover:text-[#16171C] disabled:opacity-40 dark:hover:bg-[#2C2F3A] dark:hover:text-white [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100 pointer-coarse:after:absolute pointer-coarse:after:-inset-1.5 pointer-coarse:after:content-['']",
+  MUTED,
+  FOCUS
+);
 
 // Pooleks ("in half"): the couple's tab as a statement. Same page for both
-// of them; only the labels flip.
-export function Pooleks({ role, initial }: { role: Person; initial: SharedView }) {
+// of them; only the labels flip. The head says where the tab stands and, as two
+// piles, what each has paid since the last repayment; every line wears its payer's coin.
+export function Pooleks({ role, initial, fontClass }: { role: Person; initial: SharedView; fontClass: string }) {
   // Rendered with its data on the server: no loading line, no layout jump.
   const [view, setView] = useState<SharedView>(initial);
   const [desc, setDesc] = useState("");
@@ -112,9 +121,13 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
   const [settling, setSettling] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
-  // Focus goes back to the button that opened a dialog when it closes.
-  const addButton = useRef<HTMLButtonElement>(null);
+  // Focus goes back to whatever opened a dialog when it closes: the button, or the
+  // phone's message box.
+  const addReturn = useRef<HTMLElement | null>(null);
   const settleButton = useRef<HTMLButtonElement>(null);
+  const composer = useRef<HTMLInputElement>(null);
+  const descField = useRef<HTMLInputElement>(null);
+  const amountField = useRef<HTMLInputElement>(null);
   const [settleOpen, setSettleOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [details, setDetails] = useState(false);
@@ -130,7 +143,6 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
       } catch {}
       return !d;
     });
-  const GRID = details ? GRID_FULL : GRID_CLEAN;
   const [settleAmount, setSettleAmount] = useState("");
   const [settleNote, setSettleNote] = useState("");
   // The balance rolls to its new value rather than jumping: after a repayment
@@ -198,18 +210,12 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
     const [debtor] = flow(r > 0);
     return { words: debtor === "You" ? "you owe" : "owed to you", amount: Math.abs(r) };
   };
-  // A shared cost's second line: its category, who paid, and with Details,
-  // whose part the amount on the right is.
-  const describeShare = (item: SharedView["sharedItems"][number]) => {
-    const parts = [item.category ?? "uncategorized"];
-    if (item.paidBy === "partner") parts.push(`${names.partner} paid`);
-    if (details) {
-      const owner = item.paidBy === "owner";
-      const debtor = owner ? names.partner : names.owner;
-      const part = owner ? (item.partnerShare ?? 0.5) : 1 - (item.partnerShare ?? 0.5);
-      parts.push(`${debtor === "You" ? "your" : `${debtor}'s`} part, ${shareLabel(part)} of ${eur.format(item.total)}`);
-    }
-    return parts.join(" · ");
+  // A shared cost's last line: who paid the bill, and whose part the amount on the right is.
+  const shareLine = (item: SharedView["sharedItems"][number]) => {
+    const owner = item.paidBy === "owner";
+    const debtor = owner ? names.partner : names.owner;
+    const part = owner ? (item.partnerShare ?? 0.5) : 1 - (item.partnerShare ?? 0.5);
+    return `${names[item.paidBy]} paid ${eur.format(item.total)}, ${debtor === "You" ? "your" : `${debtor}'s`} part ${shareLabel(part)}`;
   };
   const stillOwed = (balance: number) => {
     const [debtor, creditor] = flow(balance > 0);
@@ -271,13 +277,17 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
       initial={knownFold !== undefined && knownFold !== foldKey ? { opacity: 0, y: -6 } : false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
-      className={cn("px-3 py-2 text-xs text-muted-foreground", months.length > 0 && "border-t border-border/70")}
+      className="mt-5"
     >
       <button
         type="button"
         onClick={() => setShowSettled((s) => !s)}
         aria-expanded={showSettled}
-        className="flex w-full items-center justify-between gap-2 rounded-md px-1 py-1 text-left hover:bg-accent hover:text-foreground pointer-coarse:py-3.5"
+        className={cn(
+          "flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border-2 border-dashed border-[#16171C]/20 px-4 py-2.5 text-left text-[13px] hover:border-[#16171C]/35 dark:border-white/20 dark:hover:border-white/35",
+          MUTED,
+          FOCUS
+        )}
       >
         {/* "All square" only when it is: a repayment can leave something owed. */}
         <span>
@@ -293,7 +303,7 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
             </>
           )}
         </span>
-        <span className="shrink-0">{showSettled ? "Hide" : "Show"}</span>
+        <span className={cn("shrink-0 font-medium", INK_TEXT)}>{showSettled ? "Hide" : "Show"}</span>
       </button>
     </motion.div>
   );
@@ -371,219 +381,228 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
     announceUndoable(`Recorded a ${eur.format(settleValue)} repayment.`, result.undo, refetch);
   };
 
+  // What each of you has paid since the last repayment, full bills: the two piles in the head.
+  const paid = { owner: 0, partner: 0 };
+  for (const m of months) for (const r of m.rows) if (r.kind === "share") paid[r.item.paidBy] += r.item.total;
+  const most = Math.max(paid.owner, paid.partner);
+  const coinsFor = (v: number) => (v > 0 ? Math.max(1, Math.min(PILE.length, Math.round((v / most) * PILE.length))) : 0);
+  const since = fold
+    ? openLines === 0
+      ? `Nothing new since the repayment on ${shortDate.format(new Date(fold.date))}`
+      : `${openLines} ${openLines === 1 ? "line" : "lines"} since the repayment on ${shortDate.format(new Date(fold.date))}`
+    : `${view.sharedItems.length} shared ${view.sharedItems.length === 1 ? "cost" : "costs"}, no repayments yet`;
+  const colourOf = (category: string) => wrapperOf(view.categories.map((name) => ({ name })), category, true);
+  const dialogLook = cn(fontClass, "coins-panel rounded-[28px] p-6 sm:max-w-sm");
+  const openAdd = (from: HTMLElement | null) => {
+    addReturn.current = from;
+    setAddErr("");
+    setAddOpen(true);
+  };
+
   return (
     <MotionConfig reducedMotion="user">
-    <div className="mx-auto flex max-w-3xl flex-col gap-4 px-5 py-6 pb-24">
-      <PageHeader title="Pooleks" heading>
-        {role === "owner" && (
-          <HeaderLink href="/" back>
-            board
-          </HeaderLink>
-        )}
-      </PageHeader>
+    <div className={cn(fontClass, "relative isolate min-h-dvh overflow-x-clip bg-white text-[#16171C] selection:bg-[#FFB020]/40 dark:bg-[#0F1015] dark:text-[#F3F2EE]")}>
+    <div className="mx-auto max-w-[1200px] px-5 pb-28 sm:px-6 sm:pb-20">
+      <CoinHeader
+        links={
+          role === "owner"
+            ? [
+                { href: "/", label: "Board", icon: HouseIcon },
+                { href: "/settings", label: "Settings", icon: SettingsIcon },
+              ]
+            : []
+        }
+      />
 
-      <main className="flex flex-col gap-4">
-      <Card className="gap-3 py-4">
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 px-4">
-          <div>
-            <div className="text-xl font-semibold">
-              {balanceText}
-              {!flat && <span className="ml-2 font-mono tabular-nums">{eur.format(Math.abs(shownBalance))}</span>}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {fold
-                ? openLines === 0
-                  ? `Nothing new since the repayment on ${shortDate.format(new Date(fold.date))}`
-                  : `${openLines} ${openLines === 1 ? "line" : "lines"} since the repayment on ${shortDate.format(new Date(fold.date))}`
-                : `${view.sharedItems.length} shared ${view.sharedItems.length === 1 ? "cost" : "costs"}, no repayments yet`}
+      <main className="flex flex-col gap-8">
+        <h1 className="sr-only">Pooleks</h1>
+        {/* Where the tab stands, and who has been paying since the last repayment. */}
+        <section aria-label="Where the tab stands" className={cn(PANEL, OAT, "flex flex-col gap-6 p-5 sm:p-8 lg:flex-row lg:items-center")}>
+          <div className="min-w-0 lg:flex-1">
+            <p className={cn("text-[15px]", MUTED)}>{since}</p>
+            {!flat && <p className={cn(DISPLAY, "mt-1 text-[22px] font-semibold sm:text-[26px]")}>{balanceText}</p>}
+            <p className={cn(DISPLAY, "text-[44px] font-semibold leading-tight tabular-nums sm:text-[52px]")}>
+              {flat ? "All square" : eur.format(Math.abs(shownBalance))}
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                ref={settleButton}
+                type="button"
+                // Greys out when the rolling amount reaches zero, in step with "All square".
+                disabled={flat}
+                onClick={() => {
+                  setSettleAmount(amountInput(Math.abs(bal)));
+                  setSettleNote("");
+                  setSettleErr("");
+                  setSettleOpen(true);
+                }}
+                className={cn(PILL, INK, "max-sm:flex-1", FOCUS)}
+              >
+                Settle up
+              </button>
+              {/* On a phone, the message box at the foot of the screen adds an expense. */}
+              <button type="button" onClick={(e) => openAdd(e.currentTarget)} className={cn(PILL, WHITE, "max-sm:hidden", FOCUS)}>
+                Add expense
+              </button>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button
-              ref={addButton}
-              onClick={() => {
-                setAddErr("");
-                setAddOpen(true);
-              }}
-            >
-              Add expense
-            </Button>
-            <Button
-              ref={settleButton}
-              variant="outline"
-              // Greys out when the rolling amount reaches zero, in step with "All square".
-              disabled={flat}
-              onClick={() => {
-                setSettleAmount(amountInput(Math.abs(bal)));
-                setSettleNote("");
-                setSettleErr("");
-                setSettleOpen(true);
-              }}
-            >
-              Settle up
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          {most > 0 && (
+            <div className="flex justify-center gap-8 max-lg:order-first lg:gap-12 lg:pr-4">
+              <Payer label={`${names.owner} paid`} amount={paid.owner} coins={coinsFor(paid.owner)} metal={METAL.owner} />
+              <Payer label={`${names.partner} paid`} amount={paid.partner} coins={coinsFor(paid.partner)} metal={METAL.partner} />
+            </div>
+          )}
+        </section>
 
-      {months.length === 0 && settledMonths.length === 0 ? (
-        // The same empty state as the board's, said from the reader's side.
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <UsersIcon />
-            </EmptyMedia>
-            <EmptyTitle>Nothing shared yet</EmptyTitle>
-            <EmptyDescription>
+        {months.length === 0 && settledMonths.length === 0 ? (
+          // The same empty state as the board's, said from the reader's side.
+          <section className={cn(PANEL, OAT, "flex flex-col items-center px-6 py-12 text-center")}>
+            <PaintedCoin size={64} mood="glad" seed={5} />
+            <h2 className={cn(DISPLAY, "mt-4 text-[22px] font-semibold")}>Nothing shared yet</h2>
+            <p className={cn("mt-1 max-w-[40ch] text-[15px]", MUTED)}>
               {role === "owner"
-                ? `On the board, file a charge with "Split with ${PARTNER_NAME}", or use Add expense for something you paid in cash.`
-                : `Use Add expense for something you paid for; ${OWNER_NAME}'s shared costs arrive from the bank.`}
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        // The statement: one sheet, ruled rows, month headers as section rules.
-        <div className="overflow-hidden rounded-xl bg-card pb-2 ring-1 ring-foreground/10 outline-none" data-list>
-          {/* One head row: the view toggle in the label columns, column heads on the rail. */}
-          <div className={cn(GRID, "items-center pb-1 pt-2 text-xs text-muted-foreground")}>
-            <div className="col-span-2 -ml-2">
+                ? `On the board, split a charge with ${PARTNER_NAME} from its menu, or add something you paid for in cash.`
+                : `Add something you paid for; ${OWNER_NAME}'s shared costs arrive from the bank.`}
+            </p>
+          </section>
+        ) : (
+          // The statement: month by month, newest first, each line a white row with its payer's coin.
+          <section aria-labelledby="statement-heading" className={cn(PANEL, OAT, "p-3 outline-none sm:p-6")} data-list>
+            <div className="flex items-center justify-between gap-3 px-1">
+              <h2 id="statement-heading" className={cn(DISPLAY, "text-[20px] font-semibold")}>
+                Statement
+              </h2>
               <button
                 type="button"
                 onClick={toggleDetails}
                 aria-pressed={details}
-                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground pointer-coarse:py-3.5"
-                title={details ? "Hide each part and the balance after every line" : "Show each part and the balance after every line"}
+                title={details ? "Hide the balance after every line" : "Show the balance after every line"}
+                className={cn("h-9 rounded-full px-3.5 text-[13px] font-medium", details ? INK : WHITE, FOCUS)}
               >
-                <ReceiptTextIcon className="size-3.5" />
                 {details ? "Hide details" : "Details"}
               </button>
             </div>
-            {/* The arrows say which way each amount goes; only the balance column needs a head. */}
-            <span />
-            {details && <span className="hidden text-right sm:block">Balance after</span>}
-            <span />
-          </div>
-          {[...months, ...(showSettled ? settledMonths : [])].map((m, mi) => (
-            <div key={m.month}>
-              {fold && mi === months.length && foldLine}
-              <div className={cn(GRID, "pb-1.5 pt-3", mi > 0 && "border-t border-border/70")}>
-                <h2 className="col-span-2 font-heading text-sm font-semibold tracking-tight">{monthLabel(m.month)}</h2>
+            {[...months, ...(showSettled ? settledMonths : [])].map((m, mi) => (
+              <div key={m.month}>
+                {fold && mi === months.length && foldLine}
+                <div className="mt-5 flex items-baseline justify-between gap-3 px-1">
+                  <h3 className={cn(DISPLAY, "text-[16px] font-semibold")}>{monthLabel(m.month)}</h3>
+                  <MonthNet net={m.rows.reduce((sum, r) => sum + r.movement, 0)} arrow={arrow} flow={flow} />
+                </div>
                 {details && (
-                  <>
-                    <MonthNet net={m.rows.reduce((sum, r) => sum + r.movement, 0)} arrow={arrow} flow={flow} />
-                    <span className="hidden sm:block" />
-                  </>
-                )}
-                <span />
-              </div>
-              {details && (
-                // What the two of you spent together this month, full bills, and on what.
-                <div className={cn(GRID, "pb-1.5")}>
-                  <span />
-                  <span className="col-span-3 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                  // What the two of you spent together this month, full bills, and on what.
+                  <p className={cn("mt-1 flex flex-wrap gap-x-3 gap-y-0.5 px-1 text-[13px]", MUTED)}>
                     <span title="Spent together this month, full amounts">
-                      Together <span className="font-mono tabular-nums">{eur.format(m.spentTogether)}</span>
+                      Together <span className={cn("tabular-nums", INK_TEXT)}>{eur.format(m.spentTogether)}</span>
                     </span>
                     {m.byCategory.length > 1 &&
                       m.byCategory.map(([name, total]) => (
                         <span key={name}>
-                          {name} <span className="font-mono tabular-nums">{eur.format(total)}</span>
+                          {name} <span className="tabular-nums">{eur.format(total)}</span>
                         </span>
                       ))}
-                  </span>
-                </div>
-              )}
-              {m.rows.map((r, i) =>
-                r.kind === "settle" ? (
-                  <div
-                    key={r.settlement.id}
-                    data-row
-                    className={cn(GRID, "group py-2 text-xs text-muted-foreground", i > 0 && "border-t border-border/70")}
-                  >
-                    <span>{shortDate.format(new Date(r.date))}</span>
-                    <span className="truncate italic">
-                      {r.settlement.amount > 0 ? `${names.partner} paid back` : `${names.owner} paid back`}
-                      {r.settlement.note && ` · ${r.settlement.note}`}
-                      {r.settlement.recordedBy &&
-                        ` · recorded by ${names[r.settlement.recordedBy] === "You" ? "you" : names[r.settlement.recordedBy]}`}
-                    </span>
-                    {/* A repayment's arrow is the money that moved: who paid whom. */}
-                    <Amount value={Math.abs(r.settlement.amount)} label={arrow(...flow(r.settlement.amount > 0))}>
-                      {details && <Standing {...standing(r.running)} className="sm:hidden" />}
-                    </Amount>
-                    {details && <Standing {...standing(r.running)} className="hidden sm:block" />}
-                    {/* Either of the two can take a repayment back; Undo puts it back. */}
-                    <button
-                      type="button"
-                      className={REMOVE}
-                      title="Remove this repayment"
-                      aria-label={`Remove the ${eur.format(Math.abs(r.settlement.amount))} repayment of ${shortDate.format(new Date(r.date))}`}
-                      data-focus-key="remove"
-                      disabled={busy.has(`unsettle:${r.settlement.id}`)}
-                      onClick={(e) =>
-                        void oneClick(
-                          `unsettle:${r.settlement.id}`,
-                          { type: "unsettle", settlementId: r.settlement.id },
-                          `Removed the ${eur.format(Math.abs(r.settlement.amount))} repayment.`,
-                          e.currentTarget
-                        )
-                      }
-                    >
-                      <XIcon className="size-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <div key={r.item.id} data-row className={cn(GRID, "group py-1.5", i > 0 && "border-t border-border/70")}>
-                    <span className="text-xs text-muted-foreground">{shortDate.format(new Date(r.date))}</span>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm">
-                        <span className="font-medium">{r.item.description}</span>
-                        <span className="hidden text-muted-foreground sm:inline">
-                          {" · "}
-                          {describeShare(r.item)}
+                  </p>
+                )}
+                <ul className="mt-2 flex flex-col gap-2">
+                  {m.rows.map((r, i) =>
+                    r.kind === "settle" ? (
+                      <li key={r.settlement.id} data-row className={cn(LINE, CARD)}>
+                        <span className="col-[1/2] row-[1/5]">
+                          <PaintedCoin size={32} metal={METAL[r.settlement.amount > 0 ? "partner" : "owner"]} mood="glad" seed={i + 2} />
                         </span>
-                      </div>
-                      <div className="truncate text-xs text-muted-foreground sm:hidden">{describeShare(r.item)}</div>
-                    </div>
-                    {/* A shared cost's arrow is what is owed for it: from the one who didn't pay. */}
-                    <Amount value={Math.abs(r.movement)} label={arrow(...flow(r.movement > 0))} strong>
-                      {details && <Standing {...standing(r.running)} className="sm:hidden" />}
-                    </Amount>
-                    {details && <Standing {...standing(r.running)} className="hidden sm:block" />}
-                    {role === "owner" ? (
-                      <button
-                        type="button"
-                        className={REMOVE}
-                        title="Remove from Pooleks"
-                        aria-label={`Remove ${r.item.description} from Pooleks`}
-                        data-focus-key="remove"
-                        disabled={busy.has(`unshare:${r.item.id}`)}
-                        onClick={(e) =>
-                          void oneClick(
-                            `unshare:${r.item.id}`,
-                            { type: "unshare", shareId: r.item.id },
-                            `Took ${r.item.description} off Pooleks.`,
-                            e.currentTarget
-                          )
-                        }
-                      >
-                        <XIcon className="size-3" />
-                      </button>
+                        <p className="col-start-2 row-start-1 text-[15px] font-medium">
+                          {r.settlement.amount > 0 ? `${names.partner} paid back` : `${names.owner} paid back`}
+                        </p>
+                        <p className={cn("col-start-2 row-start-2 text-[13px]", MUTED)}>
+                          {shortDate.format(new Date(r.date))}
+                          {r.settlement.note && ` · ${r.settlement.note}`}
+                        </p>
+                        {r.settlement.recordedBy && (
+                          <p className={cn(WIDE, "text-[13px]", MUTED)}>
+                            Recorded by {names[r.settlement.recordedBy] === "You" ? "you" : names[r.settlement.recordedBy]}
+                          </p>
+                        )}
+                        {/* A repayment's arrow is the money that moved: who paid whom. */}
+                        <Figure value={Math.abs(r.settlement.amount)} label={arrow(...flow(r.settlement.amount > 0))} />
+                        {details && <Standing {...standing(r.running)} />}
+                        {/* Either of the two can take a repayment back; Undo puts it back. */}
+                        <button
+                          type="button"
+                          className={cn(REMOVE, "col-start-4 row-start-1")}
+                          title="Remove this repayment"
+                          aria-label={`Remove the ${eur.format(Math.abs(r.settlement.amount))} repayment of ${shortDate.format(new Date(r.date))}`}
+                          data-focus-key="remove"
+                          disabled={busy.has(`unsettle:${r.settlement.id}`)}
+                          onClick={(e) =>
+                            void oneClick(
+                              `unsettle:${r.settlement.id}`,
+                              { type: "unsettle", settlementId: r.settlement.id },
+                              `Removed the ${eur.format(Math.abs(r.settlement.amount))} repayment.`,
+                              e.currentTarget
+                            )
+                          }
+                        >
+                          <XIcon aria-hidden className="size-4" />
+                        </button>
+                      </li>
                     ) : (
-                      <span />
-                    )}
-                  </div>
-                )
-              )}
-            </div>
-          ))}
-          {fold && !showSettled && foldLine}
-        </div>
-      )}
+                      <li key={r.item.id} data-row className={cn(LINE, CARD)}>
+                        <span className="col-[1/2] row-[1/5]">
+                          <PaintedCoin size={32} metal={METAL[r.item.paidBy]} seed={i + 2} />
+                        </span>
+                        <p className="col-start-2 row-start-1 text-[15px] font-medium [overflow-wrap:anywhere]">{r.item.description}</p>
+                        <p className={cn("col-start-2 row-start-2 flex min-w-0 items-center gap-1.5 text-[13px]", MUTED)}>
+                          {r.item.category && (
+                            <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: colourOf(r.item.category) }} />
+                          )}
+                          <span className="truncate">
+                            {r.item.category ?? "Uncategorized"}
+                            <span className="max-sm:hidden"> · {shortDate.format(new Date(r.date))}</span>
+                          </span>
+                        </p>
+                        {/* On a phone the day joins who paid, so the category keeps its room. */}
+                        <p className={cn(WIDE, "text-[13px]", MUTED)}>
+                          <span className="sm:hidden">{shortDate.format(new Date(r.date))} · </span>
+                          {shareLine(r.item)}
+                        </p>
+                        {/* A shared cost's arrow is what is owed for it: from the one who didn't pay. */}
+                        <Figure value={Math.abs(r.movement)} label={arrow(...flow(r.movement > 0))} strong />
+                        {details && <Standing {...standing(r.running)} />}
+                        {role === "owner" ? (
+                          <button
+                            type="button"
+                            className={cn(REMOVE, "col-start-4 row-start-1")}
+                            title="Remove from Pooleks"
+                            aria-label={`Remove ${r.item.description} from Pooleks`}
+                            data-focus-key="remove"
+                            disabled={busy.has(`unshare:${r.item.id}`)}
+                            onClick={(e) =>
+                              void oneClick(
+                                `unshare:${r.item.id}`,
+                                { type: "unshare", shareId: r.item.id },
+                                `Took ${r.item.description} off Pooleks.`,
+                                e.currentTarget
+                              )
+                            }
+                          >
+                            <XIcon aria-hidden className="size-4" />
+                          </button>
+                        ) : (
+                          <span aria-hidden className="col-start-4 row-start-1 size-8" />
+                        )}
+                      </li>
+                    )
+                  )}
+                </ul>
+              </div>
+            ))}
+            {fold && !showSettled && foldLine}
+          </section>
+        )}
       </main>
 
       <Dialog open={addOpen} onOpenChange={(o) => !o && setAddOpen(false)}>
-        <DialogContent className="sm:max-w-sm" finalFocus={addButton}>
+        <DialogContent className={dialogLook} finalFocus={addReturn} initialFocus={desc.trim() ? amountField : descField}>
           <form
             className="contents"
             onSubmit={(e) => {
@@ -599,6 +618,7 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
             <Field label="What was it">
               {(id) => (
                 <Input
+                  ref={descField}
                   id={id}
                   placeholder="e.g. Dinner at Kivi Paber Käärid"
                   name="description"
@@ -610,6 +630,7 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
             <Field label="Full amount, €">
               {(id) => (
                 <Input
+                  ref={amountField}
                   id={id}
                   placeholder="e.g. 54,00"
                   name="amount"
@@ -626,7 +647,7 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
                   name="category"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground pointer-coarse:h-11 pointer-coarse:text-base"
+                  className="h-9 rounded-md border border-input bg-accent px-3 text-sm text-foreground pointer-coarse:h-11 pointer-coarse:text-base"
                 >
                   <option value="">None</option>
                   {(view?.categories ?? []).map((c) => (
@@ -660,7 +681,7 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
       </Dialog>
 
       <Dialog open={settleOpen} onOpenChange={(o) => !o && setSettleOpen(false)}>
-        <DialogContent className="sm:max-w-sm" finalFocus={settleButton}>
+        <DialogContent className={dialogLook} finalFocus={settleButton}>
           <form
             className="contents"
             onSubmit={(e) => {
@@ -720,43 +741,85 @@ export function Pooleks({ role, initial }: { role: Person; initial: SharedView }
         </DialogContent>
       </Dialog>
     </div>
+    {/* On a phone an expense starts the way a message does: say what it was, then the rest. */}
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        openAdd(composer.current);
+      }}
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-[#16171C]/10 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:hidden dark:border-white/10 dark:bg-[#0F1015]"
+    >
+      <div className="mx-auto flex max-w-md items-center gap-2 rounded-full bg-[#F4F5F7] py-1.5 pl-4 pr-1.5 focus-within:ring-2 focus-within:ring-[#16171C]/25 dark:bg-[#23252E] dark:focus-within:ring-white/30">
+        <input
+          ref={composer}
+          name="composer"
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+          placeholder="Add something you paid for…"
+          aria-label="Add something you paid for"
+          enterKeyHint="next"
+          className="h-9 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-[#63666F] dark:placeholder:text-[#A7A9B4]"
+        />
+        <button type="submit" aria-label="Add expense" className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", INK, FOCUS)}>
+          <PlusIcon aria-hidden className="size-5" />
+        </button>
+      </div>
+    </form>
+    {/* Notices sit above the message box. */}
+    <style>{`@media (max-width: 639px) { :root { --bottom-bar: 4.25rem; } }`}</style>
+    </div>
     </MotionConfig>
   );
 }
 
-// A line's figure: the amount, positive, and under it which way it goes.
-// The full sentence is what a screen reader hears.
-function Amount({
-  value,
-  label,
-  strong,
-  children,
-}: {
-  value: number;
-  label: React.ReactNode;
-  strong?: boolean;
-  children?: React.ReactNode;
-}) {
+// A loose pile, as on the board's tray: coins at fixed spots, a few degrees each way.
+const PILE = [
+  [0, 22, -8],
+  [30, 26, 7],
+  [14, 4, -3],
+  [46, 6, 10],
+  [60, 28, -5],
+] as const;
+
+// What one of you has paid, as a pile and in words. The pile only decorates the
+// amount: its coins follow the larger of the two, never stand in for the figure.
+function Payer({ label, amount, coins, metal }: { label: string; amount: number; coins: number; metal: "copper" | "brass" }) {
   return (
-    <span className="min-w-0 text-right">
-      <span className={cn("block font-mono text-sm tabular-nums text-foreground", strong && "font-medium")}>
-        {eur.format(value)}
-      </span>
-      <span className="block truncate text-xs not-italic text-muted-foreground">{label}</span>
-      {children}
-    </span>
+    <div className="flex flex-col items-center text-center">
+      <div aria-hidden className="relative h-[84px] w-[104px]">
+        {PILE.slice(0, coins).map(([x, y, r], i) => (
+          <span key={i} className="absolute" style={{ left: x, top: y + 12, rotate: `${r}deg` }}>
+            <PaintedCoin size={40} metal={metal} seed={i + (metal === "brass" ? 7 : 2)} />
+          </span>
+        ))}
+      </div>
+      <p className={cn("text-[13px]", MUTED)}>{label}</p>
+      <p className={cn(DISPLAY, "text-[20px] font-semibold tabular-nums")}>{eur.format(amount)}</p>
+    </div>
   );
 }
 
-// Where the tab stands after a line, in words from the reader's side.
-function Standing({ words, amount, className }: { words: string; amount: number | null; className?: string }) {
+// A line's figure: the amount, positive, beside the name, and under it which way it goes.
+// The full sentence is what a screen reader hears.
+function Figure({ value, label, strong }: { value: number; label: React.ReactNode; strong?: boolean }) {
   return (
-    <span className={cn("text-right text-xs text-muted-foreground", className)}>
+    <>
+      <span className={cn("col-start-3 row-start-1 text-right text-[15px] tabular-nums", strong && "font-medium")}>{eur.format(value)}</span>
+      <span className={cn("col-start-3 row-start-2 whitespace-nowrap text-right text-[13px]", MUTED)}>{label}</span>
+    </>
+  );
+}
+
+// Where the tab stands after a line, in words from the reader's side: under who paid
+// on a phone, beside it from 640px.
+function Standing({ words, amount }: { words: string; amount: number | null }) {
+  return (
+    <span className={cn("col-[2/4] row-start-4 text-right text-[12px] sm:col-[3/4] sm:row-start-3", MUTED)}>
       {amount === null ? (
         words
       ) : (
         <>
-          {words} <span className="font-mono tabular-nums text-foreground">{eur.format(amount)}</span>
+          {words} <span className={cn("tabular-nums", INK_TEXT)}>{eur.format(amount)}</span>
         </>
       )}
     </span>
@@ -776,22 +839,19 @@ function MonthNet({
   const r = Math.round(net * 100) / 100;
   const [from, to] = flow(r > 0);
   return (
-    // Same order as a line's figure: the amount, then which way it goes.
-    <span className="text-right text-xs text-muted-foreground" title="What this month did to the balance">
+    <span className={cn("text-right text-[13px]", MUTED)} title="What this month did to the balance">
       {r === 0 ? (
         "evens out"
       ) : (
         <>
-          <span className="block font-mono tabular-nums">{eur.format(Math.abs(r))}</span>
-          <span className="block truncate">{arrow(from, to)}</span>
+          {arrow(from, to)} <span className="tabular-nums">{eur.format(Math.abs(r))}</span>
         </>
       )}
     </span>
   );
 }
 
-// Who to whom, with the arrow drawn: the arrow character is not in Geist and
-// would fall back to another face. A screen reader hears "Partner to you".
+// Who to whom, with the arrow drawn. A screen reader hears "Partner to you".
 function Flow({ from, to }: { from: string; to: string }) {
   return (
     <>

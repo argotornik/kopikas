@@ -150,7 +150,7 @@ Kopikas is a household's statement drawn as a picture book. Every page is painte
 
 The mood is warm, playful and tidy. Warm comes from Oat Paper, copper and the painted wrapper colours. Playful comes from the cast, the coin rolls and the loose coins, who blink, gulp and hop; every step is still said in plain, progress-first words for screen readers. Tidy is the point of the product: filing a coin into its roll is a small satisfying act, and the layout stays orderly so the fun never gets in the way of reading the month. Density is relaxed on the stage and plain in the lists.
 
-The board at `/` is the coin tray: every charge is a coin, every category a roll with a face, the month a row of rolls on one shared scale. It replaced the older board and its finance-dashboard vocabulary of stat cards, sparklines and grey cards on 2026-10-17, and refuses the cold bank register. Pooleks, Settings, the first run and sign-in still wear the older look until they get their own pass. A goofy alternative look (googly eyes, tongues, a boiling line) survives only on the prototype at `/coins/sketch`; it was judged too goofy and is not to be extended.
+The board at `/` is the coin tray: every charge is a coin, every category a roll with a face, the month a row of rolls on one shared scale. It replaced the older board and its finance-dashboard vocabulary of stat cards, sparklines and grey cards on 2026-10-17, and refuses the cold bank register. Settings, the first run and sign-in still wear the older look until they get their own pass. A goofy alternative look (googly eyes, tongues, a boiling line) survives only on the prototype at `/coins/sketch`; it was judged too goofy and is not to be extended.
 
 **Key Characteristics:**
 - Painted characters with vector-smooth, gently wobbled edges; faces of two dots and a curve.
@@ -283,6 +283,12 @@ The phone's To file tab: the backlog as a queue.
 - **Shape:** an Oat Paper panel: "N to file" (and "N skipped"), one big painted coin with the merchant in Fredoka 20, the amount and day under it, then Skip and "Split with {partner}" as white pills, then "Where does it go?" over a two-column grid of white tiles, one per category, each with its wrapper chip, its name (two lines at most, never cut) and what it holds in the coin's month.
 - **Behaviour:** a tile files the coin with the usual notice (Always, Undo) and the next coin drops in; Skip sends a coin to the back; an empty queue says "All filed" and leads to the month. Skip and Split stay put from coin to coin, above the fold.
 
+### Pooleks
+The shared statement: one page for both, the labels flipped by who reads it.
+- **Head:** an Oat Paper panel: the lines since the last repayment, who owes whom in Fredoka, the amount in Display, then Settle up (Ink) and Add expense (white; on a phone, the message box instead). Beside it from 1024px, above it below that, what each has paid since the repayment as two loose piles: the owner's coins copper and the partner's brass, whoever is reading. The piles follow the larger amount and only decorate it; the figures are written under them.
+- **Statement:** month by month, newest first. Each line is a white row with its payer's coin, the name beside the amount, the category and day beside which way it goes, and who paid and whose part under both (with the day, on a phone). Details adds what was spent together that month and the balance after each line. Everything before the last repayment folds into one dashed line that opens.
+- **Message box (phone):** a Mist pill fixed at the foot of the screen, "Add something you paid for…": say what it was, and the add dialog opens with it filled in, on the amount.
+
 ### Kopikas and the Speech Bubble (off the stage)
 Taken off the painted stage on 2026-10-15, with his bubble: the stage reads better with the rolls and the loose coins as the only characters. The coin beside the wordmark stays. His eight poses, their Lottie file and the bubble remain in the code (the goofy look on `/coins/sketch` still shows them, and `/coins/kopikas` shows the poses) and are not to be put back on the painted stage without a new decision.
 - **Voice, kept for screen readers:** progress first, never shaming ("Hi! 2 coins to sort in September.", "In it goes!", "All sorted! Every coin is in its roll."), announced politely after every step.
@@ -310,7 +316,7 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 - **Skip link:** "Skip to the charges", an Ink pill top left on the first Tab, past the rolls and the cards to the list; on a phone it opens the Month tab first.
 
 ### Header
-- **Contents:** the coin and the wordmark, with when the last sync was under it in Muted at 13px; Pooleks and Settings as links (icons on a phone) and the theme toggle on the right.
+- **Contents:** the coin and the wordmark, with when the last sync was under it in Muted at 13px on the board; the other pages as links on the right (icons on a phone), Pooleks and Settings from the board, Board and Settings from Pooleks, none for the partner; and the theme toggle.
 - **Late sync:** more than a day and two hours without one, the line becomes "Last synced 3 days ago. Check the connection" in Ink with a small sun-yellow dot, and leads to Settings; on a phone it takes its own line under the header.
 
 ### Motion

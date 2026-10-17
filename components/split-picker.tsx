@@ -3,9 +3,8 @@
 import { useId } from "react";
 import { cn, shareLabel } from "@/lib/utils";
 
-// The partner's part of a shared expense: one of three. Used by the Pooleks
-// zone on the board, the share prompt, and the add dialog on Pooleks, so the
-// three read and behave the same.
+// The partner's part of a shared expense: one of three, the same in a charge's menu on
+// the board and in the add dialog on Pooleks.
 export const SPLITS = [0.5, 1 / 3, 0.25];
 
 export function SplitPicker({
@@ -33,8 +32,8 @@ export function SplitPicker({
               aria-pressed={on}
               onClick={() => onChange(f)}
               className={cn(
-                "min-w-8 rounded-md border border-transparent px-2 py-0.5 font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11 pointer-coarse:min-w-11",
-                on ? "border-shared/40 bg-shared/15 font-semibold text-shared" : "hover:bg-accent hover:text-foreground"
+                "min-h-8 min-w-10 rounded-full px-2.5 text-[13px] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:min-h-11 pointer-coarse:min-w-11",
+                on ? "bg-primary font-medium text-primary-foreground" : "hover:bg-accent hover:text-foreground"
               )}
             >
               {shareLabel(f)}

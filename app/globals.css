@@ -156,6 +156,23 @@
     --attention-ink: oklch(0.8 0.16 60);
 }
 
+/* The new look's display face, and its panels: dialogs and editors re-tint the theme's
+   variables inside `.coins-panel` to Oat Paper, generous corners, Rubik and Fredoka,
+   Ink for the action. */
+.coins-display { font-family: var(--font-coins-display), ui-rounded, system-ui, sans-serif; }
+.coins-panel { --popover: #EFEBE3; --popover-foreground: #16171C; --background: #EFEBE3; --foreground: #16171C;
+  --muted: #F4F5F7; --muted-foreground: #63666F; --accent: #FFFFFF; --accent-foreground: #16171C;
+  --border: rgb(22 23 28 / 0.12); --input: rgb(22 23 28 / 0.2); --ring: #16171C;
+  --primary: #16171C; --primary-foreground: #FFFFFF; --primary-ink: #16171C; --radius: 1.25rem;
+  --font-heading-var: var(--font-coins-display); }
+.dark .coins-panel { --popover: #1F1D22; --popover-foreground: #F3F2EE; --background: #1F1D22; --foreground: #F3F2EE;
+  --muted: #191B22; --muted-foreground: #A7A9B4; --accent: #23252E; --accent-foreground: #F3F2EE;
+  --border: rgb(255 255 255 / 0.12); --input: rgb(255 255 255 / 0.22); --ring: #F3F2EE;
+  --primary: #F3F2EE; --primary-foreground: #16171C; --primary-ink: #F3F2EE; }
+.coins-panel [data-slot="input"] { background-color: var(--accent); }
+.coins-panel .font-mono { font-family: inherit; font-variant-numeric: tabular-nums; }
+.coins-panel [data-slot="dialog-footer"] { margin: 0 -1.5rem -1.5rem; padding: 0.5rem 1.5rem 1.5rem; background: transparent; border-top: 0; }
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

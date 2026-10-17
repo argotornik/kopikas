@@ -872,7 +872,6 @@ export function CoinStage({
     <>
       <PaintedDefs />
       <style>{`
-        .coins-display { font-family: var(--font-coins-display), ui-rounded, system-ui, sans-serif; }
         @keyframes coins-float { from { transform: translateY(-7px) rotate(-7deg); } to { transform: translateY(7px) rotate(7deg); } }
         .coins-float { animation: coins-float ease-in-out infinite alternate; }
         @media (prefers-reduced-motion: reduce) { .coins-float { animation: none; } }
