@@ -9,7 +9,8 @@ import { runSync } from "@/lib/sync-report";
 import { cn } from "@/lib/utils";
 import { TokenField } from "@/components/token-field";
 import { CoinMark } from "@/components/coin-mark";
-import { Button } from "@/components/ui/button";
+import { FOCUS, MUTED } from "@/components/coin-stage";
+import { CARD, PILL, WHITE } from "@/components/coin-look";
 
 type Phase =
   | { step: "idle" }
@@ -92,7 +93,7 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
         busyLabel="Connecting…"
         describedBy="connect-status"
       />
-      <p id="connect-status" className="min-h-4 text-sm text-muted-foreground" aria-live="polite">
+      <p id="connect-status" className={cn("min-h-5 text-[13px]", MUTED)} aria-live="polite">
         <AnimatePresence mode="wait" initial={false}>
           {status && (
             <motion.span
@@ -103,29 +104,29 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
               transition={{ duration: 0.18, ease: "easeOut" }}
               className={cn(
                 "flex items-center gap-2",
-                // The board's amber marks it as the thing to deal with; the
-                // words stay at full contrast on the tint.
-                status.failed && "items-start rounded-md bg-attention/15 px-2.5 py-1.5 text-foreground"
+                // Sun yellow marks it as the thing to deal with; the words stay
+                // at full contrast on the tint.
+                status.failed && "items-start rounded-2xl bg-[#FFB020]/15 px-3 py-2 text-[#16171C] dark:text-[#F3F2EE]"
               )}
             >
               {busy && <CoinMark turning className="size-4" />}
-              {status.failed && <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-attention" />}
+              {status.failed && <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-[#B07A12] dark:text-[#FFB020]" />}
               <span>{status.text}</span>
             </motion.span>
           )}
         </AnimatePresence>
       </p>
       {phase.step === "failed" && phase.detail && (
-        <details className="text-xs text-muted-foreground">
-          <summary className="cursor-pointer select-none hover:text-foreground pointer-coarse:py-3">Technical details</summary>
-          <pre className="mt-1.5 overflow-x-auto rounded-md bg-muted p-3 font-mono">{phase.detail}</pre>
+        <details className={cn("text-[13px]", MUTED)}>
+          <summary className={cn("w-fit cursor-pointer select-none rounded-full hover:underline pointer-coarse:py-3", FOCUS)}>Technical details</summary>
+          <pre className={cn("mt-1.5 overflow-x-auto whitespace-pre-wrap rounded-2xl p-3 text-[12px]", CARD)}>{phase.detail}</pre>
         </details>
       )}
       {stored && !busy && (
         <div>
-          <Button variant="outline" onClick={() => void sync()}>
+          <button type="button" onClick={() => void sync()} className={cn(PILL, WHITE, FOCUS)}>
             {phase.step === "failed" || phase.step === "empty" ? "Try the sync again" : "Run the first sync"}
-          </Button>
+          </button>
         </div>
       )}
     </div>

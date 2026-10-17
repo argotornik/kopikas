@@ -150,7 +150,7 @@ Kopikas is a household's statement drawn as a picture book. Every page is painte
 
 The mood is warm, playful and tidy. Warm comes from Oat Paper, copper and the painted wrapper colours. Playful comes from the cast, the coin rolls and the loose coins, who blink, gulp and hop; every step is still said in plain, progress-first words for screen readers. Tidy is the point of the product: filing a coin into its roll is a small satisfying act, and the layout stays orderly so the fun never gets in the way of reading the month. Density is relaxed on the stage and plain in the lists.
 
-The board at `/` is the coin tray: every charge is a coin, every category a roll with a face, the month a row of rolls on one shared scale. It replaced the older board and its finance-dashboard vocabulary of stat cards, sparklines and grey cards on 2026-10-17, and refuses the cold bank register. The first run and sign-in still wear the older look until they get their own pass. A goofy alternative look (googly eyes, tongues, a boiling line) survives only on the prototype at `/coins/sketch`; it was judged too goofy and is not to be extended.
+The board at `/` is the coin tray: every charge is a coin, every category a roll with a face, the month a row of rolls on one shared scale. It replaced the older board and its finance-dashboard vocabulary of stat cards, sparklines and grey cards on 2026-10-17, and refuses the cold bank register. Sign-in still wears the older look until it gets its own pass. A goofy alternative look (googly eyes, tongues, a boiling line) survives only on the prototype at `/coins/sketch`; it was judged too goofy and is not to be extended.
 
 **Key Characteristics:**
 - Painted characters with vector-smooth, gently wobbled edges; faces of two dots and a curve.
@@ -288,6 +288,12 @@ The shared statement: one page for both, the labels flipped by who reads it.
 - **Head:** an Oat Paper panel: the lines since the last repayment, who owes whom in Fredoka, the amount in Display, then Settle up (Ink) and Add expense (white; on a phone, the message box instead). Beside it from 1024px, above it below that, what each has paid since the repayment as two loose piles: the owner's coins copper and the partner's brass, whoever is reading. The piles follow the larger amount and only decorate it; the figures are written under them.
 - **Statement:** month by month, newest first. Each line is a white row with its payer's coin, the name beside the amount, the category and day beside which way it goes, and who paid and whose part under both (with the day, on a phone). Details adds what was spent together that month and the balance after each line. Everything before the last repayment folds into one dashed line that opens.
 - **Message box (phone):** a Mist pill fixed at the foot of the screen, "Add something you paid for…": say what it was, and the add dialog opens with it filled in, on the amount.
+
+### First Run
+A fresh deployment's board, waiting: an empty board is not a quiet month.
+- **Shape:** the tray itself. Its head says "Before your first month", then "Connect your LHV account" in Fredoka, a line on what happens, the two steps in Ink discs, the token field (a white pill with its own border, and an Ink Connect pill) and the read-only note with a lock. Below, every category but Savings asleep on the floor in its colour at 0,00 €, in rows that balance (one from 1024px, two halves below that); on a phone they sleep in one "Nothing yet" list. Connecting opens the board with those rolls growing.
+- **States:** the line under the field says where the connection is (checking with LHV, fetching, opening the board), a failure in a sun-yellow tint with its technical details folded beneath, and a token stored without a sync offers to run it.
+- **Before it:** "Who owns this board?" and "Not on this board" wear the same frame, without the floor.
 
 ### Settings
 The bank connection and what the board has been taught.

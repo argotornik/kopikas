@@ -21,12 +21,20 @@ export default async function Home({
     // Signed in, but not the owner. On a deployment with no owner configured
     // that is the owner-to-be looking at their own fresh install.
     const email = await currentEmail();
-    if (!ownerConfigured && email) return <SetupOwner email={email} />;
-    return <NotOnBoard email={email} />;
+    if (!ownerConfigured && email) return <SetupOwner email={email} fontClass={coinFonts} />;
+    return <NotOnBoard email={email} fontClass={coinFonts} />;
   }
   const [db, { accounts, fetchedAt }, view, tokens] = await Promise.all([readDb(), getAccounts(), searchParams, getLhvTokens()]);
   // Nothing synced yet: a fresh deployment, with or without a stored token. Walk them in.
-  if (db.transactions.length === 0) return <FirstRun hasToken={!!tokens} encrypted={!!process.env.DATABASE_URL} />;
+  if (db.transactions.length === 0)
+    return (
+      <FirstRun
+        hasToken={!!tokens}
+        encrypted={!!process.env.DATABASE_URL}
+        categories={db.categories.map((c) => c.name)}
+        fontClass={coinFonts}
+      />
+    );
   return (
     <CoinBoard
       initial={buildBoard(db, new Date(), accounts)}

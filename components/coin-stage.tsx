@@ -67,7 +67,7 @@ const SPRING = { type: "spring" as const, stiffness: 260, damping: 18 };
 // line: a soft hyphen, so the break is the same in every browser. Other names rely on
 // the browser's own hyphenation, and past that break anywhere rather than overflow.
 const HYPHENATED: Record<string, string> = { Subscriptions: "Sub­scrip­tions" };
-const breakable = (name: string) => HYPHENATED[name] ?? name;
+export const breakable = (name: string) => HYPHENATED[name] ?? name;
 
 export const monthOf = (date: string) => date.slice(0, 7);
 export const shiftMonth = (m: string, by: number) => {

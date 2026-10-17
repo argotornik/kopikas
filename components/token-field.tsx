@@ -1,13 +1,14 @@
 "use client";
 
 import { Field, Pending } from "@/components/form-status";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FOCUS } from "@/components/coin-stage";
+import { INK, PILL } from "@/components/coin-look";
+import { cn } from "@/lib/utils";
 
-// Pasting an LHV refresh token: the one field first run and Settings share.
-// A form, so Enter submits; the button turns the coin while LHV is asked.
-// What happens after a submit (open the board, or show a status) is the
-// caller's.
+// Pasting an LHV refresh token: the one field first run and Settings share, in the
+// new look's white pill with an Ink button. A form, so Enter submits; the button turns
+// the coin while LHV is asked. What happens after a submit (open the board, or show a
+// status) is the caller's.
 export function TokenField({
   value,
   onChange,
@@ -27,7 +28,7 @@ export function TokenField({
 }) {
   return (
     <form
-      className="flex items-end gap-2"
+      className="flex flex-col gap-2 sm:flex-row sm:items-end"
       onSubmit={(e) => {
         e.preventDefault();
         if (!busy) onSubmit();
@@ -36,7 +37,7 @@ export function TokenField({
       <div className="min-w-0 flex-1">
         <Field label="Refresh token">
           {(id) => (
-            <Input
+            <input
               id={id}
               type="password"
               name="lhv-refresh-token"
@@ -46,13 +47,18 @@ export function TokenField({
               value={value}
               disabled={busy}
               onChange={(e) => onChange(e.target.value)}
+              className={cn(
+                // A border of its own, so it shows on Oat (first run) and on white (Settings) alike.
+                "h-12 w-full rounded-full border-2 border-[#16171C]/15 bg-white px-4 text-[16px] text-[#16171C] focus:border-[#16171C]/35 disabled:opacity-60 dark:border-white/15 dark:bg-[#23252E] dark:text-[#F3F2EE] dark:focus:border-white/35",
+                FOCUS
+              )}
             />
           )}
         </Field>
       </div>
-      <Button type="submit" disabled={busy || !value.trim()}>
+      <button type="submit" disabled={busy || !value.trim()} className={cn(PILL, INK, "inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap px-6", FOCUS)}>
         <Pending on={busy}>{busy ? busyLabel : label}</Pending>
-      </Button>
+      </button>
     </form>
   );
 }
