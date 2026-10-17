@@ -46,7 +46,7 @@ On a phone the board is one column. The stat tiles become a row you swipe, a bar
 
 ## How it is built
 
-Next.js 16 on the App Router, React 19, TypeScript, Tailwind v4, shadcn/ui on Base UI. Drag and drop is dnd-kit, for the mouse; the keyboard and touch file through a Base UI menu and a sheet. The ledger's enter and exit animation is Motion, one flat presence for headers and rows alike. Rows are memoised and compare the fields they show, so a thousand of them only redraw when they change, and an action's reply carries the fresh board, so a change is one request. Charts are recharts. Sign-in is Clerk. Production runs on Vercel with Postgres on Neon.
+Next.js 16 on the App Router, React 19, TypeScript, Tailwind v4, shadcn/ui on Base UI. Drag and drop is dnd-kit, for the mouse; the keyboard and touch file through a Base UI menu and a sheet. The ledger's enter and exit animation is Motion, one flat presence for headers and rows alike. Rows are memoised and compare the fields they show, so a thousand of them only redraw when they change, and an action's reply carries the fresh board, so a change is one request. Sign-in is Clerk. Production runs on Vercel with Postgres on Neon.
 
 One storage module, `lib/storage.ts`, hides two adapters behind the same interface. With `DATABASE_URL` set it talks to Postgres and creates or updates its own tables on first start; without it, each collection is a JSON file under `data/`. The JSON adapter seeds mock data into an empty folder, so `npm run dev` with no configuration at all gives you a working board with invented merchants and amounts. That is how the screenshots were made. Production starts empty and asks you to connect LHV. `data/` is gitignored, so nothing real can end up in the repo by accident.
 

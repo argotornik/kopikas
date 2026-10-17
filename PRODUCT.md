@@ -49,7 +49,7 @@ Constraints:
 
 - Only LHV is supported. Another bank means implementing its two fetch functions.
 - Two sign-in roles (owner, partner) and the two investment pots are hard-coded to one household and set through environment variables.
-- Stack: Next.js 16 (App Router), React 19, Tailwind v4, shadcn/ui on Base UI, dnd-kit, Motion, recharts, Clerk; Postgres on Neon in production, JSON files with mock data locally.
+- Stack: Next.js 16 (App Router), React 19, Tailwind v4, shadcn/ui on Base UI, dnd-kit, Motion, Clerk; Postgres on Neon in production, JSON files with mock data locally.
 
 Open decisions:
 

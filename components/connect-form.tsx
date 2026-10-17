@@ -42,8 +42,8 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
     const rows = outcome.rows;
     if (rows === 0) return setPhase({ step: "empty" });
     setPhase({ step: "opening", rows });
-    // The board opens on its first fill: the feed cascades in once.
-    router.replace("/?welcome=1");
+    // The board opens, its rolls growing in as it loads.
+    router.replace("/");
   };
 
   const connect = async () => {

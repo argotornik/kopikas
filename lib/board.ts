@@ -1,6 +1,5 @@
 import type { Db } from "./types";
 import {
-  SAVINGS,
   partnerShareOf,
   balance,
   categoryOf,
@@ -8,27 +7,12 @@ import {
   matches,
   monthKey,
   monthlyBurn,
-  monthlySpend,
   shareAmount,
   subscriptionStatus,
 } from "./engine";
 import { MOCK_BALANCES } from "./seed";
 import { guessDomain, merchantOf, rulePattern, subscriptionLabel } from "./icons";
 import { merchantFromDescription, type LhvAccount } from "./lhv";
-import type { Tx } from "./types";
-
-export interface Spark {
-  points: number[];
-  tone: "green" | "red" | "neutral";
-}
-
-const DAY = 86400000;
-
-// last===first → neutral; otherwise green when it moved in the good direction.
-function sparkTone(first: number, last: number, upIsGood = true): Spark["tone"] {
-  if (last === first) return "neutral";
-  return last > first === upIsGood ? "green" : "red";
-}
 
 export interface BoardTx {
   id: string;
@@ -55,18 +39,6 @@ export interface BoardTx {
   // Set-and-forget noise (LHV micro-investing round-ups): collapsed into a
   // per-day rollup line in the feed. Math still counts the underlying rows.
   micro: boolean;
-}
-
-// Reconstruct a 30-day balance line for one account: today's known balance
-// minus everything on that IBAN dated after each day.
-function balanceSpark(txs: Tx[], iban: string, currentBalance: number, today: Date): Spark {
-  const points: number[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(today.getTime() - i * DAY).toISOString().slice(0, 10);
-    const after = txs.filter((t) => t.iban === iban && t.date > d).reduce((s, t) => s + t.amount, 0);
-    points.push(Math.round((currentBalance - after) * 100) / 100);
-  }
-  return { points, tone: sparkTone(points[0], points[points.length - 1]) };
 }
 
 export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[] = []) {
@@ -151,8 +123,6 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     }))
     .sort((a, b) => b.date.localeCompare(a.date));
 
-  const todayStr = today.toISOString().slice(0, 10);
-
   // Real LHV accounts when the sync has run; the two mock pseudo-accounts otherwise.
   // Kasvukonto (LHV's growth account) is the micro-investing pot: round-ups
   // land there and are invested straight out, so its balance says nothing —
@@ -168,7 +138,6 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     name: lhvAccounts.length > 0 ? `LHV · ${a.name}` : a.name,
     iban: a.iban,
     balance: a.balance,
-    spark: balanceSpark(db.transactions, a.iban, a.balance, today),
   }));
 
   // Investments: two manually snapshotted pots. The series carries each pot's
@@ -193,48 +162,12 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
       total: Math.round(((carryLy ?? 0) + (carryLhv ?? 0)) * 100) / 100,
     });
   }
-  const investmentPoints = investmentSeries.map((p) => p.total);
-
-  // Cumulative spend (the owner's share, savings excluded) per day of the month.
-  const spentPoints: number[] = [];
-  for (let d = new Date(month + "-01T00:00:00Z"); d.toISOString().slice(0, 10) <= todayStr; d = new Date(d.getTime() + DAY)) {
-    const day = d.toISOString().slice(0, 10);
-    let total = 0;
-    for (const tx of db.transactions) {
-      if (monthKey(tx.date) !== month || tx.date > day || tx.amount >= 0) continue;
-      if (categoryOf(tx, db.rules, db.overrides) === SAVINGS) continue;
-      const share = shareByTx.get(tx.id);
-      total += Math.abs(tx.amount) * (share ? 1 - partnerShareOf(share) : 1);
-    }
-    for (const s of db.shares) {
-      if (s.manual && s.paidBy === "partner" && monthKey(s.manual.date) === month && s.manual.date <= day) {
-        total += s.manual.amount * (1 - partnerShareOf(s));
-      }
-    }
-    spentPoints.push(Math.round(total * 100) / 100);
-  }
-
-  const spentNow = monthlySpend(db, month);
-  const spentPrev = monthlySpend(db, prevMonth(month));
-
-  const sparks: Record<"investments" | "spent", Spark> = {
-    investments: {
-      points: investmentPoints,
-      tone:
-        investmentPoints.length > 1
-          ? sparkTone(investmentPoints[investmentPoints.length - 2], investmentPoints[investmentPoints.length - 1])
-          : "neutral",
-    },
-    // Spending up vs last month is the bad direction.
-    spent: { points: spentPoints, tone: sparkTone(spentPrev, spentNow, false) },
-  };
 
   const bal = balance(db.shares, db.settlements, db.transactions);
 
   return {
     month,
     txs,
-    sparks,
     categories: db.categories.map((c) => ({
       name: c.name,
       budget: c.budget ?? null,
@@ -247,27 +180,12 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
     settlements: db.settlements,
     subscriptions: subStatuses,
     monthlyBurn: monthlyBurn(subStatuses),
-    subsPaidThisMonth:
-      Math.round(
-        subStatuses
-          .filter((s) => s.sub.active && s.lastCharge && s.lastCharge.date.slice(0, 7) === month)
-          .reduce((sum, s) => sum + (s.lastCharge?.amount ?? 0), 0) * 100
-      ) / 100,
     investments: {
       total: investmentSeries.at(-1)?.total ?? null,
       latest: latestBySource,
-      series: investmentSeries,
     },
-    spentThisMonth: spentNow,
-    spentLastMonth: spentPrev,
     accounts,
   };
-}
-
-function prevMonth(month: string): string {
-  const [y, m] = month.split("-").map(Number);
-  const d = new Date(Date.UTC(y, m - 2, 1));
-  return d.toISOString().slice(0, 7);
 }
 
 export type Board = ReturnType<typeof buildBoard>;

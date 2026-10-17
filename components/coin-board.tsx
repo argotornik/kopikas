@@ -20,9 +20,8 @@ import { MerchantIcon } from "@/components/merchant-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn, shareLabel } from "@/lib/utils";
 
-// The new board, growing at /coins until it can take over from the one at /: the
-// coin tray on top, the charges below. The old board's features come over one by
-// one, in the new look, on the same server actions.
+// The board: the coin tray on top, the charges below, and on a phone the backlog one
+// coin at a time.
 
 const OAT = "bg-[#EFEBE3] dark:bg-[#1F1D22]";
 // The list's view of money that came in, beside the categories a roll can pick.

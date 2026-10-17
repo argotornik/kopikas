@@ -150,7 +150,7 @@ Kopikas is a household's statement drawn as a picture book. Every page is painte
 
 The mood is warm, playful and tidy. Warm comes from Oat Paper, copper and the painted wrapper colours. Playful comes from the cast, the coin rolls and the loose coins, who blink, gulp and hop; every step is still said in plain, progress-first words for screen readers. Tidy is the point of the product: filing a coin into its roll is a small satisfying act, and the layout stays orderly so the fun never gets in the way of reading the month. Density is relaxed on the stage and plain in the lists.
 
-The world is built on the board's coin tray (`/coins`): every charge is a coin, every category a roll with a face, the month a row of rolls on one shared scale. It replaces the current board at `/` and its finance-dashboard vocabulary of stat cards, sparklines and grey cards, and refuses the cold bank register. A goofy alternative look (googly eyes, tongues, a boiling line) still sits one click away on the prototype; it was judged too goofy and is not to be extended.
+The board at `/` is the coin tray: every charge is a coin, every category a roll with a face, the month a row of rolls on one shared scale. It replaced the older board and its finance-dashboard vocabulary of stat cards, sparklines and grey cards on 2026-10-17, and refuses the cold bank register. Pooleks, Settings, the first run and sign-in still wear the older look until they get their own pass. A goofy alternative look (googly eyes, tongues, a boiling line) survives only on the prototype at `/coins/sketch`; it was judged too goofy and is not to be extended.
 
 **Key Characteristics:**
 - Painted characters with vector-smooth, gently wobbled edges; faces of two dots and a curve.
@@ -214,9 +214,11 @@ A white page, a warm oat stage, copper as the house colour, Crayon Blue for ever
 
 One centred column, 1200px wide at most, with 20px side padding on a phone and 24px from 640px up.
 
-The board opens on the **stage**: a full-width Oat Paper panel in two bands. The head holds the month's name with a stepper and the total on the left, and the loose-change pile with its count on the right: you pick a coin up there and drop it on a roll below. The stage has no narrator. The floor below takes the panel's full width, its tallest roll standing 280px while every roll fits in one row. On desktop, a few squiggles and dots float around the loose change, away from every number and from every spot a coin can take: never a dash, which on the stage means a limit, and never a coin, which would read as one more to file. Below the stage, on one grid with a 32px gap, the ledger by day fills the left and the to-file queue a 380px column on the right from 1024px up.
+The board opens on the **stage**: a full-width Oat Paper panel in two bands. The head holds the month's name with a stepper, the total, last month's total and one muted line of figures on the left (Received, your share in a month with splits, the account balances and Investments, marked "Today:" in past months), and the loose-change pile with its count on the right: you pick a coin up there and drop it on a roll below. The stage has no narrator. The floor below takes the panel's full width, its tallest roll standing 280px while every roll fits in one row, with "Edit categories" under it. On desktop, a few squiggles and dots float around the loose change, away from every number and from every spot a coin can take: never a dash, which on the stage means a limit, and never a coin, which would read as one more to file. Nothing floats up by the month. Below the stage, on one grid with a 32px gap, "Every charge" fills the left and a 380px column on the right holds Pooleks and Subscriptions from 1024px up. Below 1024px the column's cards sit above the list, led from 640px by a To file card of the month's loose change as rows.
 
-On a phone (639px and below) the stage reflows instead of shrinking. The rolls lie down as horizontal bars in one list, each with its name and amount above it, and the categories with nothing filed yet gather in one "Nothing yet" line after the list; the loose change sits in one row between the total and the list. The phone's job is the to-file queue.
+The stage shows one month at a time: its pile holds that month's loose change, and a line under it leads to other months with coins waiting. A month, a chosen roll and a search live in the address (`?month=`, `?cat=`, `?q=`; `cat=Incoming` for money in), so a view can be linked.
+
+On a phone (639px and below) the board is two tabs in a bar at the bottom, in thumb reach: **To file**, the backlog from every month one coin at a time, and **Month**, the stage with the charges and cards below it. It opens on To file while anything waits, unless the address asks for a view of the month. On Month the stage reflows instead of shrinking. The rolls lie down as horizontal bars in one list, each with its name and amount above it, and the categories with nothing filed yet gather in one "Nothing yet" line after the list; the loose change sits in one row between the total and the list.
 
 Rolls sit in 84px columns with a 20px gap while they fit. The column narrows with the count, to 60px at the least, and past what fits in one row the floor wraps to a second shelf on the same scale; it never scrolls sideways. A floor that wraps keeps the shorter 200px stage, so its second shelf isn't mostly air. At 1440px twelve categories stand in one row of 72px columns.
 
@@ -261,16 +263,28 @@ A category as a character, at one of four stages. It grows as coins go in.
   - *Asleep:* nothing filed yet. A dashed footprint where the body would stand, in the wrapper colour deepened a third toward Ink (a quarter toward Chalk in dark), with two flat shut eyes and one small z above it in the stage's ink. Still a drop target. As a bar there is no row: the sleepers gather in one "Nothing yet" line after the list, each a 30 by 26 blob in its wrapper colour carrying the shut eyes and the z, its name beside it in Ink or Chalk.
   - *Over:* past its limit, the round "wow" mouth and the deepened overflow; a hatchling's eyes float above the whole roll, overflow included.
 - **The floor:** every category stands on it every month, in the list's order, so a roll keeps its address and a zero is seen. Roll width comes from the count, from the 84px column down to a 60px one; past what fits in one row the floor wraps to a second shelf on the same scale. It never scrolls sideways.
-- **States:** disabled until a coin is picked; while a coin is held, every roll that can take it bobs; on a drop it gulps (squashes to 0.9 and springs back) and grows to its new height. The first coin wakes a sleeper: its eyes open and a body starts under them; at the grown line the mouth arrives. With reduced motion the stages swap in place.
-- **Built state (2026-10-15):** everything above is built in the `/coins` prototype; the board at `/` is still the older design.
+- **States:** while a coin is held, every roll that can take it bobs; on a drop it gulps (squashes to 0.9 and springs back) and grows to its new height. The first coin wakes a sleeper: its eyes open and a body starts under them; at the grown line the mouth arrives. With reduced motion the stages swap in place.
+- **Choosing:** with no coin held, tapping a roll chooses it: the other rolls fade to 40%, the list shows its charges, and its year takes the figures line's place. Tapping it again, or "Show all", lets it go.
+- **Drop target:** on desktop a row of the charges list dragged onto a roll files there, the same as a coin.
 
 ### Coins
 A charge as a coin.
 - **Shape:** a painted disc in copper, brass or nickel with a face, 40px on the stage and in the pile (38px on a phone).
 - **Behaviour:** pick a coin and tap a roll; it hops along an arc into the roll. A picked coin turns and smiles. After filing on the stage, focus moves to the next loose coin, or to the month's name once the pile is empty.
 
+### The Year Strip
+A chosen roll's last twelve months, in the stage head where the figures line sits otherwise.
+- **Shape:** a bar per month, up to 440px wide in all, drawn like the rolls: the wrapper colour, wobbled edges, the part past the limit deepened, the limit one dashed line across all twelve. The month on show is at full strength, the others at 55%; the month letters run under the bars, the one on show in Ink.
+- **Words:** "{Category}, the last 12 months" in Ink at 500, then the average and the limit in Muted: the average leaves out the unfinished month and those before the charges start.
+- **Behaviour:** a bar takes the stage to its month; bars before the first charge are off. Each bar is a button at least 24px wide.
+
+### To File, One Coin at a Time (phone)
+The phone's To file tab: the backlog as a queue.
+- **Shape:** an Oat Paper panel: "N to file" (and "N skipped"), one big painted coin with the merchant in Fredoka 20, the amount and day under it, then Skip and "Split with {partner}" as white pills, then "Where does it go?" over a two-column grid of white tiles, one per category, each with its wrapper chip, its name (two lines at most, never cut) and what it holds in the coin's month.
+- **Behaviour:** a tile files the coin with the usual notice (Always, Undo) and the next coin drops in; Skip sends a coin to the back; an empty queue says "All filed" and leads to the month. Skip and Split stay put from coin to coin, above the fold.
+
 ### Kopikas and the Speech Bubble (off the stage)
-Taken off the painted stage on 2026-10-15, with his bubble: the stage reads better with the rolls and the loose coins as the only characters. The coin beside the wordmark stays. His eight poses, their Lottie file and the bubble remain in the code (the goofy look still shows them) and are not to be put back on the painted stage without a new decision.
+Taken off the painted stage on 2026-10-15, with his bubble: the stage reads better with the rolls and the loose coins as the only characters. The coin beside the wordmark stays. His eight poses, their Lottie file and the bubble remain in the code (the goofy look on `/coins/sketch` still shows them, and `/coins/kopikas` shows the poses) and are not to be put back on the painted stage without a new decision.
 - **Voice, kept for screen readers:** progress first, never shaming ("Hi! 2 coins to sort in September.", "In it goes!", "All sorted! Every coin is in its roll."), announced politely after every step.
 
 ### Buttons and Pills
@@ -284,9 +298,20 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 ### Cards
 - **Style:** Page White (card-night) on Oat Paper, 16px corners, 12px padding, no border, no shadow.
 
+### Menus
+- **Style:** a white card (card-night) with 16px corners, a 1px Ink ring at 10% and 6px padding; rows of Body type in 12px-cornered rows that fill with Mist when highlighted; groups divided by a hairline. A charge's chip opens one (its category, a split with the partner, Name and icon…); a subscription's ⋯ opens one (Name and icon…, Make yearly or monthly, Stop tracking).
+
+### Notices
+- **Style:** one line of what happened ("Filed Coop under Groceries."), with Undo, and Always where a rule can be taught. Errors say what went wrong, with a retry where one helps.
+
 ### Inputs
 - **Select pill:** Mist fill, 2px Ink border at 10% (25% on hover), full pill, 40px tall, Body type at 500.
 - **Focus:** a visible 2px Ink outline (Chalk in dark) offset by 2px on every control, following the control's own corners. In Tailwind 4 both `outline-none` and `outline-hidden` also cancel a later outline's style, so the focus state sets it back with `outline-solid`.
+- **Skip link:** "Skip to the charges", an Ink pill top left on the first Tab, past the rolls and the cards to the list; on a phone it opens the Month tab first.
+
+### Header
+- **Contents:** the coin and the wordmark, with when the last sync was under it in Muted at 13px; Pooleks and Settings as links (icons on a phone) and the theme toggle on the right.
+- **Late sync:** more than a day and two hours without one, the line becomes "Last synced 3 days ago. Check the connection" in Ink with a small sun-yellow dot, and leads to Settings; on a phone it takes its own line under the header.
 
 ### Motion
 Springs everywhere: the general one at stiffness 260 and damping 18, rolls at 200 and 20. A gulp lasts 0.6s, a hop 0.7s (easing out, then in), rolls rise over 1.1s on `cubic-bezier(0.16, 1, 0.3, 1)`, floaters drift ±7px and ±7° back and forth. With reduced motion every state stays and the movement goes.
