@@ -59,7 +59,7 @@ export function CoinSubscriptions({
         : "no charge seen yet";
 
   const row = (s: Sub, full: boolean) => (
-    <li key={s.sub.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 dark:bg-[#23252E]">
+    <li key={s.sub.id} className="flex items-center gap-3 rounded-2xl bg-white p-3 dark:bg-card-night">
       <MerchantIcon name={s.label} domain={s.domain} emoji={s.emoji} />
       <div className="min-w-0 flex-1">
         <div className="truncate text-[15px] font-medium">{s.label}</div>
@@ -75,7 +75,7 @@ export function CoinSubscriptions({
             type="button"
             onClick={() => (s.priceChanged ? onAcceptPrice(s) : onStop(s))}
             className={cn(
-              "mt-2 h-9 rounded-full bg-[#F4F5F7] px-3.5 text-[13px] font-medium hover:bg-[#E9EBEF] dark:bg-[#191B22] dark:hover:bg-[#2C2F3A]",
+              "mt-2 h-9 rounded-full bg-mist px-3.5 text-[13px] font-medium hover:bg-mist-hover dark:bg-mist-night dark:hover:bg-card-night-hover",
               FOCUS
             )}
           >
@@ -89,7 +89,7 @@ export function CoinSubscriptions({
           <Menu.Trigger
             aria-label={`${s.label}: rename, make ${other(s)} or stop tracking`}
             className={cn(
-              "-mr-1 flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-[#F4F5F7] data-popup-open:bg-[#F4F5F7] dark:hover:bg-[#2C2F3A] dark:data-popup-open:bg-[#2C2F3A]",
+              "-mr-1 flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-mist data-popup-open:bg-mist dark:hover:bg-card-night-hover dark:data-popup-open:bg-card-night-hover",
               MUTED,
               FOCUS
             )}
@@ -118,7 +118,7 @@ export function CoinSubscriptions({
   );
 
   return (
-    <section aria-labelledby="subs-heading" className={cn(PANEL, "bg-[#EFEBE3] p-5 sm:p-6 dark:bg-[#1F1D22]")}>
+    <section aria-labelledby="subs-heading" className={cn(PANEL, "bg-oat p-5 sm:p-6 dark:bg-oat-night")}>
       <h2 id="subs-heading" className={cn(DISPLAY, "flex items-baseline justify-between gap-3 text-[20px] font-semibold")}>
         Subscriptions
         {active.length > 0 && <span className={cn("font-sans text-[13px] font-normal tabular-nums", MUTED)}>{eur.format(monthly)} a month</span>}
@@ -141,7 +141,7 @@ export function CoinSubscriptions({
             aria-expanded={open}
             aria-controls="subs-all"
             onClick={() => setOpen((o) => !o)}
-            className={cn("mt-3 text-[13px] underline decoration-1 underline-offset-2 hover:text-[#16171C] dark:hover:text-white", MUTED, FOCUS)}
+            className={cn("mt-3 text-[13px] underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", MUTED, FOCUS)}
           >
             {open ? "Hide the list" : `Show all ${active.length}`}
           </button>

@@ -93,7 +93,7 @@ const WIDE = "col-[2/4] row-start-3 sm:col-[2/3]";
 // The quiet ✕ at the end of a row: always there on touch, revealed on hover
 // or keyboard focus where there is a pointer.
 const REMOVE = cn(
-  "relative -my-1 flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-[#F4F5F7] hover:text-[#16171C] disabled:opacity-40 dark:hover:bg-[#2C2F3A] dark:hover:text-white [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100 pointer-coarse:after:absolute pointer-coarse:after:-inset-1.5 pointer-coarse:after:content-['']",
+  "relative -my-1 flex size-8 shrink-0 items-center justify-center rounded-full hover:bg-mist hover:text-ink disabled:opacity-40 dark:hover:bg-card-night-hover dark:hover:text-white [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus-visible:opacity-100 pointer-coarse:after:absolute pointer-coarse:after:-inset-1.5 pointer-coarse:after:content-['']",
   MUTED,
   FOCUS
 );
@@ -278,7 +278,7 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
         onClick={() => setShowSettled((s) => !s)}
         aria-expanded={showSettled}
         className={cn(
-          "flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border-2 border-dashed border-[#16171C]/20 px-4 py-2.5 text-left text-[13px] hover:border-[#16171C]/35 dark:border-white/20 dark:hover:border-white/35",
+          "flex min-h-11 w-full items-center justify-between gap-3 rounded-2xl border-2 border-dashed border-ink/20 px-4 py-2.5 text-left text-[13px] hover:border-ink/35 dark:border-white/20 dark:hover:border-white/35",
           MUTED,
           FOCUS
         )}
@@ -743,9 +743,9 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
         e.preventDefault();
         openAdd(composer.current);
       }}
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-[#16171C]/10 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:hidden dark:border-white/10 dark:bg-[#0F1015]"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:hidden dark:border-white/10 dark:bg-night"
     >
-      <div className="mx-auto flex max-w-md items-center gap-2 rounded-full bg-[#F4F5F7] py-1.5 pl-4 pr-1.5 focus-within:ring-2 focus-within:ring-[#16171C]/25 dark:bg-[#23252E] dark:focus-within:ring-white/30">
+      <div className="mx-auto flex max-w-md items-center gap-2 rounded-full bg-mist py-1.5 pl-4 pr-1.5 focus-within:ring-2 focus-within:ring-ink/25 dark:bg-card-night dark:focus-within:ring-white/30">
         <input
           ref={composer}
           name="composer"
@@ -754,7 +754,7 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
           placeholder="Add something you paid for…"
           aria-label="Add something you paid for"
           enterKeyHint="next"
-          className="h-9 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-[#63666F] dark:placeholder:text-[#A7A9B4]"
+          className="h-9 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-text dark:placeholder:text-muted-text-night"
         />
         <button type="submit" aria-label="Add expense" className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", INK, FOCUS)}>
           <PlusIcon aria-hidden className="size-5" />

@@ -55,7 +55,7 @@ export function CoinYear({
   return (
     <div className="max-w-[440px] pt-1">
       <p className="flex flex-wrap items-baseline gap-x-2.5">
-        <span className="font-medium text-[#16171C] dark:text-[#F3F2EE]">{category}, the last 12 months</span>
+        <span className="font-medium text-ink dark:text-chalk">{category}, the last 12 months</span>
         {note && <span>{note}</span>}
       </p>
       <div className="relative mt-1.5">
@@ -86,7 +86,7 @@ export function CoinYear({
                     </g>
                   )}
                 </svg>
-                <span className={cn("mt-1 text-[12px] leading-none", shown ? "font-medium text-[#16171C] dark:text-[#F3F2EE]" : MUTED, before && "opacity-40")}>
+                <span className={cn("mt-1 text-[12px] leading-none", shown ? "font-medium text-ink dark:text-chalk" : MUTED, before && "opacity-40")}>
                   {narrowMonth.format(new Date(m + "-01T00:00:00Z"))}
                 </span>
               </button>

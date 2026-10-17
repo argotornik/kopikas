@@ -9,7 +9,7 @@ import { act } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";
 import { PaintedCoin } from "@/components/painted";
 import { CoinStage, eur, label, looseCoins, monthOf, shortDate, type CoinStageHandle } from "@/components/coin-stage";
-import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
+import { DISPLAY, FOCUS, MUTED, PAGE, PANEL } from "@/components/coin-look";
 import { CoinLedger } from "@/components/coin-ledger";
 import { CoinQueue } from "@/components/coin-queue";
 import { CoinSubscriptions } from "@/components/coin-subscriptions";
@@ -24,7 +24,7 @@ import { cn, shareLabel } from "@/lib/utils";
 // The board: the coin tray on top, the charges below, and on a phone the backlog one
 // coin at a time.
 
-const OAT = "bg-[#EFEBE3] dark:bg-[#1F1D22]";
+const OAT = "bg-oat dark:bg-oat-night";
 // The list's view of money that came in, beside the categories a roll can pick.
 const MONEY_IN = "money-in";
 // Notices sit above the phone's tab bar. The editors' new look is `.coins-panel`, in globals.css.
@@ -219,19 +219,19 @@ export function CoinBoard({
     <button
       type="button"
       onClick={() => setSnapOpen(true)}
-      className={cn("underline decoration-dotted decoration-1 underline-offset-2 hover:text-[#16171C] dark:hover:text-white", FOCUS)}
+      className={cn("underline decoration-dotted decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", FOCUS)}
     >
       {board.investments.total != null ? "Investments" : "Add investments"}
     </button>
   );
-  const amount = (v: number, tone = "text-[#16171C] dark:text-[#F3F2EE]", sign = "") => (
+  const amount = (v: number, tone = "text-ink dark:text-chalk", sign = "") => (
     <span className={cn("tabular-nums", tone)}>
       {sign}
       {eur.format(v)}
     </span>
   );
   const figureParts: React.ReactNode[] = [
-    <>Received {amount(cameIn, "text-[#0A763F] dark:text-[#4FD18B]", "+")}</>,
+    <>Received {amount(cameIn, "text-received dark:text-received-night", "+")}</>,
     ...(yourShare != null ? [<>Your share {amount(yourShare)}</>] : []),
     ...standing.map((x, i) => (
       <>
@@ -321,17 +321,14 @@ export function CoinBoard({
   // A late sync says so under the name, and leads to the connection in Settings.
   const stale = synced?.stale && (
     <a href="/settings" className={cn("inline-flex items-center gap-1.5 text-[13px] hover:underline hover:underline-offset-2", FOCUS)}>
-      <span aria-hidden className="size-2 shrink-0 rounded-full bg-[#FFB020]" />
+      <span aria-hidden className="size-2 shrink-0 rounded-full bg-sun" />
       Last synced {synced.ago}. Check the connection
     </a>
   );
 
   return (
     <div
-      className={cn(
-        fontClass,
-        "relative isolate min-h-dvh overflow-x-clip bg-white text-[#16171C] selection:bg-[#FFB020]/40 dark:bg-[#0F1015] dark:text-[#F3F2EE]"
-      )}
+      className={cn(fontClass, PAGE)}
     >
       <div className="mx-auto max-w-[1200px] px-5 pb-28 sm:px-6 sm:pb-20 wide:max-w-[2280px]">
         {/* Past the tray's rolls and the cards, to the list; on a phone, from either tab. */}
@@ -342,7 +339,7 @@ export function CoinBoard({
             setTab("month");
             requestAnimationFrame(() => document.getElementById("charges")?.focus());
           }}
-          className="sr-only rounded-full bg-[#16171C] text-[15px] font-medium text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:px-4 focus:py-3 dark:bg-[#F3F2EE] dark:text-[#16171C]"
+          className="sr-only rounded-full bg-ink text-[15px] font-medium text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:px-4 focus:py-3 dark:bg-chalk dark:text-ink"
         >
           Skip to the charges
         </a>
@@ -384,7 +381,7 @@ export function CoinBoard({
           <div className={cn(tab === "queue" && "max-sm:hidden", "wide:grid wide:grid-cols-[1152px_minmax(0,1fr)] wide:grid-rows-[auto_1fr] wide:items-start wide:gap-x-8")}>
           {/* On a screen tall enough, the tray stays put while the charges scroll; the cards slide
               under it, behind a strip of page above and below so nothing shows past its corners. */}
-          <div className="wide:col-start-1 wide:row-start-1 wide:pb-8 wide:tall:sticky wide:tall:top-0 wide:tall:z-10 wide:tall:-mt-5 wide:tall:bg-white wide:tall:pt-5 dark:wide:tall:bg-[#0F1015]">
+          <div className="wide:col-start-1 wide:row-start-1 wide:pb-8 wide:tall:sticky wide:tall:top-0 wide:tall:z-10 wide:tall:-mt-5 wide:tall:bg-white wide:tall:pt-5 dark:wide:tall:bg-night">
           {/* The stage: the month's rolls on one floor, its loose change beside them. */}
           <CoinStage
             ref={stage}
@@ -418,7 +415,7 @@ export function CoinBoard({
               <button
                 type="button"
                 onClick={() => setCatsOpen(true)}
-                className={cn("rounded-full px-3.5 py-2 text-[15px] font-medium hover:bg-white dark:hover:bg-[#23252E]", FOCUS)}
+                className={cn("rounded-full px-3.5 py-2 text-[15px] font-medium hover:bg-white dark:hover:bg-card-night", FOCUS)}
               >
                 Edit categories
               </button>
@@ -439,7 +436,7 @@ export function CoinBoard({
                 ) : (
                   <ul className="mt-3 flex flex-col gap-2">
                     {loose.map((t, i) => (
-                      <li key={t.id} data-queue={t.id} className="rounded-2xl bg-white p-3 dark:bg-[#23252E]">
+                      <li key={t.id} data-queue={t.id} className="rounded-2xl bg-white p-3 dark:bg-card-night">
                         <div className="flex items-center gap-3">
                           <MerchantIcon name={t.name} domain={t.domain} emoji={t.emoji} />
                           <div className="min-w-0 flex-1">
@@ -459,7 +456,7 @@ export function CoinBoard({
                               if (stage.current?.file(t, e.target.value, e.currentTarget.closest("li"))) refocus.current = i;
                             }}
                             className={cn(
-                              "h-10 w-full cursor-pointer appearance-none rounded-full border-2 border-[#16171C]/10 bg-[#F4F5F7] pl-4 pr-9 text-[15px] font-medium hover:border-[#16171C]/25 dark:border-white/10 dark:bg-[#191B22] dark:hover:border-white/25",
+                              "h-10 w-full cursor-pointer appearance-none rounded-full border-2 border-ink/10 bg-mist pl-4 pr-9 text-[15px] font-medium hover:border-ink/25 dark:border-white/10 dark:bg-mist-night dark:hover:border-white/25",
                               FOCUS
                             )}
                           >
@@ -484,7 +481,7 @@ export function CoinBoard({
                     <button
                       type="button"
                       onClick={() => setMonth(elsewhereMonth)}
-                      className={cn("underline decoration-1 underline-offset-2 hover:text-[#16171C] dark:hover:text-white", FOCUS)}
+                      className={cn("underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", FOCUS)}
                     >
                       Go to {label(elsewhereMonth)}
                     </button>
@@ -516,7 +513,7 @@ export function CoinBoard({
                   </p>
                   <p className={cn("pt-1 text-[13px]", MUTED)}>
                     Split a charge from its menu in the list.{" "}
-                    <a href="/pooleks" className={cn("underline decoration-1 underline-offset-2 hover:text-[#16171C] dark:hover:text-white", FOCUS)}>
+                    <a href="/pooleks" className={cn("underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", FOCUS)}>
                       Open Pooleks
                     </a>
                   </p>
@@ -565,8 +562,8 @@ export function CoinBoard({
                   className={cn(
                     "h-10 rounded-full px-4 text-[15px] font-medium",
                     only === MONEY_IN
-                      ? "bg-[#16171C] text-white dark:bg-[#F3F2EE] dark:text-[#16171C]"
-                      : "bg-white hover:bg-[#F4F5F7] dark:bg-[#23252E] dark:hover:bg-[#2C2F3A]",
+                      ? "bg-ink text-white dark:bg-chalk dark:text-ink"
+                      : "bg-white hover:bg-mist dark:bg-card-night dark:hover:bg-card-night-hover",
                     FOCUS
                   )}
                 >
@@ -582,7 +579,7 @@ export function CoinBoard({
                     placeholder="Search every month"
                     aria-label="Search charges in every month"
                     className={cn(
-                      "h-10 w-full rounded-full border-2 border-transparent bg-white pl-10 pr-10 text-[15px] placeholder:text-[#63666F] focus:border-[#16171C]/20 dark:bg-[#23252E] dark:placeholder:text-[#A7A9B4] dark:focus:border-white/25 [&::-webkit-search-cancel-button]:hidden",
+                      "h-10 w-full rounded-full border-2 border-transparent bg-white pl-10 pr-10 text-[15px] placeholder:text-muted-text focus:border-ink/20 dark:bg-card-night dark:placeholder:text-muted-text-night dark:focus:border-white/25 [&::-webkit-search-cancel-button]:hidden",
                       FOCUS
                     )}
                   />
@@ -591,7 +588,7 @@ export function CoinBoard({
                       type="button"
                       onClick={() => setQuery("")}
                       aria-label="Clear the search"
-                      className={cn("absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full hover:bg-[#F4F5F7] dark:hover:bg-[#2C2F3A]", FOCUS)}
+                      className={cn("absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full hover:bg-mist dark:hover:bg-card-night-hover", FOCUS)}
                     >
                       <XIcon aria-hidden className="size-4" />
                     </button>
@@ -607,7 +604,7 @@ export function CoinBoard({
                   <button
                     type="button"
                     onClick={() => (setQuery(""), setOnly(null))}
-                    className={cn("underline decoration-1 underline-offset-2 hover:text-[#16171C] dark:hover:text-white", FOCUS)}
+                    className={cn("underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", FOCUS)}
                   >
                     Show all
                   </button>
@@ -642,7 +639,7 @@ export function CoinBoard({
         {/* What the mouse carries: the charge as a coin, with its name and amount. */}
         <DragOverlay dropAnimation={null} style={{ width: "auto", height: "auto" }}>
           {dragged && (
-            <div className="flex cursor-grabbing items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3.5 text-[13px] font-medium ring-1 ring-[#16171C]/10 dark:bg-[#23252E] dark:ring-white/10">
+            <div className="flex cursor-grabbing items-center gap-2 rounded-full bg-white py-1 pl-1 pr-3.5 text-[13px] font-medium ring-1 ring-ink/10 dark:bg-card-night dark:ring-white/10">
               <PaintedCoin size={30} mood="glad" seed={9} />
               <span className="max-w-[16rem] truncate">{dragged.name}</span>
               <span className="tabular-nums">{eur.format(Math.abs(dragged.amount))}</span>
@@ -651,7 +648,7 @@ export function CoinBoard({
         </DragOverlay>
         </DndContext>
         {/* The phone's two tabs, in thumb reach. */}
-        <nav aria-label="Board views" className="fixed inset-x-0 bottom-0 z-40 border-t border-[#16171C]/10 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:hidden dark:border-white/10 dark:bg-[#0F1015]">
+        <nav aria-label="Board views" className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:hidden dark:border-white/10 dark:bg-night">
           <div className="mx-auto flex max-w-md gap-2">
             {(["queue", "month"] as const).map((t) => (
               <button
@@ -661,7 +658,7 @@ export function CoinBoard({
                 onClick={() => showTab(t)}
                 className={cn(
                   "h-11 flex-1 rounded-full text-[15px] font-medium tabular-nums",
-                  tab === t ? "bg-[#16171C] text-white dark:bg-[#F3F2EE] dark:text-[#16171C]" : MUTED,
+                  tab === t ? "bg-ink text-white dark:bg-chalk dark:text-ink" : MUTED,
                   FOCUS
                 )}
               >

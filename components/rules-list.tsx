@@ -115,7 +115,7 @@ export function RulesList({ initial, categories }: { initial: RuleRow[]; categor
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className={cn(
-              "h-11 w-full rounded-full border-2 border-transparent bg-white pl-10 pr-4 text-[15px] placeholder:text-[#63666F] focus:border-[#16171C]/20 dark:bg-[#23252E] dark:placeholder:text-[#A7A9B4] dark:focus:border-white/25 [&::-webkit-search-cancel-button]:hidden",
+              "h-11 w-full rounded-full border-2 border-transparent bg-white pl-10 pr-4 text-[15px] placeholder:text-muted-text focus:border-ink/20 dark:bg-card-night dark:placeholder:text-muted-text-night dark:focus:border-white/25 [&::-webkit-search-cancel-button]:hidden",
               FOCUS
             )}
           />
@@ -124,7 +124,7 @@ export function RulesList({ initial, categories }: { initial: RuleRow[]; categor
       {rules.length > 0 && visible.length === 0 && <p className={cn("mt-3 px-1 text-[15px]", MUTED)}>No rule matches “{query.trim()}”.</p>}
       <div className="mt-4 outline-none" data-list>
         {dudGroup && (
-          <section aria-label={`${dudGroup.title}, ${dudGroup.rules.length}`} className="mb-3 rounded-[20px] border-2 border-dashed border-[#16171C]/20 p-4 dark:border-white/20">
+          <section aria-label={`${dudGroup.title}, ${dudGroup.rules.length}`} className="mb-3 rounded-[20px] border-2 border-dashed border-ink/20 p-4 dark:border-white/20">
             <h3 className="text-[15px] font-medium">
               Matching nothing <span className={cn("font-normal tabular-nums", MUTED)}>· {dudGroup.rules.length}</span>
             </h3>
@@ -176,7 +176,7 @@ export function RuleChip({
       title={title}
       className={cn(
         "inline-flex max-w-full items-center gap-1.5 rounded-full py-1 pl-3 pr-1 text-[14px]",
-        onWhite ? "bg-[#EFEBE3] dark:bg-[#1F1D22]" : CARD
+        onWhite ? "bg-oat dark:bg-oat-night" : CARD
       )}
     >
       {children}
@@ -187,7 +187,7 @@ export function RuleChip({
         disabled={busy}
         onClick={(e) => onRemove(e.currentTarget)}
         className={cn(
-          "relative flex size-6 shrink-0 items-center justify-center rounded-full hover:bg-[#16171C]/10 hover:text-[#16171C] disabled:opacity-40 dark:hover:bg-white/10 dark:hover:text-white pointer-coarse:after:absolute pointer-coarse:after:-inset-2.5 pointer-coarse:after:content-['']",
+          "relative flex size-6 shrink-0 items-center justify-center rounded-full hover:bg-ink/10 hover:text-ink disabled:opacity-40 dark:hover:bg-white/10 dark:hover:text-white pointer-coarse:after:absolute pointer-coarse:after:-inset-2.5 pointer-coarse:after:content-['']",
           MUTED,
           FOCUS
         )}
