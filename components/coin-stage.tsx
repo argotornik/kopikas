@@ -63,6 +63,10 @@ export const FOCUS =
   "outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17181D] dark:focus-visible:outline-[#F3F2EE]";
 export const DISPLAY = "coins-display";
 const SPRING = { type: "spring" as const, stiffness: 260, damping: 18 };
+// A roll pressed squashes a little toward where it stands, fast, and springs
+// back on SPRING. With reduced motion the press does nothing; what it does
+// (choosing the roll, filing the coin) shows at once anyway.
+const PRESS = { duration: 0.16, ease: [0.16, 1, 0.3, 1] as const };
 // Where a default name may break when its roll's column is too narrow for it on one
 // line: a soft hyphen, so the break is the same in every browser. Other names rely on
 // the browser's own hyphenation, and past that break anywhere rather than overflow.
@@ -1037,8 +1041,11 @@ export function CoinStage({
                     onClick={() => pressRoll(r.name)}
                     aria-label={`${r.name}: ${eur.format(r.total)}${limitNote(r)}${rollAction(r.name)}`}
                     className={cn("w-full rounded-xl text-left transition-opacity duration-200 disabled:cursor-default", faded(r.name), FOCUS)}
+                    style={{ originX: 0 }}
                     animate={pickedTx && !reduce ? { x: [0, 4, 0] } : { x: 0 }}
-                    transition={pickedTx ? { duration: 0.9, repeat: Infinity, delay: i * 0.06 } : SPRING}
+                    // Only the nudge repeats; a press springs back once.
+                    transition={pickedTx ? { x: { duration: 0.9, repeat: Infinity, delay: i * 0.06 }, default: SPRING } : SPRING}
+                    whileTap={(pickedTx || onSelect) && !reduce ? { scale: 0.98, transition: PRESS } : undefined}
                   >
                     <div className="flex items-baseline justify-between gap-3 text-[14px]">
                       <span className="truncate font-medium">{r.name}</span>
@@ -1076,7 +1083,7 @@ export function CoinStage({
                       aria-pressed={onSelect && !pickedTx ? selected === r.name : undefined}
                       onClick={() => pressRoll(r.name)}
                       aria-label={`${r.name}: nothing filed yet${rollAction(r.name)}`}
-                      className={cn("flex min-h-11 items-center gap-2 rounded-full pr-1 text-[13px] font-medium transition-opacity duration-200 disabled:cursor-default", faded(r.name), FOCUS)}
+                      className={cn("flex min-h-11 items-center gap-2 rounded-full pr-1 text-[13px] font-medium transition-[opacity,scale] duration-200 enabled:motion-safe:active:scale-[0.96] disabled:cursor-default", faded(r.name), FOCUS)}
                     >
                       <PaintedMini index={index.get(r.name) ?? 0} colour={wrapper(r.name)} />
                       <span>{r.name}</span>
@@ -1125,10 +1132,13 @@ export function CoinStage({
                       onClick={() => pressRoll(r.name)}
                       aria-label={`${r.name}: ${eur.format(r.total)}${limitNote(r)}${rollAction(r.name)}`}
                       className={cn("relative flex w-full items-end justify-center rounded-[22px] disabled:cursor-default", FOCUS)}
-                      style={{ height: H }}
+                      // Hover and press grow and squash from the floor, so the roll keeps standing on it.
+                      style={{ height: H, originY: 1 }}
                       animate={pickedTx && !reduce ? { y: [0, -5, 0] } : { y: 0 }}
-                      transition={pickedTx ? { duration: 0.9, repeat: Infinity, delay: i * 0.08 } : SPRING}
+                      // Only the bob repeats; hover and press settle once.
+                      transition={pickedTx ? { y: { duration: 0.9, repeat: Infinity, delay: i * 0.08 }, default: SPRING } : SPRING}
                       whileHover={pickedTx ? { scale: 1.06, rotate: -2 } : undefined}
+                      whileTap={(pickedTx || onSelect) && !reduce ? { scale: 0.96, transition: PRESS } : undefined}
                     >
                       {painted ? (
                         <PaintedRoll

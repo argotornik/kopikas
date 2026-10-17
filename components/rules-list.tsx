@@ -38,7 +38,7 @@ export function RulesList({ initial, categories }: { initial: RuleRow[]; categor
   const duds = visible.filter((r) => r.matches === 0);
   const groups = [
     ...(duds.length > 0
-      ? [{ key: "duds", title: "Match nothing", note: "No charge matches these; safe to forget.", rules: duds }]
+      ? [{ key: "duds", title: "Matching nothing", note: "No charge matches these; safe to forget.", rules: duds }]
       : []),
     ...order
       .map((c) => ({ key: c, title: c, note: "", rules: visible.filter((r) => r.matches > 0 && r.category === c) }))
@@ -126,7 +126,7 @@ export function RulesList({ initial, categories }: { initial: RuleRow[]; categor
         {dudGroup && (
           <section aria-label={`${dudGroup.title}, ${dudGroup.rules.length}`} className="mb-3 rounded-[20px] border-2 border-dashed border-[#16171C]/20 p-4 dark:border-white/20">
             <h3 className="text-[15px] font-medium">
-              Match nothing <span className={cn("font-normal tabular-nums", MUTED)}>· {dudGroup.rules.length}</span>
+              Matching nothing <span className={cn("font-normal tabular-nums", MUTED)}>· {dudGroup.rules.length}</span>
             </h3>
             <p className={cn("text-[13px]", MUTED)}>{dudGroup.note}</p>
             <ul className="mt-3 flex flex-wrap gap-1.5">{dudGroup.rules.map((r) => chip(r, true))}</ul>

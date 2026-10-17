@@ -550,7 +550,7 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
                             <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: colourOf(r.item.category) }} />
                           )}
                           <span className="truncate">
-                            {r.item.category ?? "Uncategorized"}
+                            {r.item.category ?? "No category"}
                             <span className="max-sm:hidden"> · {shortDate.format(new Date(r.date))}</span>
                           </span>
                         </p>

@@ -63,6 +63,12 @@
         from { transform: rotateY(0deg); }
         to { transform: rotateY(360deg); }
     }
+    /* A loading screen shows only when opening takes a while: it waits 300ms, then fades
+       in, so most opens finish first and show nothing at all. */
+    --animate-loading-late: loading-late 200ms cubic-bezier(0.16, 1, 0.3, 1) 300ms both;
+    @keyframes loading-late {
+        from { opacity: 0; }
+    }
 }
 
 /* Theme: "Tangerine" preset lifted from arhamkhnz/next-shadcn-admin-dashboard (MIT),

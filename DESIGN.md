@@ -263,7 +263,7 @@ A category as a character, at one of four stages. It grows as coins go in.
   - *Asleep:* nothing filed yet. A dashed footprint where the body would stand, in the wrapper colour deepened a third toward Ink (a quarter toward Chalk in dark), with two flat shut eyes and one small z above it in the stage's ink. Still a drop target. As a bar there is no row: the sleepers gather in one "Nothing yet" line after the list, each a 30 by 26 blob in its wrapper colour carrying the shut eyes and the z, its name beside it in Ink or Chalk.
   - *Over:* past its limit, the round "wow" mouth and the deepened overflow; a hatchling's eyes float above the whole roll, overflow included.
 - **The floor:** every category stands on it every month, in the list's order, so a roll keeps its address and a zero is seen. Roll width comes from the count, from the 84px column down to a 60px one; past what fits in one row the floor wraps to a second shelf on the same scale. It never scrolls sideways.
-- **States:** while a coin is held, every roll that can take it bobs; on a drop it gulps (squashes to 0.9 and springs back) and grows to its new height. The first coin wakes a sleeper: its eyes open and a body starts under them; at the grown line the mouth arrives. With reduced motion the stages swap in place.
+- **States:** while a coin is held, every roll that can take it bobs, and the one under the pointer grows to 1.06 and leans a little; on a drop it gulps (squashes to 0.9 and springs back) and grows to its new height. Pressed, a roll squashes toward where it stands: to 0.96 from its foot (a bar to 0.98 from its start, a sleeper's blob to 0.96), then springs back. The first coin wakes a sleeper: its eyes open and a body starts under them; at the grown line the mouth arrives. With reduced motion the stages swap in place.
 - **Choosing:** with no coin held, tapping a roll chooses it: the other rolls fade to 40%, the list shows its charges, and its year takes the figures line's place. Tapping it again, or "Show all", lets it go.
 - **Drop target:** on desktop a row of the charges list dragged onto a roll files there, the same as a coin.
 
@@ -295,9 +295,13 @@ A fresh deployment's board, waiting: an empty board is not a quiet month.
 - **States:** the line under the field says where the connection is (checking with LHV, fetching, opening the board), a failure in a sun-yellow tint with its technical details folded beneath, and a token stored without a sync offers to run it.
 - **Before it:** "Who owns this board?" and "Not on this board" wear the same frame, without the floor.
 
-### Sign-in and Not Found
+### Sign-in, Not Found and Couldn't Open
 - **Sign-in:** the coin, "Kopikas" in Fredoka and "iga kopikas loeb" over Clerk's card, which wears the board's look: Oat Paper with 28px corners, white fields, an Ink pill, Rubik with a Fredoka title, in both themes. The same theme dresses Clerk's account menu in every header.
 - **Not found:** one coin, surprised and tilted as if it rolled off, "This page isn't on the board", a sentence on why, and Back to the board.
+- **Couldn't open:** a page that failed to open, the not-found page's sibling: the coin tipped onto its side over its floor oval, still smiling, "This page couldn't open", that nothing filed is lost and trying again usually works, Try again (Ink) and Back to the board (white, not on the board itself), and the server's reference in Muted for the log. When the root layout itself fails, the same page shows without the header, in the light theme.
+
+### Loading
+While a page opens: its own shape in quiet tones, so nothing jumps when it fills in. The board's tray with bars for the month, the total and the figures, three empty discs for the pile and a stub per roll with its name and amount; Pooleks' head with its two piles and the statement's lines; Settings' title, jump pills, connection line and rule cards. Shapes on Oat Paper are Ink at 7%, on the page Mist. No faces and no heights: a placeholder never looks like money. It waits 300ms before fading in, so most opens finish first and show nothing at all.
 
 ### Settings
 The bank connection and what the board has been taught.
@@ -336,7 +340,7 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 - **Late sync:** more than a day and two hours without one, the line becomes "Last synced 3 days ago. Check the connection" in Ink with a small sun-yellow dot, and leads to Settings; on a phone it takes its own line under the header.
 
 ### Motion
-Springs everywhere: the general one at stiffness 260 and damping 18, rolls at 200 and 20. A gulp lasts 0.6s, a hop 0.7s (easing out, then in), rolls rise over 1.1s on `cubic-bezier(0.16, 1, 0.3, 1)`, floaters drift ±7px and ±7° back and forth. With reduced motion every state stays and the movement goes.
+Springs everywhere: the general one at stiffness 260 and damping 18, rolls at 200 and 20. A gulp lasts 0.6s, a hop 0.7s (easing out, then in), rolls rise over 1.1s on `cubic-bezier(0.16, 1, 0.3, 1)`, floaters drift ±7px and ±7° back and forth. A press takes 0.16s on the same curve and springs back; a loading screen fades in over 0.2s after waiting 0.3s. With reduced motion every state stays and the movement goes.
 
 ## Do's and Don'ts
 

@@ -27,7 +27,7 @@ export async function act<V = unknown>(action: object, view?: "board" | "shared"
   if (body?.error) return { ok: false, error: sentence(body.error) };
   return {
     ok: false,
-    error: res.status >= 500 ? "Something went wrong on the server. Try again in a moment." : "That didn't save. Try again.",
+    error: res.status >= 500 ? "The server hit a problem. Reload to see whether that saved." : "That didn't save. Try again.",
   };
 }
 
