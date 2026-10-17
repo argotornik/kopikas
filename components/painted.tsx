@@ -67,7 +67,7 @@ export function faceOffset(v: number): number {
 const STAGE_INK = "var(--painted-stage-ink)";
 // A wrapper deepened a third toward Ink (a quarter toward Chalk in dark): the
 // sleeping footprint, and the part of a body past its limit.
-const deepened = (colour: string) => `color-mix(in srgb, ${colour} var(--painted-foot-keep), var(--painted-foot-to))`;
+export const deepened = (colour: string) => `color-mix(in srgb, ${colour} var(--painted-foot-keep), var(--painted-foot-to))`;
 
 // A stage changes as the body passes one of its lines, not when the amount
 // does: `useCrossing` is 0 or 1 as `value` sits under or over `line`, settling

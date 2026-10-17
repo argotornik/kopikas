@@ -12,6 +12,7 @@ import { CoinStage, DISPLAY, FOCUS, MUTED, PANEL, eur, label, looseCoins, monthO
 import { CoinLedger } from "@/components/coin-ledger";
 import { CoinQueue } from "@/components/coin-queue";
 import { CoinSubscriptions } from "@/components/coin-subscriptions";
+import { CoinYear } from "@/components/coin-year";
 import { CategoriesEditor, type CategoryAction } from "@/components/categories-editor";
 import { MerchantEditor, type MerchantSubject } from "@/components/merchant-editor";
 import { SnapshotEditor } from "@/components/snapshot-editor";
@@ -47,14 +48,21 @@ const PANEL_CSS = `
 // A row starts to drag only once the mouse has moved, so a click stays a click.
 const MOUSE_DRAG = { activationConstraint: { distance: 5 } };
 
-function sinceLabel(iso: string | null | undefined): string | null {
+// When the last sync was, and whether it is late: a day and two hours without one
+// means the bank connection wants a look.
+function sinceLabel(iso: string | null | undefined): { ago: string; stale: boolean } | null {
   if (!iso) return null;
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (mins < 1) return "Synced just now";
   const rel = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-  if (mins < 60) return `Synced ${rel.format(-mins, "minute")}`;
-  if (mins < 48 * 60) return `Synced ${rel.format(-Math.round(mins / 60), "hour")}`;
-  return `Synced ${rel.format(-Math.round(mins / 1440), "day")}`;
+  const ago =
+    mins < 1
+      ? "just now"
+      : mins < 60
+        ? rel.format(-mins, "minute")
+        : mins < 48 * 60
+          ? rel.format(-Math.round(mins / 60), "hour")
+          : rel.format(-Math.round(mins / 1440), "day");
+  return { ago, stale: mins > 26 * 60 };
 }
 
 export function CoinBoard({
@@ -62,19 +70,27 @@ export function CoinBoard({
   syncedAt,
   fontClass,
   partner,
+  view,
 }: {
   initial: Board;
   syncedAt?: string | null;
+  // The view from the address: a month, a category (or Incoming for money in) and a search.
+  view?: { cat?: string; month?: string; q?: string };
   fontClass: string;
   // Who shared costs are split with; null for a household of one.
   partner: string | null;
 }) {
   const [board, setBoard] = useState(initial);
-  const [month, setMonth] = useState(initial.month);
+  const [month, setMonth] = useState(() =>
+    view?.month && /^\d{4}-(0[1-9]|1[0-2])$/.test(view.month) && view.month <= initial.month ? view.month : initial.month
+  );
   // The phone has two tabs: To file, the backlog one coin at a time, and Month, the tray
-  // with the charges below it. It opens on To file while anything waits. Wider screens
-  // show the month only, with the loose change on the tray.
-  const [tab, setTab] = useState<"queue" | "month">(() => (looseCoins(initial.txs, null).length > 0 ? "queue" : "month"));
+  // with the charges below it. It opens on To file while anything waits, unless the
+  // address asks for a view of the month. Wider screens show the month only, with the
+  // loose change on the tray.
+  const [tab, setTab] = useState<"queue" | "month">(() =>
+    looseCoins(initial.txs, null).length > 0 && !view?.cat && !view?.month && !view?.q ? "queue" : "month"
+  );
   const toFile = looseCoins(board.txs, null).length;
   const showTab = (t: "queue" | "month") => {
     setTab(t);
@@ -85,7 +101,7 @@ export function CoinBoard({
     () => [board.txs.reduce((m, t) => (monthOf(t.date) < m ? monthOf(t.date) : m), initial.month), initial.month],
     [board.txs, initial.month]
   );
-  const [synced, setSynced] = useState<string | null>(null);
+  const [synced, setSynced] = useState<{ ago: string; stale: boolean } | null>(null);
   useEffect(() => setSynced(sinceLabel(syncedAt)), [syncedAt]);
   const stage = useRef<CoinStageHandle>(null);
   const categories = board.categories;
@@ -193,7 +209,7 @@ export function CoinBoard({
     setMerchantSubject({ key: t.id, name: t.name, domain: t.domain, emoji: t.emoji, pattern: t.merchantPattern, custom: t.customMerchant, target: { txId: t.id } });
   const dialogLook = cn(fontClass, "coins-panel rounded-[28px] p-6");
 
-  // A subscription's two actions, each with its Undo.
+  // A subscription's actions, with an Undo where the server gives one.
   const subAction = (action: object, done: string) =>
     void run(action).then((r) => (r.ok ? announceUndoable(done, r.undo, refetch) : announceError(r.error)));
 
@@ -255,8 +271,24 @@ export function CoinBoard({
 
   // What the list shows: the month's charges, or one category's (picked on its
   // roll), or the money that came in. A search looks through every month.
-  const [query, setQuery] = useState("");
-  const [only, setOnly] = useState<string | null>(null);
+  const [query, setQuery] = useState(view?.q ?? "");
+  const [only, setOnly] = useState<string | null>(() => {
+    const cat = view?.cat;
+    return cat === "Incoming" ? MONEY_IN : cat && initial.categories.some((c) => c.name === cat) ? cat : null;
+  });
+  // The view goes into the address without a round trip; a moment late, so typing in
+  // the search does not hit the browser's limit on address changes.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const p = new URLSearchParams();
+      if (only) p.set("cat", only === MONEY_IN ? "Incoming" : only);
+      if (month !== initial.month) p.set("month", month);
+      if (query.trim()) p.set("q", query.trim());
+      const qs = p.toString();
+      window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [only, month, query, initial.month]);
   const q = useDeferredValue(query).trim().toLowerCase();
   const rows = board.txs
     .filter(
@@ -302,6 +334,14 @@ export function CoinBoard({
     selects.current[i]?.focus();
   });
 
+  // A late sync says so under the name, and leads to the connection in Settings.
+  const stale = synced?.stale && (
+    <a href="/settings" className={cn("inline-flex items-center gap-1.5 text-[13px] hover:underline hover:underline-offset-2", FOCUS)}>
+      <span aria-hidden className="size-2 shrink-0 rounded-full bg-[#FFB020]" />
+      Last synced {synced.ago}. Check the connection
+    </a>
+  );
+
   return (
     <div
       className={cn(
@@ -310,12 +350,24 @@ export function CoinBoard({
       )}
     >
       <div className="mx-auto max-w-[1200px] px-5 pb-28 sm:px-6 sm:pb-20">
+        {/* Past the tray's rolls and the cards, to the list; on a phone, from either tab. */}
+        <a
+          href="#charges"
+          onClick={(e) => {
+            e.preventDefault();
+            setTab("month");
+            requestAnimationFrame(() => document.getElementById("charges")?.focus());
+          }}
+          className="sr-only rounded-full bg-[#16171C] text-[15px] font-medium text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:px-4 focus:py-3 dark:bg-[#F3F2EE] dark:text-[#16171C]"
+        >
+          Skip to the charges
+        </a>
         <header className="flex items-center gap-x-6 gap-y-3 py-5">
           <div className="flex items-center gap-3">
             <PaintedCoin size={38} seed={3} />
             <div>
               <h1 className={cn(DISPLAY, "text-[26px] font-semibold leading-none tracking-[-0.01em]")}>Kopikas</h1>
-              {synced && <p className={cn("mt-1 text-[13px]", MUTED)}>{synced}</p>}
+              {stale ? <div className="mt-1 flex max-sm:hidden">{stale}</div> : synced && <p className={cn("mt-1 text-[13px]", MUTED)}>Synced {synced.ago}</p>}
             </div>
           </div>
           <nav aria-label="Pages" className="ml-auto flex items-center gap-1.5 text-[15px] font-medium">
@@ -338,6 +390,8 @@ export function CoinBoard({
             <ThemeToggle />
           </nav>
         </header>
+        {/* A phone gives the warning the full width: beside the icons it ran to three lines. */}
+        {stale && <div className="-mt-1 mb-5 flex sm:hidden">{stale}</div>}
 
         <DndContext
           id="coin-board"
@@ -374,7 +428,22 @@ export function CoinBoard({
             look="painted"
             selected={only === MONEY_IN ? null : only}
             onSelect={toggle}
-            figures={figures}
+            // A chosen roll's year takes the figures' place; they come back when it is let go.
+            figures={
+              only && only !== MONEY_IN ? (
+                <CoinYear
+                  txs={board.txs}
+                  categories={categories}
+                  category={only}
+                  month={month}
+                  currentMonth={initial.month}
+                  earliest={months[0]}
+                  onMonth={setMonth}
+                />
+              ) : (
+                figures
+              )
+            }
             actions={
               <button
                 type="button"
@@ -490,10 +559,30 @@ export function CoinBoard({
                   sub.lastCharge && subAction({ type: "accept-price", subId: sub.sub.id }, `${sub.label} now expects ${eur.format(sub.lastCharge.amount)}.`)
                 }
                 onStop={(sub) => subAction({ type: "unsubscribe", subId: sub.sub.id }, `Stopped tracking ${sub.label}.`)}
+                onRename={(sub) =>
+                  setMerchantSubject({
+                    key: sub.sub.id,
+                    name: sub.label,
+                    domain: sub.domain,
+                    emoji: sub.emoji,
+                    pattern: sub.sub.match,
+                    custom: sub.customMerchant,
+                    target: { subId: sub.sub.id },
+                  })
+                }
+                onCadence={(sub) => {
+                  const cadence = sub.sub.cadence === "monthly" ? "yearly" : "monthly";
+                  subAction({ type: "cadence", subId: sub.sub.id, cadence }, `${sub.label} moved to ${cadence}.`);
+                }}
               />
             </aside>
 
-            <section aria-labelledby="ledger-heading" className={cn(PANEL, OAT, "min-w-0 p-5 sm:p-6 lg:col-start-1 lg:row-start-1")}>
+            <section
+              id="charges"
+              tabIndex={-1}
+              aria-labelledby="ledger-heading"
+              className={cn(PANEL, OAT, "min-w-0 scroll-mt-4 p-5 outline-none sm:p-6 lg:col-start-1 lg:row-start-1")}
+            >
               <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
                 <h2 id="ledger-heading" className={cn(DISPLAY, "mr-auto text-[20px] font-semibold")}>
                   Every charge

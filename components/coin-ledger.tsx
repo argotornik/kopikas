@@ -16,8 +16,12 @@ const dayName = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeri
 // One File menu serves the whole list; the row that opened it is its payload.
 const fileMenu = Menu.createHandle<string>();
 const CHIP = "inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium";
-const ITEM =
+// The board's menus: a white card of rows, as here and on Subscriptions.
+export const MENU_ITEM =
   "flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2 text-[15px] outline-none select-none data-highlighted:bg-[#F4F5F7] dark:data-highlighted:bg-[#2C2F3A]";
+export const MENU_POPUP =
+  "max-h-[min(30rem,var(--available-height))] min-w-60 origin-[var(--transform-origin)] overflow-y-auto rounded-2xl bg-white p-1.5 text-[#16171C] ring-1 ring-[#16171C]/10 outline-none transition-[scale,opacity] duration-100 ease-out data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none dark:bg-[#23252E] dark:text-[#F3F2EE] dark:ring-white/10";
+export const MENU_SEPARATOR = "mx-2.5 my-1 h-px bg-[#16171C]/10 dark:bg-white/10";
 
 type Category = { name: string };
 // What filing and splitting from a row hand to the page, with the row the coin hops from.
@@ -165,7 +169,7 @@ function FileMenu({ txs, categories, onFile, partner, onSplit, onUnshare, onEdit
         return (
           <Menu.Portal>
             <Menu.Positioner sideOffset={6} align="start" className="z-50 outline-none">
-              <Menu.Popup className="max-h-[min(30rem,var(--available-height))] min-w-60 origin-[var(--transform-origin)] overflow-y-auto rounded-2xl bg-white p-1.5 text-[#16171C] ring-1 ring-[#16171C]/10 outline-none transition-[scale,opacity] duration-100 ease-out data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none dark:bg-[#23252E] dark:text-[#F3F2EE] dark:ring-white/10">
+              <Menu.Popup className={MENU_POPUP}>
                 {tx && (
                   <Menu.Group>
                     <Menu.GroupLabel className={cn("flex items-baseline gap-2 px-2.5 pb-1.5 pt-1 text-[13px]", MUTED)}>
@@ -183,7 +187,7 @@ function FileMenu({ txs, categories, onFile, partner, onSplit, onUnshare, onEdit
                       }}
                     >
                       {categories.map((c) => (
-                        <Menu.RadioItem key={c.name} value={c.name} closeOnClick className={ITEM}>
+                        <Menu.RadioItem key={c.name} value={c.name} closeOnClick className={MENU_ITEM}>
                           <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: wrapperOf(categories, c.name, true) }} />
                           <span className="min-w-0 flex-1 truncate">{c.name}</span>
                           <Menu.RadioItemIndicator>
@@ -196,7 +200,7 @@ function FileMenu({ txs, categories, onFile, partner, onSplit, onUnshare, onEdit
                 )}
                 {tx && partner && (
                   <>
-                    <Menu.Separator className="mx-2.5 my-1 h-px bg-[#16171C]/10 dark:bg-white/10" />
+                    <Menu.Separator className={MENU_SEPARATOR} />
                     <Menu.Group>
                       <Menu.GroupLabel className={cn("px-2.5 pb-1.5 pt-1 text-[13px]", MUTED)}>Split with {partner}</Menu.GroupLabel>
                       <Menu.RadioGroup
@@ -208,7 +212,7 @@ function FileMenu({ txs, categories, onFile, partner, onSplit, onUnshare, onEdit
                         }}
                       >
                         {SPLITS.map((f) => (
-                          <Menu.RadioItem key={f} value={String(f)} closeOnClick className={ITEM}>
+                          <Menu.RadioItem key={f} value={String(f)} closeOnClick className={MENU_ITEM}>
                             <span aria-hidden className="w-3 shrink-0" />
                             <span className="min-w-0 flex-1 truncate">
                               {partner} pays {shareLabel(f)}
@@ -220,7 +224,7 @@ function FileMenu({ txs, categories, onFile, partner, onSplit, onUnshare, onEdit
                         ))}
                       </Menu.RadioGroup>
                       {tx.shared && (
-                        <Menu.Item className={ITEM} onClick={() => onUnshare(tx)}>
+                        <Menu.Item className={MENU_ITEM} onClick={() => onUnshare(tx)}>
                           <span aria-hidden className="w-3 shrink-0" />
                           Take off Pooleks
                         </Menu.Item>
@@ -230,8 +234,8 @@ function FileMenu({ txs, categories, onFile, partner, onSplit, onUnshare, onEdit
                 )}
                 {tx && (
                   <>
-                    <Menu.Separator className="mx-2.5 my-1 h-px bg-[#16171C]/10 dark:bg-white/10" />
-                    <Menu.Item className={ITEM} onClick={() => onEditMerchant(tx)}>
+                    <Menu.Separator className={MENU_SEPARATOR} />
+                    <Menu.Item className={MENU_ITEM} onClick={() => onEditMerchant(tx)}>
                       <span aria-hidden className="w-3 shrink-0" />
                       Name and icon…
                     </Menu.Item>

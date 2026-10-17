@@ -19,7 +19,7 @@ import { cn, shareLabel } from "@/lib/utils";
 // filing does; the stage picks a coin up, flies it to its roll and hands it over.
 
 export const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
-const eurWhole = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+export const eurWhole = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const monthName = new Intl.DateTimeFormat("en-GB", { month: "long", timeZone: "UTC" });
 export const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 
@@ -70,7 +70,7 @@ const HYPHENATED: Record<string, string> = { Subscriptions: "Sub­scrip­tions" 
 const breakable = (name: string) => HYPHENATED[name] ?? name;
 
 export const monthOf = (date: string) => date.slice(0, 7);
-const shiftMonth = (m: string, by: number) => {
+export const shiftMonth = (m: string, by: number) => {
   const [y, mo] = m.split("-").map(Number);
   return new Date(Date.UTC(y, mo - 1 + by, 1)).toISOString().slice(0, 7);
 };

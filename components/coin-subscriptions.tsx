@@ -1,20 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { XIcon } from "lucide-react";
+import { Menu } from "@base-ui/react/menu";
+import { EllipsisIcon } from "lucide-react";
 import type { Board } from "@/lib/board";
 import { DISPLAY, FOCUS, MUTED, PANEL, eur, shortDate } from "@/components/coin-stage";
+import { MENU_ITEM, MENU_POPUP, MENU_SEPARATOR } from "@/components/coin-ledger";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { cn } from "@/lib/utils";
 
 // The new board's subscriptions: only what needs the owner (a new price to accept,
 // one gone quiet, one due within a week) and what they cost a month. The full list
-// opens in place.
+// opens in place, each row with a menu to rename it, fix a wrong monthly or yearly
+// guess, or stop tracking it.
 
 type Sub = Board["subscriptions"][number];
 const WEEK = 7 * 86_400_000;
 const day = (iso: string) => shortDate.format(new Date(iso + "T00:00:00Z"));
 const price = (s: Sub) => s.lastCharge?.amount ?? s.sub.expectedAmount;
+const other = (s: Sub) => (s.sub.cadence === "monthly" ? "yearly" : "monthly");
 
 export function CoinSubscriptions({
   subscriptions,
@@ -22,6 +26,8 @@ export function CoinSubscriptions({
   month,
   onAcceptPrice,
   onStop,
+  onRename,
+  onCadence,
 }: {
   subscriptions: Sub[];
   // What they cost a month, yearly ones spread out a twelfth each.
@@ -30,6 +36,9 @@ export function CoinSubscriptions({
   month: string;
   onAcceptPrice: (s: Sub) => void;
   onStop: (s: Sub) => void;
+  onRename: (s: Sub) => void;
+  // Moves it to the other group: monthly to yearly, or back.
+  onCadence: (s: Sub) => void;
 }) {
   const [open, setOpen] = useState(false);
   const active = subscriptions.filter((s) => s.sub.active);
@@ -75,14 +84,34 @@ export function CoinSubscriptions({
       </div>
       <span className="shrink-0 text-[15px] font-medium tabular-nums">{eur.format(price(s))}</span>
       {full && (
-        <button
-          type="button"
-          onClick={() => onStop(s)}
-          aria-label={`Stop tracking ${s.label}`}
-          className={cn("-mr-1 flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-[#F4F5F7] dark:hover:bg-[#2C2F3A]", MUTED, FOCUS)}
-        >
-          <XIcon aria-hidden className="size-4" />
-        </button>
+        <Menu.Root>
+          <Menu.Trigger
+            aria-label={`${s.label}: rename, make ${other(s)} or stop tracking`}
+            className={cn(
+              "-mr-1 flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-[#F4F5F7] data-popup-open:bg-[#F4F5F7] dark:hover:bg-[#2C2F3A] dark:data-popup-open:bg-[#2C2F3A]",
+              MUTED,
+              FOCUS
+            )}
+          >
+            <EllipsisIcon aria-hidden className="size-4" />
+          </Menu.Trigger>
+          <Menu.Portal>
+            <Menu.Positioner sideOffset={6} align="end" className="z-50 outline-none">
+              <Menu.Popup className={MENU_POPUP}>
+                <Menu.Item className={MENU_ITEM} onClick={() => onRename(s)}>
+                  Name and icon…
+                </Menu.Item>
+                <Menu.Item className={MENU_ITEM} onClick={() => onCadence(s)}>
+                  Make {other(s)}
+                </Menu.Item>
+                <Menu.Separator className={MENU_SEPARATOR} />
+                <Menu.Item className={MENU_ITEM} onClick={() => onStop(s)}>
+                  Stop tracking
+                </Menu.Item>
+              </Menu.Popup>
+            </Menu.Positioner>
+          </Menu.Portal>
+        </Menu.Root>
       )}
     </li>
   );

@@ -13,14 +13,15 @@ const rubik = Rubik({ subsets: ["latin", "latin-ext"] });
 
 export const dynamic = "force-dynamic";
 
-export default async function CoinsPage() {
+export default async function CoinsPage({ searchParams }: { searchParams: Promise<{ cat?: string; month?: string; q?: string }> }) {
   if ((await currentRole()) !== "owner") redirect("/");
-  const [db, { accounts, fetchedAt }] = await Promise.all([readDb(), getAccounts()]);
+  const [db, { accounts, fetchedAt }, view] = await Promise.all([readDb(), getAccounts(), searchParams]);
   if (db.transactions.length === 0) redirect("/");
   return (
     <CoinBoard
       initial={buildBoard(db, new Date(), accounts)}
       syncedAt={fetchedAt}
+      view={view}
       fontClass={`${rubik.className} ${fredoka.variable}`}
       // A household with a partner splits costs with them: one is configured, or something was split.
       partner={process.env.PARTNER_EMAIL || db.shares.length > 0 ? PARTNER_NAME : null}
