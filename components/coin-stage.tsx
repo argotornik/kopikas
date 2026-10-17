@@ -457,6 +457,7 @@ export function CoinStage({
   onSelect,
   figures,
   jar,
+  actions,
   ref,
 }: {
   txs: BoardTx[];
@@ -473,6 +474,8 @@ export function CoinStage({
   onSelect?: (category: string) => void;
   // More of the month in words, under the total: what the page knows beyond the rolls.
   figures?: ReactNode;
+  // The page's own controls for the floor, under it on the right.
+  actions?: ReactNode;
   // The Pooleks jar beside the loose change, when the household has a partner: a coin
   // dropped in is split with them. Its drawing (glad as it takes a coin) and the caption
   // under it are the page's.
@@ -1182,6 +1185,7 @@ export function CoinStage({
         </div>
         </>
         )}
+        {actions && <div className="relative mt-4 flex justify-end">{actions}</div>}
       </section>
 
       {flight && (

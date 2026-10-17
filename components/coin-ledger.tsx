@@ -27,6 +27,7 @@ type Actions = {
   partner: string | null;
   onSplit: (tx: BoardTx, share: number, from: Element | null) => void;
   onUnshare: (tx: BoardTx) => void;
+  onEditMerchant: (tx: BoardTx) => void;
 };
 
 export function CoinLedger({ txs, categories, ...actions }: { txs: BoardTx[]; categories: Category[] } & Actions) {
@@ -43,7 +44,7 @@ export function CoinLedger({ txs, categories, ...actions }: { txs: BoardTx[]; ca
           <h3 className={cn("pb-1 pt-5 text-[13px] font-medium", MUTED)}>{dayName.format(new Date(d.day + "T00:00:00Z"))}</h3>
           <ul className="flex flex-col">
             {d.rows.map((t) => (
-              <Row key={t.id} t={t} categories={categories} partner={actions.partner} />
+              <Row key={t.id} t={t} categories={categories} partner={actions.partner} onEditMerchant={actions.onEditMerchant} />
             ))}
             {d.micro.length > 0 && <RoundUps micro={d.micro} />}
           </ul>
@@ -56,7 +57,17 @@ export function CoinLedger({ txs, categories, ...actions }: { txs: BoardTx[]; ca
 
 // A charge. Dragged by the mouse onto a roll, it files there; its category chip
 // opens the File menu, which is the way in for the keyboard and for a finger.
-function Row({ t, categories, partner }: { t: BoardTx; categories: Category[]; partner: string | null }) {
+function Row({
+  t,
+  categories,
+  partner,
+  onEditMerchant,
+}: {
+  t: BoardTx;
+  categories: Category[];
+  partner: string | null;
+  onEditMerchant: (tx: BoardTx) => void;
+}) {
   const split = t.shared && partner ? `${partner} pays ${shareLabel(t.partnerShare)}` : null;
   const sub = [split, t.note].filter(Boolean).join(" · ");
   const { listeners, setNodeRef, isDragging } = useDraggable({ id: t.id, disabled: t.amount >= 0 });
@@ -71,7 +82,19 @@ function Row({ t, categories, partner }: { t: BoardTx; categories: Category[]; p
         isDragging && "opacity-40"
       )}
     >
-      <MerchantIcon name={t.name} domain={t.domain} emoji={t.emoji} />
+      {/* The icon is the handle for the merchant's name and icon. Its click must not start a drag;
+          the keyboard reaches the same editor through the File menu, so only money in keeps a tab stop here. */}
+      <button
+        type="button"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={() => onEditMerchant(t)}
+        tabIndex={t.amount < 0 ? -1 : undefined}
+        aria-label={`Change the name or icon of ${t.name}`}
+        title="Change name or icon"
+        className={cn("rounded-full hover:ring-2 hover:ring-[#16171C]/20 dark:hover:ring-white/25", FOCUS)}
+      >
+        <MerchantIcon name={t.name} domain={t.domain} emoji={t.emoji} />
+      </button>
       <div className="min-w-0">
         <div className="truncate text-[15px] font-medium">{t.name}</div>
         {sub && <div className={cn("truncate text-[13px]", MUTED)}>{sub}</div>}
@@ -134,7 +157,7 @@ function RoundUps({ micro }: { micro: BoardTx[] }) {
 // The categories a charge can go under, the one it has ticked. Picking one files
 // it there at once, the way a coin goes into a roll; below them, its split with the
 // partner, which works the same way.
-function FileMenu({ txs, categories, onFile, partner, onSplit, onUnshare }: { txs: BoardTx[]; categories: Category[] } & Actions) {
+function FileMenu({ txs, categories, onFile, partner, onSplit, onUnshare, onEditMerchant }: { txs: BoardTx[]; categories: Category[] } & Actions) {
   return (
     <Menu.Root handle={fileMenu}>
       {({ payload }) => {
@@ -203,6 +226,15 @@ function FileMenu({ txs, categories, onFile, partner, onSplit, onUnshare }: { tx
                         </Menu.Item>
                       )}
                     </Menu.Group>
+                  </>
+                )}
+                {tx && (
+                  <>
+                    <Menu.Separator className="mx-2.5 my-1 h-px bg-[#16171C]/10 dark:bg-white/10" />
+                    <Menu.Item className={ITEM} onClick={() => onEditMerchant(tx)}>
+                      <span aria-hidden className="w-3 shrink-0" />
+                      Name and icon…
+                    </Menu.Item>
                   </>
                 )}
               </Menu.Popup>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,15 +36,17 @@ export function MerchantEditor({
   onClose,
   onSave,
   onReset,
+  className,
 }: {
   subject: MerchantSubject | null;
   onClose: () => void;
   onSave: (fields: Fields) => Promise<string | null>; // null = saved, otherwise the reason
   onReset: () => Promise<string | null>;
+  className?: string; // a page's own look for the dialog
 }) {
   return (
     <Dialog open={!!subject} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className={cn("sm:max-w-sm", className)}>
         {subject && <MerchantForm key={subject.key} tx={subject} onClose={onClose} onSave={onSave} onReset={onReset} />}
       </DialogContent>
     </Dialog>

@@ -11,6 +11,9 @@ import { PaintedCoin } from "@/components/painted";
 import { CoinStage, DISPLAY, FOCUS, MUTED, PANEL, eur, label, looseCoins, monthOf, shortDate, type CoinStageHandle } from "@/components/coin-stage";
 import { CoinLedger } from "@/components/coin-ledger";
 import { CoinSubscriptions } from "@/components/coin-subscriptions";
+import { CategoriesEditor, type CategoryAction } from "@/components/categories-editor";
+import { MerchantEditor, type MerchantSubject } from "@/components/merchant-editor";
+import { SnapshotEditor } from "@/components/snapshot-editor";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn, shareLabel } from "@/lib/utils";
@@ -22,6 +25,23 @@ import { cn, shareLabel } from "@/lib/utils";
 const OAT = "bg-[#EFEBE3] dark:bg-[#1F1D22]";
 // The list's view of money that came in, beside the categories a roll can pick.
 const MONEY_IN = "money-in";
+// The old board's editors in the new look: Oat Paper, generous corners, Rubik and
+// Fredoka, Ink for the action. They read the theme from CSS variables, so the
+// variables are re-tinted inside them here.
+const PANEL_CSS = `
+  .coins-panel { --popover: #EFEBE3; --popover-foreground: #16171C; --background: #EFEBE3; --foreground: #16171C;
+    --muted: #F4F5F7; --muted-foreground: #63666F; --accent: #FFFFFF; --accent-foreground: #16171C;
+    --border: rgb(22 23 28 / 0.12); --input: rgb(22 23 28 / 0.2); --ring: #16171C;
+    --primary: #16171C; --primary-foreground: #FFFFFF; --primary-ink: #16171C; --radius: 1.25rem;
+    --font-heading-var: var(--font-coins-display); }
+  .dark .coins-panel { --popover: #1F1D22; --popover-foreground: #F3F2EE; --background: #1F1D22; --foreground: #F3F2EE;
+    --muted: #191B22; --muted-foreground: #A7A9B4; --accent: #23252E; --accent-foreground: #F3F2EE;
+    --border: rgb(255 255 255 / 0.12); --input: rgb(255 255 255 / 0.22); --ring: #F3F2EE;
+    --primary: #F3F2EE; --primary-foreground: #16171C; --primary-ink: #F3F2EE; }
+  .coins-panel [data-slot="input"] { background-color: var(--accent); }
+  .coins-panel .font-mono { font-family: inherit; font-variant-numeric: tabular-nums; }
+  .coins-panel [data-slot="dialog-footer"] { margin: 0 -1.5rem -1.5rem; padding: 0.5rem 1.5rem 1.5rem; background: transparent; border-top: 0; }
+`;
 // A row starts to drag only once the mouse has moved, so a click stays a click.
 const MOUSE_DRAG = { activationConstraint: { distance: 5 } };
 
@@ -143,6 +163,25 @@ export function CoinBoard({
       announceUndoable(`Took ${tx.name} off Pooleks.`, r.undo, refetch);
     });
   };
+  // The editors: categories (names, order, limits), a merchant's name and icon, and
+  // the investments snapshot, as on the old board. Each says why when it cannot save.
+  const [catsOpen, setCatsOpen] = useState(false);
+  const [snapOpen, setSnapOpen] = useState(false);
+  const [merchantSubject, setMerchantSubject] = useState<MerchantSubject | null>(null);
+  const tryPost = async (action: object) => {
+    const r = await run(action);
+    return r.ok ? null : r.error;
+  };
+  // A renamed category the list is showing stays shown under its new name.
+  const editCategories = async (action: CategoryAction) => {
+    const err = await tryPost(action);
+    if (!err && action.type === "category-rename") setOnly((o) => (o === action.from ? action.to : o));
+    return err;
+  };
+  const editMerchant = (t: BoardTx) =>
+    setMerchantSubject({ key: t.id, name: t.name, domain: t.domain, emoji: t.emoji, pattern: t.merchantPattern, custom: t.customMerchant, target: { txId: t.id } });
+  const dialogLook = cn(fontClass, "coins-panel rounded-[28px] p-6");
+
   // A subscription's two actions, each with its Undo.
   const subAction = (action: object, done: string) =>
     void run(action).then((r) => (r.ok ? announceUndoable(done, r.undo, refetch) : announceError(r.error)));
@@ -163,10 +202,17 @@ export function CoinBoard({
     const n = name.replace(/^LHV · /, "");
     return n.charAt(0).toUpperCase() + n.slice(1);
   };
-  const standing = [
-    ...board.accounts.map((a) => ({ name: accountName(a.name), value: a.balance })),
-    ...(board.investments.total != null ? [{ name: "Investments", value: board.investments.total }] : []),
-  ];
+  const standing = board.accounts.map((a) => ({ name: accountName(a.name), value: a.balance }));
+  // Investments opens its snapshot editor; with none yet, the line offers to add one.
+  const investments = (
+    <button
+      type="button"
+      onClick={() => setSnapOpen(true)}
+      className={cn("underline decoration-dotted decoration-1 underline-offset-2 hover:text-[#16171C] dark:hover:text-white", FOCUS)}
+    >
+      {board.investments.total != null ? "Investments" : "Add investments"}
+    </button>
+  );
   const amount = (v: number, tone = "text-[#16171C] dark:text-[#F3F2EE]", sign = "") => (
     <span className={cn("tabular-nums", tone)}>
       {sign}
@@ -182,6 +228,11 @@ export function CoinBoard({
         {x.name} {amount(x.value)}
       </>
     )),
+    <>
+      {standing.length === 0 && month !== initial.month && "Today: "}
+      {investments}
+      {board.investments.total != null && <> {amount(board.investments.total)}</>}
+    </>,
   ];
   // Each figure keeps its name and amount together; the line breaks between them.
   const figures = figureParts.map((part, i) => (
@@ -309,6 +360,15 @@ export function CoinBoard({
             selected={only === MONEY_IN ? null : only}
             onSelect={toggle}
             figures={figures}
+            actions={
+              <button
+                type="button"
+                onClick={() => setCatsOpen(true)}
+                className={cn("rounded-full px-3.5 py-2 text-[15px] font-medium hover:bg-white dark:hover:bg-[#23252E]", FOCUS)}
+              >
+                Edit categories
+              </button>
+            }
           />
 
           <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -376,6 +436,37 @@ export function CoinBoard({
                   </p>
                 )}
               </section>
+              {/* Who owes whom on the shared statement, until Pooleks gets its own place on the
+                  tray. Splitting is in each row's menu. */}
+              {partner && (
+                <section aria-labelledby="pooleks-heading" className={cn(PANEL, OAT, "p-5 sm:p-6")}>
+                  <h2 id="pooleks-heading" className={cn(DISPLAY, "flex items-baseline justify-between gap-3 text-[20px] font-semibold")}>
+                    Pooleks
+                    <span className={cn("font-sans text-[13px] font-normal", MUTED)}>with {partner}</span>
+                  </h2>
+                  <p className="pt-3 text-[15px] font-medium">
+                    {board.sharedItems.length === 0 ? (
+                      <span className={cn("font-normal", MUTED)}>Nothing shared yet.</span>
+                    ) : board.balance === 0 ? (
+                      "All square."
+                    ) : board.balance > 0 ? (
+                      <>
+                        {partner} owes you <span className="tabular-nums">{eur.format(board.balance)}</span>
+                      </>
+                    ) : (
+                      <>
+                        You owe {partner} <span className="tabular-nums">{eur.format(-board.balance)}</span>
+                      </>
+                    )}
+                  </p>
+                  <p className={cn("pt-1 text-[13px]", MUTED)}>
+                    Split a charge from its menu in the list.{" "}
+                    <a href="/pooleks" className={cn("underline decoration-1 underline-offset-2 hover:text-[#16171C] dark:hover:text-white", FOCUS)}>
+                      Open Pooleks
+                    </a>
+                  </p>
+                </section>
+              )}
               <CoinSubscriptions
                 subscriptions={board.subscriptions}
                 monthly={board.monthlyBurn}
@@ -456,6 +547,7 @@ export function CoinBoard({
                 partner={partner}
                 onSplit={(tx, share) => onSplit(tx, share)}
                 onUnshare={onUnshare}
+                onEditMerchant={editMerchant}
               />
               {rows.length === 0 && (
                 <p className={cn("pt-4 text-[15px]", MUTED)}>
@@ -482,6 +574,28 @@ export function CoinBoard({
           )}
         </DragOverlay>
         </DndContext>
+        <style>{PANEL_CSS}</style>
+        <CategoriesEditor
+          open={catsOpen}
+          categories={board.categories.map((c) => ({ name: c.name, budget: c.budget }))}
+          onClose={() => setCatsOpen(false)}
+          onAction={editCategories}
+          className={dialogLook}
+        />
+        <MerchantEditor
+          subject={merchantSubject}
+          onClose={() => setMerchantSubject(null)}
+          onSave={(fields) => tryPost({ type: "merchant", ...merchantSubject?.target, ...fields })}
+          onReset={() => tryPost({ type: "merchant-reset", ...merchantSubject?.target })}
+          className={dialogLook}
+        />
+        <SnapshotEditor
+          open={snapOpen}
+          latest={board.investments.latest}
+          onClose={() => setSnapOpen(false)}
+          onSave={(source, total, holdings, returnPct) => tryPost({ type: "snapshot", source, total, holdings, returnPct })}
+          className={dialogLook}
+        />
       </div>
     </div>
   );
