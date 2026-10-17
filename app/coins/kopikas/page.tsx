@@ -1,10 +1,14 @@
+import { redirect } from "next/navigation";
 import { Fredoka } from "next/font/google";
 import { KopikasMascot } from "@/components/kopikas-mascot";
 import type { PaintedPose } from "@/components/kopikas-painted";
 import { PaintedDefs } from "@/components/painted";
+import { pageRole } from "@/lib/auth";
 
 // Kopikas's character sheet, live: every pose, and the moment it belongs to.
 const fredoka = Fredoka({ subsets: ["latin", "latin-ext"] });
+
+export const dynamic = "force-dynamic";
 
 const POSES: { pose: PaintedPose; name: string; when: string }[] = [
   { pose: "hello", name: "Happy & wave", when: "Arriving on the board" },
@@ -17,7 +21,8 @@ const POSES: { pose: PaintedPose; name: string; when: string }[] = [
   { pose: "friendly", name: "Waving", when: "Hovered" },
 ];
 
-export default function KopikasSheet() {
+export default async function KopikasSheet() {
+  if ((await pageRole()) !== "owner") redirect("/");
   return (
     <div className="min-h-dvh bg-white px-5 py-10 text-[#16171C] dark:bg-[#0F1015] dark:text-[#F3F2EE]">
       <PaintedDefs />

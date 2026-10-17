@@ -14,7 +14,7 @@ import {
   subscriptionCharges,
   subscriptionStatus,
 } from "@/lib/engine";
-import { currentRole } from "@/lib/auth";
+import { currentRole, refusalStatus } from "@/lib/auth";
 import { merchantOf, rulePattern } from "@/lib/icons";
 import { checkRefreshToken } from "@/lib/lhv";
 import { RESTORABLE, restoreRecord, type RestoreCollection } from "@/lib/restore";
@@ -62,7 +62,10 @@ export async function POST(req: Request) {
     action.type === "unsettle" ||
     (action.type === "restore" && action.collection === "settlements");
   if (role !== "owner" && !(role === "partner" && partnerMove)) {
-    return NextResponse.json({ ok: false, error: "This account can't make that change." }, { status: 403 });
+    return NextResponse.json(
+      { ok: false, error: "This account can't make that change." },
+      { status: await refusalStatus() }
+    );
   }
 
   const db = await readDb();

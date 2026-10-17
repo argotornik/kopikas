@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
+import { currentRole, refusalStatus } from "@/lib/auth";
 
 // Server-side favicon proxy with a local cache. Browsers only ever talk to
 // this app — the merchant list never leaks to the favicon service from
@@ -11,6 +12,8 @@ const CACHE_DIR = path.join(process.cwd(), "data", "icons");
 const DOMAIN_RE = /^[a-z0-9][a-z0-9.-]{1,60}$/;
 
 export async function GET(req: Request) {
+  // Either of the two, not an open proxy for anyone who finds it.
+  if (!(await currentRole())) return new NextResponse(null, { status: await refusalStatus() });
   const domain = new URL(req.url).searchParams.get("domain") ?? "";
   if (!DOMAIN_RE.test(domain)) return new NextResponse(null, { status: 400 });
 
@@ -36,8 +39,10 @@ export async function GET(req: Request) {
   return icon(buf);
 }
 
+// Private: the browser keeps it for a month, but a CDN copy would be served
+// to anyone without running the check above.
 function icon(buf: Uint8Array) {
   return new NextResponse(new Blob([Uint8Array.from(buf)]), {
-    headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=2592000, s-maxage=2592000" },
+    headers: { "Content-Type": "image/png", "Cache-Control": "private, max-age=2592000" },
   });
 }

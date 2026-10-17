@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { currentRole } from "@/lib/auth";
+import { pageRole } from "@/lib/auth";
 import { getAccounts, getLhvTokens, readDb } from "@/lib/storage";
 import { matches } from "@/lib/engine";
 import { SettingsView } from "@/components/settings-view";
@@ -8,7 +8,7 @@ import { coinFonts } from "@/components/coin-fonts";
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const role = await currentRole();
+  const role = await pageRole();
   if (role !== "owner") redirect("/");
 
   // Only metadata crosses to the client — never the token itself.

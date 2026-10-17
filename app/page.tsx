@@ -4,7 +4,7 @@ import { coinFonts } from "@/components/coin-fonts";
 import { getAccounts, getLhvTokens, readDb } from "@/lib/storage";
 import { FirstRun } from "@/components/first-run";
 import { buildBoard } from "@/lib/board";
-import { currentEmail, currentRole, ownerConfigured } from "@/lib/auth";
+import { currentEmail, ownerConfigured, pageRole } from "@/lib/auth";
 import { PARTNER_NAME } from "@/lib/names";
 import { NotOnBoard, SetupOwner } from "@/components/setup-owner";
 
@@ -15,7 +15,7 @@ export default async function Home({
 }: {
   searchParams: Promise<{ cat?: string; month?: string; q?: string }>;
 }) {
-  const role = await currentRole();
+  const role = await pageRole();
   if (role === "partner") redirect("/pooleks");
   if (role !== "owner") {
     // Signed in, but not the owner. On a deployment with no owner configured

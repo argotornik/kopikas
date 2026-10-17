@@ -3,7 +3,7 @@ import { Fredoka, Rubik } from "next/font/google";
 import { CoinsPrototype } from "@/components/coins-prototype";
 import { getAccounts, readDb } from "@/lib/storage";
 import { buildBoard } from "@/lib/board";
-import { currentRole } from "@/lib/auth";
+import { pageRole } from "@/lib/auth";
 
 // The coin-tray sketch as it stood when /coins began growing into the real
 // board (2026-10-16), kept to compare against, Goofy look and all. Same data,
@@ -14,7 +14,7 @@ const rubik = Rubik({ subsets: ["latin", "latin-ext"] });
 export const dynamic = "force-dynamic";
 
 export default async function CoinsSketchPage() {
-  if ((await currentRole()) !== "owner") redirect("/");
+  if ((await pageRole()) !== "owner") redirect("/");
   const [db, { fetchedAt }] = await Promise.all([readDb(), getAccounts()]);
   if (db.transactions.length === 0) redirect("/");
   return (

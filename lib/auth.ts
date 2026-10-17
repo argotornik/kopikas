@@ -1,4 +1,4 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 
 // Auth mirrors the storage pattern: enabled exactly where the secrets live.
 // No CLERK_SECRET_KEY (local dev) -> auth off, everything acts as the owner.
@@ -29,4 +29,20 @@ export async function currentRole(): Promise<Role> {
   if (email === process.env.OWNER_EMAIL?.toLowerCase()) return "owner";
   if (email === process.env.PARTNER_EMAIL?.toLowerCase()) return "partner";
   return null;
+}
+
+// Each page and route decides its own access; proxy.ts only runs Clerk.
+// Pages: a signed-out visitor goes to sign-in and comes back afterwards;
+// anyone signed in gets their role.
+export async function pageRole(): Promise<Role> {
+  if (authEnabled) await auth.protect();
+  return currentRole();
+}
+
+// Routes: the status for a request without the role it needs. Nobody signed
+// in is 401 (the pages then say the sign-in expired); signed in as someone
+// not on the board is 403.
+export async function refusalStatus(): Promise<401 | 403> {
+  if (!authEnabled) return 403;
+  return (await auth()).userId ? 403 : 401;
 }
