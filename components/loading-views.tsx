@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
 // While a page opens: its own shape in quiet tones, so nothing jumps when it fills in.
 // No faces and no heights: a placeholder must never look like money. Shapes on Oat Paper
 // are Ink at 7%, shapes on the page are Mist.
-const ON_OAT = "bg-[#16171C]/[0.07] dark:bg-white/[0.07]";
-const ON_PAGE = "bg-[#F4F5F7] dark:bg-[#191B22]";
+const ON_OAT = "bg-ink/[0.07] dark:bg-white/[0.07]";
+const ON_PAGE = "bg-mist dark:bg-mist-night";
 const Bar = ({ className, page = false }: { className: string; page?: boolean }) => (
   <div className={cn("rounded-full", page ? ON_PAGE : ON_OAT, className)} />
 );
@@ -144,7 +144,7 @@ export function SettingsLoading() {
           <Bar className="h-5 w-[130px] rounded-lg" />
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {["h-[120px]", "h-[90px] max-sm:hidden", "h-[140px] max-lg:hidden"].map((h) => (
-              <div key={h} className={cn("rounded-2xl bg-white dark:bg-[#23252E]", h)} />
+              <div key={h} className={cn("rounded-2xl bg-white dark:bg-card-night", h)} />
             ))}
           </div>
         </div>

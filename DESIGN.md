@@ -27,6 +27,8 @@ colors:
   tongue-pink: "#F07A8C"
   received-green: "#0A763F"
   received-green-night: "#4FD18B"
+  sun: "#FFB020"
+  sun-ink: "#B07A12"
   wrapper-cornflower: "#6C8EEA"
   wrapper-tomato: "#E2553B"
   wrapper-pink: "#F0A3B4"
@@ -180,6 +182,9 @@ A white page, a warm oat stage, copper as the house colour, Crayon Blue for ever
 - **Muted** (muted) and **Muted Night** (muted-night): secondary text, captions and the prototype strip; 4.8:1 on Oat Paper, 7.1:1 on Oat Paper Night.
 - **Limb Brown** (limb-brown) and **Limb Sand** (limb-sand): the characters' arms, legs and dark marks, swapped by theme so feet and confetti never vanish on the night ground.
 - **Received Green** (received-green / received-green-night): money coming in. 4.8:1 on Oat Paper, 5.7:1 on white and 5.2:1 on Mist; the night value is 8.6:1 on Oat Paper Night.
+- **Sun Yellow** (sun) and **Sun Ink** (sun-ink): what needs dealing with, such as a late sync or a failed connection: a dot, a tint behind the words, or Sun Ink for an icon on a light ground. Errors have no colour of their own yet; they keep a red until that is decided.
+
+In code these are Tailwind colours in `app/globals.css` under the same names, shortened where long (`oat` is Oat Paper, `received` is Received Green, `muted-text` is Muted, since shadcn's `muted` is a fill). Each theme has its own token and a class names both: `bg-oat dark:bg-oat-night`. shadcn's parts read the same colours through its variables. The painted cast keeps its palette in `painted.tsx`.
 
 ### Named Rules
 **The One Wrapper Rule.** A category owns one wrapper colour, given by its place in the list, everywhere it appears. Never pick a wrapper for looks.
@@ -333,6 +338,7 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 
 ### Notices
 - **Style:** one line of what happened ("Filed Coop under Groceries."), with Undo, and Always where a rule can be taught. Errors say what went wrong, with a retry where one helps.
+- **Shape:** dressed as a menu: a white card (card-night in dark) with a 1px Ink ring at 10% and no shadow, at the foot of the screen (above the tab bar on a phone). The buttons are Mist pills and the ✕ is round; when the words need the room, the buttons drop under them to the right, so a phone shows two lines, never more.
 
 ### Inputs
 - **Select pill:** Mist fill, 2px Ink border at 10% (25% on hover), full pill, 40px tall, Body type at 500.

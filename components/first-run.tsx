@@ -106,7 +106,7 @@ export function FirstRun({
             ))}
           </div>
           {/* On a phone they sleep in one list, as the phone's tray shows them. */}
-          <div role="group" aria-label="Your categories, waiting for their first charges" className="mt-6 border-t border-[#16171C]/10 pt-5 sm:hidden dark:border-white/10">
+          <div role="group" aria-label="Your categories, waiting for their first charges" className="mt-6 border-t border-ink/10 pt-5 sm:hidden dark:border-white/10">
             <div className={cn("text-[14px] font-medium", MUTED)}>Nothing yet</div>
             <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
               {floor.map((name) => (
@@ -128,7 +128,7 @@ export function StepNumber({ n }: { n: number }) {
   return (
     <span
       aria-hidden
-      className="mt-px flex size-6 shrink-0 items-center justify-center rounded-full bg-[#16171C] text-[13px] font-medium text-white dark:bg-[#F3F2EE] dark:text-[#16171C]"
+      className="mt-px flex size-6 shrink-0 items-center justify-center rounded-full bg-ink text-[13px] font-medium text-white dark:bg-chalk dark:text-ink"
     >
       {n}
     </span>

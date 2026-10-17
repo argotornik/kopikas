@@ -105,11 +105,11 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
                 "flex items-center gap-2",
                 // Sun yellow marks it as the thing to deal with; the words stay
                 // at full contrast on the tint.
-                status.failed && "items-start rounded-2xl bg-[#FFB020]/15 px-3 py-2 text-[#16171C] dark:text-[#F3F2EE]"
+                status.failed && "items-start rounded-2xl bg-sun/15 px-3 py-2 text-ink dark:text-chalk"
               )}
             >
               {busy && <CoinMark turning className="size-4" />}
-              {status.failed && <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-[#B07A12] dark:text-[#FFB020]" />}
+              {status.failed && <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-sun-ink dark:text-sun" />}
               <span>{status.text}</span>
             </motion.span>
           )}

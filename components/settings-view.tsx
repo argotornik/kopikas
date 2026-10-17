@@ -52,7 +52,7 @@ export function SettingsView({
                   key={href}
                   href={href}
                   className={cn(
-                    "inline-flex h-9 items-center gap-1.5 rounded-full bg-[#F4F5F7] px-3.5 text-[13px] font-medium hover:bg-[#E9EBEF] pointer-coarse:h-11 dark:bg-[#191B22] dark:hover:bg-[#23252E]",
+                    "inline-flex h-9 items-center gap-1.5 rounded-full bg-mist px-3.5 text-[13px] font-medium hover:bg-mist-hover pointer-coarse:h-11 dark:bg-mist-night dark:hover:bg-card-night",
                     FOCUS
                   )}
                 >

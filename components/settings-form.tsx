@@ -93,7 +93,7 @@ export function SettingsForm({
               aria-hidden
               className={cn(
                 "size-2.5 shrink-0 rounded-full",
-                state === "ok" ? "bg-[#0A763F] dark:bg-[#4FD18B]" : state === "none" ? "bg-[#63666F]/40 dark:bg-[#A7A9B4]/40" : "bg-[#FFB020]"
+                state === "ok" ? "bg-received dark:bg-received-night" : state === "none" ? "bg-muted-text/40 dark:bg-muted-text-night/40" : "bg-sun"
               )}
             />
             {state === "none"
@@ -191,7 +191,7 @@ function StatusLine({ status }: { status: Status }) {
         {status.tone !== "ok" && (
           <CircleAlertIcon
             aria-hidden
-            className={cn("mt-px size-4 shrink-0", status.tone === "error" ? "text-[#C7432F] dark:text-[#FF8A75]" : "text-[#B07A12] dark:text-[#FFB020]")}
+            className={cn("mt-px size-4 shrink-0", status.tone === "error" ? "text-error dark:text-error-night" : "text-sun-ink dark:text-sun")}
           />
         )}
         <span>{status.text}</span>

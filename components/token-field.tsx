@@ -48,7 +48,7 @@ export function TokenField({
               onChange={(e) => onChange(e.target.value)}
               className={cn(
                 // A border of its own, so it shows on Oat (first run) and on white (Settings) alike.
-                "h-12 w-full rounded-full border-2 border-[#16171C]/15 bg-white px-4 text-[16px] text-[#16171C] focus:border-[#16171C]/35 disabled:opacity-60 dark:border-white/15 dark:bg-[#23252E] dark:text-[#F3F2EE] dark:focus:border-white/35",
+                "h-12 w-full rounded-full border-2 border-ink/15 bg-white px-4 text-[16px] text-ink focus:border-ink/35 disabled:opacity-60 dark:border-white/15 dark:bg-card-night dark:text-chalk dark:focus:border-white/35",
                 FOCUS
               )}
             />

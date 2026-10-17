@@ -644,14 +644,14 @@ export function CoinStage({
         transition={SPRING}
         style={narrow ? { originX: 0.9, originY: 0 } : { originX: 1, originY: 0.3 }}
         className={cn(
-          "relative rounded-2xl bg-white px-4 py-3 text-[15px] leading-snug shadow-[0_10px_30px_-14px_rgb(0_0_0/0.3)] dark:bg-[#23252E]",
+          "relative rounded-2xl bg-white px-4 py-3 text-[15px] leading-snug shadow-[0_10px_30px_-14px_rgb(0_0_0/0.3)] dark:bg-card-night",
           narrow ? "w-full" : "mt-5 max-w-[260px]"
         )}
       >
         {bubble}
         <span
           aria-hidden
-          className={cn("absolute size-3 rotate-45 bg-white dark:bg-[#23252E]", narrow ? "-top-1.5 right-9" : "-right-1.5 top-6")}
+          className={cn("absolute size-3 rotate-45 bg-white dark:bg-card-night", narrow ? "-top-1.5 right-9" : "-right-1.5 top-6")}
         />
       </motion.div>
     </AnimatePresence>
@@ -687,7 +687,7 @@ export function CoinStage({
     t.shared && (
       <span
         aria-hidden
-        className="absolute -bottom-1 -right-1.5 rounded-full bg-white px-1 text-[10px] font-semibold leading-4 tabular-nums text-[#16171C] ring-1 ring-[#16171C]/10 dark:bg-[#23252E] dark:text-[#F3F2EE] dark:ring-white/10"
+        className="absolute -bottom-1 -right-1.5 rounded-full bg-white px-1 text-[10px] font-semibold leading-4 tabular-nums text-ink ring-1 ring-ink/10 dark:bg-card-night dark:text-chalk dark:ring-white/10"
       >
         {shareLabel(t.partnerShare)}
       </span>
@@ -744,7 +744,7 @@ export function CoinStage({
       <button
         type="button"
         onClick={() => onMonthChange(elsewhereMonth)}
-        className={cn("underline decoration-1 underline-offset-2 hover:text-[#16171C] dark:hover:text-white", FOCUS)}
+        className={cn("underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", FOCUS)}
       >
         {oneMonth ? "Go there" : `Go to ${label(elsewhereMonth)}`}
       </button>
@@ -877,7 +877,7 @@ export function CoinStage({
       {/* The stage: the month's rolls on one floor, the loose change beside them. */}
       <section
         aria-labelledby="month-heading"
-        className={cn(PANEL, "relative overflow-hidden px-5 pb-6 pt-6 sm:px-8 sm:pt-8", painted && "bg-[#EFEBE3] dark:bg-[#1F1D22]")}
+        className={cn(PANEL, "relative overflow-hidden px-5 pb-6 pt-6 sm:px-8 sm:pt-8", painted && "bg-oat dark:bg-oat-night")}
       >
         {/* The painted tray floats nothing up by the month: on the phone the marks there sat on
             the panel's edge and read as strays. On desktop its air is around the loose change. */}
@@ -1018,7 +1018,7 @@ export function CoinStage({
                 {elsewhereNote}
               </div>
             </div>
-            <div className="h-px bg-[#16171C]/10 dark:bg-white/10" aria-hidden />
+            <div className="h-px bg-ink/10 dark:bg-white/10" aria-hidden />
             <div ref={listRef} role="group" aria-label={`Where ${label(month)}'s money went`} className="flex flex-col gap-2">
               {rolls.filter((r) => r.total > 0).map((r, i) => {
                 const over = r.budget != null && r.total > r.budget;
@@ -1096,7 +1096,7 @@ export function CoinStage({
                 {pileBox}
                 {pileLabel}
               </div>
-              <div className="w-px shrink-0 self-stretch bg-[#16171C]/10 dark:bg-white/10" aria-hidden />
+              <div className="w-px shrink-0 self-stretch bg-ink/10 dark:bg-white/10" aria-hidden />
             </>
           )}
 

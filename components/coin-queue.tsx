@@ -47,7 +47,7 @@ export function CoinQueue({
 
   if (!tx)
     return (
-      <section aria-labelledby="queue-heading" className={cn(PANEL, "flex flex-col items-center bg-[#EFEBE3] px-6 py-12 text-center dark:bg-[#1F1D22]")}>
+      <section aria-labelledby="queue-heading" className={cn(PANEL, "flex flex-col items-center bg-oat px-6 py-12 text-center dark:bg-oat-night")}>
         <PaintedCoin size={72} mood="glad" seed={5} />
         <h2 id="queue-heading" className={cn(DISPLAY, "mt-4 text-[24px] font-semibold")}>
           All filed
@@ -56,7 +56,7 @@ export function CoinQueue({
         <button
           type="button"
           onClick={onDone}
-          className={cn("mt-5 h-11 rounded-full bg-[#16171C] px-5 text-[15px] font-medium text-white dark:bg-[#F3F2EE] dark:text-[#16171C]", FOCUS)}
+          className={cn("mt-5 h-11 rounded-full bg-ink px-5 text-[15px] font-medium text-white dark:bg-chalk dark:text-ink", FOCUS)}
         >
           See the month
         </button>
@@ -64,7 +64,7 @@ export function CoinQueue({
     );
 
   return (
-    <section aria-labelledby="queue-heading" className={cn(PANEL, "bg-[#EFEBE3] px-3 pb-4 pt-5 dark:bg-[#1F1D22]")}>
+    <section aria-labelledby="queue-heading" className={cn(PANEL, "bg-oat px-3 pb-4 pt-5 dark:bg-oat-night")}>
       <div className={cn("flex justify-between px-1 text-[13px] tabular-nums", MUTED)}>
         <span>{queue.length} to file</span>
         {waiting > 0 && <span>{waiting} skipped</span>}
@@ -97,7 +97,7 @@ export function CoinQueue({
           type="button"
           onClick={() => setSkipped((s) => [...s.filter((id) => id !== tx.id), tx.id])}
           disabled={queue.length < 2}
-          className={cn("h-11 flex-1 rounded-full bg-white text-[15px] font-medium disabled:opacity-40 dark:bg-[#23252E]", FOCUS)}
+          className={cn("h-11 flex-1 rounded-full bg-white text-[15px] font-medium disabled:opacity-40 dark:bg-card-night", FOCUS)}
         >
           Skip
         </button>
@@ -107,7 +107,7 @@ export function CoinQueue({
             onClick={() => onSplit(tx, 0.5)}
             disabled={tx.shared}
             aria-label={tx.shared ? `Split with ${partner} already` : `Split with ${partner}, who pays 1/2`}
-            className={cn("h-11 flex-[2] rounded-full bg-white text-[15px] font-medium disabled:opacity-40 dark:bg-[#23252E]", FOCUS)}
+            className={cn("h-11 flex-[2] rounded-full bg-white text-[15px] font-medium disabled:opacity-40 dark:bg-card-night", FOCUS)}
           >
             Split with {partner}
           </button>
@@ -124,7 +124,7 @@ export function CoinQueue({
               onClick={() => onFile(tx, c.name)}
               aria-label={`File under ${c.name}${c.name === SAVINGS ? "" : `, ${eur.format(total)} in ${label(monthOf(tx.date))}`}`}
               className={cn(
-                "flex min-h-14 items-center gap-2 rounded-2xl bg-white px-3 py-2 text-left transition-transform hover:bg-[#F4F5F7] motion-safe:active:scale-[0.96] dark:bg-[#23252E] dark:hover:bg-[#2C2F3A]",
+                "flex min-h-14 items-center gap-2 rounded-2xl bg-white px-3 py-2 text-left transition-transform hover:bg-mist motion-safe:active:scale-[0.96] dark:bg-card-night dark:hover:bg-card-night-hover",
                 FOCUS
               )}
             >

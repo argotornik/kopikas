@@ -19,10 +19,10 @@ const fileMenu = Menu.createHandle<string>();
 const CHIP = "inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium";
 // The board's menus: a white card of rows, as here and on Subscriptions.
 export const MENU_ITEM =
-  "flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2 text-[15px] outline-none select-none data-highlighted:bg-[#F4F5F7] dark:data-highlighted:bg-[#2C2F3A]";
+  "flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2 text-[15px] outline-none select-none data-highlighted:bg-mist dark:data-highlighted:bg-card-night-hover";
 export const MENU_POPUP =
-  "max-h-[min(30rem,var(--available-height))] min-w-60 origin-[var(--transform-origin)] overflow-y-auto rounded-2xl bg-white p-1.5 text-[#16171C] ring-1 ring-[#16171C]/10 outline-none transition-[scale,opacity] duration-100 ease-out data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none dark:bg-[#23252E] dark:text-[#F3F2EE] dark:ring-white/10";
-export const MENU_SEPARATOR = "mx-2.5 my-1 h-px bg-[#16171C]/10 dark:bg-white/10";
+  "max-h-[min(30rem,var(--available-height))] min-w-60 origin-[var(--transform-origin)] overflow-y-auto rounded-2xl bg-white p-1.5 text-ink ring-1 ring-ink/10 outline-none transition-[scale,opacity] duration-100 ease-out data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none dark:bg-card-night dark:text-chalk dark:ring-white/10";
+export const MENU_SEPARATOR = "mx-2.5 my-1 h-px bg-ink/10 dark:bg-white/10";
 
 type Category = { name: string };
 // What filing and splitting from a row hand to the page, with the row the coin hops from.
@@ -82,7 +82,7 @@ function Row({
       data-row={t.id}
       {...listeners}
       className={cn(
-        "grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-2xl px-2 py-2.5 [contain-intrinsic-size:auto_56px] [content-visibility:auto] hover:bg-white sm:grid-cols-[28px_minmax(0,1fr)_150px_100px] dark:hover:bg-[#23252E]",
+        "grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-2xl px-2 py-2.5 [contain-intrinsic-size:auto_56px] [content-visibility:auto] hover:bg-white sm:grid-cols-[28px_minmax(0,1fr)_150px_100px] dark:hover:bg-card-night",
         t.amount < 0 && "cursor-grab select-none",
         isDragging && "opacity-40"
       )}
@@ -96,7 +96,7 @@ function Row({
         tabIndex={t.amount < 0 ? -1 : undefined}
         aria-label={`Change the name or icon of ${t.name}`}
         title="Change name or icon"
-        className={cn("rounded-full hover:ring-2 hover:ring-[#16171C]/20 dark:hover:ring-white/25", FOCUS)}
+        className={cn("rounded-full hover:ring-2 hover:ring-ink/20 dark:hover:ring-white/25", FOCUS)}
       >
         <MerchantIcon name={t.name} domain={t.domain} emoji={t.emoji} />
       </button>
@@ -117,10 +117,10 @@ function Row({
             aria-label={`${t.category ?? "To file"}: file ${t.name}, ${eur.format(Math.abs(t.amount))}`}
             className={cn(
               CHIP,
-              "cursor-pointer data-popup-open:ring-2 data-popup-open:ring-[#16171C]/20 dark:data-popup-open:ring-white/25",
+              "cursor-pointer data-popup-open:ring-2 data-popup-open:ring-ink/20 dark:data-popup-open:ring-white/25",
               t.category
-                ? "bg-white hover:bg-[#F4F5F7] dark:bg-[#23252E] dark:hover:bg-[#2C2F3A]"
-                : "border-2 border-dashed border-[#16171C]/25 py-0.5 hover:border-[#16171C]/45 dark:border-white/25 dark:hover:border-white/45",
+                ? "bg-white hover:bg-mist dark:bg-card-night dark:hover:bg-card-night-hover"
+                : "border-2 border-dashed border-ink/25 py-0.5 hover:border-ink/45 dark:border-white/25 dark:hover:border-white/45",
               FOCUS
             )}
           >
@@ -134,7 +134,7 @@ function Row({
       <div
         className={cn(
           "col-start-3 row-start-1 text-right text-[15px] font-medium tabular-nums sm:col-start-4",
-          t.amount >= 0 && "text-[#0A763F] dark:text-[#4FD18B]"
+          t.amount >= 0 && "text-received dark:text-received-night"
         )}
       >
         {t.amount >= 0 ? "+" : ""}

@@ -14,31 +14,43 @@
     --breakpoint-wide: 118.75rem;
 }
 
+/* DESIGN.md's colours, by its names (oat is Oat Paper, received is Received Green). Each
+   theme has its own token and classes pair them: bg-oat dark:bg-oat-night. Static, so the
+   shadcn variables below can point at them. The painted cast keeps its own palette in
+   painted.tsx. */
+@theme static {
+    --color-ink: #16171C;
+    --color-chalk: #F3F2EE;
+    --color-night: #0F1015;
+    --color-oat: #EFEBE3;
+    --color-oat-night: #1F1D22;
+    --color-mist: #F4F5F7;
+    --color-mist-night: #191B22;
+    --color-card-night: #23252E;
+    /* DESIGN.md's Muted: secondary text. shadcn already has `muted` as a fill (Mist here). */
+    --color-muted-text: #63666F;
+    --color-muted-text-night: #A7A9B4;
+    --color-received: #0A763F;
+    --color-received-night: #4FD18B;
+    --color-copper: #CB793E;
+    /* Sun yellow marks what needs dealing with: a late sync, a failed connection. As text
+       or an icon on a light ground it is sun-ink. */
+    --color-sun: #FFB020;
+    --color-sun-ink: #B07A12;
+    /* What a hover lands on: Mist a step darker, Ink and card-night a step lighter. */
+    --color-mist-hover: #E9EBEF;
+    --color-ink-hover: #2B2D35;
+    --color-card-night-hover: #2C2F3A;
+    /* Errors aren't settled in DESIGN.md yet: Settings' red, as it was. Notices and fields
+       use --destructive below. */
+    --color-error: #C7432F;
+    --color-error-night: #FF8A75;
+}
+
 @theme inline {
     --font-sans: var(--font-coins-body), ui-sans-serif, system-ui, sans-serif;
     --font-heading: var(--font-coins-display), ui-rounded, system-ui, sans-serif;
     --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
-    --color-gain: var(--gain);
-    /* Text tier of two colours that are also fills: the copper of buttons and
-       bars, the amber of tints. Text needs 4.5:1 where a fill does not. */
-    --color-primary-ink: var(--primary-ink);
-    --color-attention-ink: var(--attention-ink);
-    --color-loss: var(--loss);
-    --color-shared: var(--shared);
-    --color-attention: var(--attention);
-    --color-sidebar-ring: var(--sidebar-ring);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
-    --color-chart-5: var(--chart-5);
-    --color-chart-4: var(--chart-4);
-    --color-chart-3: var(--chart-3);
-    --color-chart-2: var(--chart-2);
-    --color-chart-1: var(--chart-1);
     --color-ring: var(--ring);
     --color-input: var(--input);
     --color-border: var(--border);
@@ -78,112 +90,61 @@
     }
 }
 
-/* Theme: "Tangerine" preset lifted from arhamkhnz/next-shadcn-admin-dashboard (MIT),
-   with the primary shifted from template terracotta to Kopikas copper — the metal
-   kopikas coins were struck from. Keeps brand distinct from --attention orange. */
+/* The shadcn variables, for its parts (dialogs, inputs, buttons, notices), in DESIGN.md's
+   colours: a white page with white cards, Ink for text and the action, Mist for quiet fills. */
 :root {
     /* Native scrollbars and form controls follow the theme. */
     color-scheme: light;
-    --background: oklch(0.94 0 236.5);
-    --foreground: oklch(0.32 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.32 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.32 0 0);
-    /* Copper a step deeper than the preset's, so white on it reads at 4.6:1. */
-    --primary: oklch(0.57 0.11 55);
-    --primary-foreground: oklch(1 0 0);
-    --primary-ink: oklch(0.57 0.11 55);
-    --secondary: oklch(0.97 0 264.54);
-    --secondary-foreground: oklch(0.45 0.03 256.8);
-    --muted: oklch(0.98 0 247.84);
-    --muted-foreground: oklch(0.52 0.02 264.36);
-    --accent: oklch(0.91 0.02 243.82);
-    --accent-foreground: oklch(0.38 0.14 265.52);
+    --background: var(--color-white);
+    --foreground: var(--color-ink);
+    --card: var(--color-white);
+    --card-foreground: var(--color-ink);
+    --popover: var(--color-white);
+    --popover-foreground: var(--color-ink);
+    --primary: var(--color-ink);
+    --primary-foreground: var(--color-white);
+    --secondary: var(--color-mist);
+    --secondary-foreground: var(--color-muted-text);
+    --muted: var(--color-mist);
+    --muted-foreground: var(--color-muted-text);
+    --accent: var(--color-mist);
+    --accent-foreground: var(--color-ink);
+    /* Error red, kept from the old theme until DESIGN.md settles it. */
     --destructive: oklch(0.588 0.21 25.33);
-    --border: oklch(0.9 0.01 247.88);
+    --border: color-mix(in srgb, var(--color-ink) 12%, transparent);
     /* A field's edge at 3:1 against the card, so the field can be found. */
-    --input: oklch(0.62 0.01 247.88);
-    --ring: oklch(0.57 0.11 55);
-    --chart-1: oklch(0.72 0.06 248.68);
-    --chart-2: oklch(0.79 0.09 35.96);
-    --chart-3: oklch(0.58 0.08 254.16);
-    --chart-4: oklch(0.5 0.08 259.49);
-    --chart-5: oklch(0.42 0.1 264.03);
+    --input: color-mix(in srgb, var(--color-ink) 20%, transparent);
+    --ring: var(--color-ink);
     --radius: 0.625rem;
-    --sidebar: oklch(0.9 0 258.33);
-    --sidebar-foreground: oklch(0.32 0 0);
-    --sidebar-primary: oklch(0.57 0.11 55);
-    --sidebar-primary-foreground: oklch(1 0 0);
-    --sidebar-accent: oklch(0.91 0.02 243.82);
-    --sidebar-accent-foreground: oklch(0.38 0.14 265.52);
-    --sidebar-border: oklch(0.93 0.01 264.53);
-    --sidebar-ring: oklch(0.57 0.11 55);
-    /* Semantic money colors: gain/loss direction, shared-with-partner, needs-attention. */
-    /* Darker than the preset's so incoming amounts read at 4.6:1 on white. */
-    --gain: oklch(0.536 0.145 163.225);
-    --loss: oklch(0.577 0.245 27.325);
-    --shared: oklch(0.541 0.281 293.009);
-    --attention: oklch(0.646 0.222 41.116);
-    /* Amber as text: deep enough for its own tint and for white. */
-    --attention-ink: oklch(0.52 0.2 45);
 }
 
 .dark {
     color-scheme: dark;
-    --background: oklch(0.26 0.03 262.67);
-    --foreground: oklch(0.92 0 0);
-    --card: oklch(0.31 0.03 268.64);
-    --card-foreground: oklch(0.92 0 0);
-    --popover: oklch(0.29 0.02 268.4);
-    --popover-foreground: oklch(0.92 0 0);
-    --primary: oklch(0.57 0.11 55);
-    --primary-foreground: oklch(1 0 0);
-    /* Copper as text on the dark card has to be lighter than the button fill. */
-    --primary-ink: oklch(0.7 0.11 55);
-    --secondary: oklch(0.31 0.03 266.71);
-    --secondary-foreground: oklch(0.92 0 0);
-    --muted: oklch(0.31 0.03 266.71);
-    --muted-foreground: oklch(0.72 0 0);
-    --accent: oklch(0.34 0.06 267.59);
-    --accent-foreground: oklch(0.88 0.06 254.13);
+    --background: var(--color-night);
+    --foreground: var(--color-chalk);
+    --card: var(--color-card-night);
+    --card-foreground: var(--color-chalk);
+    --popover: var(--color-card-night);
+    --popover-foreground: var(--color-chalk);
+    --primary: var(--color-chalk);
+    --primary-foreground: var(--color-ink);
+    --secondary: var(--color-mist-night);
+    --secondary-foreground: var(--color-muted-text-night);
+    --muted: var(--color-mist-night);
+    --muted-foreground: var(--color-muted-text-night);
+    --accent: var(--color-card-night-hover);
+    --accent-foreground: var(--color-chalk);
     --destructive: oklch(0.74 0.17 25.33);
-    --border: oklch(0.38 0.03 269.73);
-    --input: oklch(0.38 0.03 269.73);
-    --ring: oklch(0.57 0.11 55);
-    --chart-1: oklch(0.72 0.06 248.68);
-    --chart-2: oklch(0.77 0.09 34.19);
-    --chart-3: oklch(0.58 0.08 254.16);
-    --chart-4: oklch(0.5 0.08 259.49);
-    --chart-5: oklch(0.42 0.1 264.03);
-    --sidebar: oklch(0.31 0.03 267.74);
-    --sidebar-foreground: oklch(0.92 0 0);
-    --sidebar-primary: oklch(0.57 0.11 55);
-    --sidebar-primary-foreground: oklch(1 0 0);
-    --sidebar-accent: oklch(0.34 0.06 267.59);
-    --sidebar-accent-foreground: oklch(0.88 0.06 254.13);
-    --sidebar-border: oklch(0.38 0.03 269.73);
-    --sidebar-ring: oklch(0.57 0.11 55);
-    --gain: oklch(0.765 0.177 163.223);
-    --loss: oklch(0.704 0.191 22.216);
-    /* Lighter, so the selected split chip reads on its own tint. */
-    --shared: oklch(0.79 0.15 293.541);
-    --attention: oklch(0.75 0.183 55.934);
-    --attention-ink: oklch(0.8 0.16 60);
+    --border: color-mix(in srgb, var(--color-white) 12%, transparent);
+    --input: color-mix(in srgb, var(--color-white) 22%, transparent);
+    --ring: var(--color-chalk);
 }
 
 /* The new look's display face, and its panels: dialogs and editors re-tint the theme's
-   variables inside `.coins-panel` to Oat Paper, generous corners, Rubik and Fredoka,
-   Ink for the action. */
+   variables inside `.coins-panel` to Oat Paper, with white highlights and generous corners. */
 .coins-display { font-family: var(--font-coins-display), ui-rounded, system-ui, sans-serif; }
-.coins-panel { --popover: #EFEBE3; --popover-foreground: #16171C; --background: #EFEBE3; --foreground: #16171C;
-  --muted: #F4F5F7; --muted-foreground: #63666F; --accent: #FFFFFF; --accent-foreground: #16171C;
-  --border: rgb(22 23 28 / 0.12); --input: rgb(22 23 28 / 0.2); --ring: #16171C;
-  --primary: #16171C; --primary-foreground: #FFFFFF; --primary-ink: #16171C; --radius: 1.25rem; }
-.dark .coins-panel { --popover: #1F1D22; --popover-foreground: #F3F2EE; --background: #1F1D22; --foreground: #F3F2EE;
-  --muted: #191B22; --muted-foreground: #A7A9B4; --accent: #23252E; --accent-foreground: #F3F2EE;
-  --border: rgb(255 255 255 / 0.12); --input: rgb(255 255 255 / 0.22); --ring: #F3F2EE;
-  --primary: #F3F2EE; --primary-foreground: #16171C; --primary-ink: #F3F2EE; }
+.coins-panel { --popover: var(--color-oat); --background: var(--color-oat); --accent: var(--color-white); --radius: 1.25rem; }
+.dark .coins-panel { --popover: var(--color-oat-night); --background: var(--color-oat-night); --accent: var(--color-card-night); }
 .coins-panel [data-slot="input"] { background-color: var(--accent); }
 .coins-panel .font-mono { font-family: inherit; font-variant-numeric: tabular-nums; }
 .coins-panel [data-slot="dialog-footer"] { margin: 0 -1.5rem -1.5rem; padding: 0.5rem 1.5rem 1.5rem; background: transparent; border-top: 0; }
