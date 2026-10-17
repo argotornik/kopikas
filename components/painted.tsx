@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useSpring, useTransform, type MotionValue } from "motion/react";
 import { wobblyCircle, wobblyRect, type Mood } from "@/components/goofy";
 
@@ -76,6 +76,10 @@ export const deepened = (colour: string) => `color-mix(in srgb, ${colour} var(--
 // (a resize, a new month) never keeps the wrong face. Marks that arrive as a
 // stage settles, the mouth for one, take `arrive` of it.
 const SETTLE = { type: "spring", stiffness: 260, damping: 26 } as const;
+// False only while the page takes over the server's HTML: the server cannot know the
+// motion setting, so that first render draws what the server drew.
+const noSubscribe = () => () => {};
+const useHydrated = () => useSyncExternalStore(noSubscribe, () => true, () => false);
 const arrive = (p: number) => Math.min(1, Math.max(0, (p - 0.5) * 2));
 function useCrossing(value: MotionValue<number>, line: number, reduce: boolean | null, settled: number): MotionValue<number> {
   const over = useMotionValue(0);
@@ -98,8 +102,11 @@ function useCrossing(value: MotionValue<number>, line: number, reduce: boolean |
     };
   }, [value, line, reduce, over]);
   // Set while rendering, not after: the marks drawn from the stage read it in this
-  // same render, so a sleeper that wakes shows its face at once.
-  if (reduce) {
+  // same render, so a sleeper that wakes shows its face at once. Not while taking over
+  // the server's HTML; the effect above sets it before anything is drawn, and the
+  // render that follows draws the marks.
+  const hydrated = useHydrated();
+  if (reduce && hydrated) {
     const want = settled >= line ? 1 : 0;
     if (over.get() !== want) over.jump(want);
   }

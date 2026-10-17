@@ -712,13 +712,15 @@ export function CoinStage({
             onClick={() => setPicked(isPicked ? null : t.id)}
             className={cn("absolute rounded-full", FOCUS, flight?.tx.id === t.id && "opacity-0")}
             style={{ left: spot.x * pileScale, bottom: spot.y * pileScale, zIndex: isPicked ? 20 : 10 - i }}
-            initial={reduce ? false : { y: -28 }}
+            // The same start on the server, which cannot know the motion setting, and in the
+            // browser; with reduced motion the coins are in place at once instead of dropping in.
+            initial={{ y: -28 }}
             animate={
               isPicked
                 ? { y: -16, scale: 1.18, rotate: [spot.r, spot.r - 10, spot.r + 10, spot.r] }
                 : { y: 0, scale: 1, rotate: spot.r }
             }
-            transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : { ...SPRING, delay: reduce ? 0 : 0.2 + i * 0.05 }}
+            transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : reduce ? { duration: 0 } : { ...SPRING, delay: 0.2 + i * 0.05 }}
             whileHover={{ y: isPicked ? -18 : -4 }}
           >
             {painted ? (
