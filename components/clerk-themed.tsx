@@ -35,6 +35,9 @@ export function ClerkThemed({ children }: { children: React.ReactNode }) {
     <ClerkProvider
       signInUrl="/sign-in"
       appearance={{
+        // Clerk's styles go in their own layer, under Tailwind's utilities (order in
+        // globals.css), so the classes in `elements` win over Clerk's defaults.
+        cssLayerName: "clerk",
         theme: isDark ? dark : undefined,
         variables: {
           ...(isDark ? DARK : LIGHT),
@@ -53,10 +56,13 @@ export function ClerkThemed({ children }: { children: React.ReactNode }) {
       }}
       localization={{
         signIn: {
+          // Clerk shows its combined sign-in-or-up screen, which reads the *Combined keys.
           start: {
             title: "Sign in to Kopikas",
+            titleCombined: "Sign in to Kopikas",
             // The page already carries the tagline; this line says which address works.
             subtitle: "Use the address this board was set up for.",
+            subtitleCombined: "Use the address this board was set up for.",
           },
         },
       }}

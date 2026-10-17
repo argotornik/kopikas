@@ -1,3 +1,6 @@
+/* Clerk's components style themselves in the `clerk` layer (clerk-themed.tsx): above the
+   base reset, under the utilities, so classes given to Clerk's elements win. */
+@layer theme, base, clerk, components, utilities;
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
