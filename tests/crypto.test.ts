@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { seal, unseal } from "../lib/crypto.ts";
+import { sameSecret, seal, unseal } from "../lib/crypto.ts";
 
 const withKey = (value: string, run: () => void) => {
   const before = process.env.ENCRYPTION_KEY;
@@ -37,4 +37,11 @@ test("a short secret is refused", () => {
   withKey("too-short", () => {
     assert.throws(() => seal("x"), /at least 16 characters/);
   });
+});
+
+test("sameSecret matches only the exact secret, whatever the lengths", () => {
+  assert.equal(sameSecret("Bearer abc123", "Bearer abc123"), true);
+  assert.equal(sameSecret("Bearer abc124", "Bearer abc123"), false);
+  assert.equal(sameSecret("Bearer abc", "Bearer abc123"), false);
+  assert.equal(sameSecret("", "Bearer abc123"), false);
 });

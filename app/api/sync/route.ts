@@ -12,6 +12,7 @@ import {
 import { fetchAccounts, fetchInvestments, fetchStatement, refreshAccessToken } from "@/lib/lhv";
 import { applyShareRules, recheckCadences, recordInvestments } from "@/lib/engine";
 import { currentRole } from "@/lib/auth";
+import { sameSecret } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 // A year-long backfill is several statement calls per account; Hobby allows 60s.
@@ -25,7 +26,7 @@ export const maxDuration = 60;
 
 async function isAuthorized(req: Request): Promise<boolean> {
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get("authorization") === `Bearer ${secret}`) return true;
+  if (secret && sameSecret(req.headers.get("authorization") ?? "", `Bearer ${secret}`)) return true;
   return (await currentRole()) === "owner";
 }
 

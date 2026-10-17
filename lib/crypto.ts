@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 // AES-256-GCM sealing for the LHV token row. ENCRYPTION_KEY lives only in
 // Vercel env — the reason tokens sit encrypted in Postgres instead of in env
@@ -34,4 +34,12 @@ export function unseal(sealed: string): string {
   const decipher = createDecipheriv("aes-256-gcm", key(), Buffer.from(iv, "base64"));
   decipher.setAuthTag(Buffer.from(tag, "base64"));
   return Buffer.concat([decipher.update(Buffer.from(data, "base64")), decipher.final()]).toString("utf8");
+}
+
+// Whether a secret someone sent matches ours, in time that doesn't depend on where
+// they differ. Both are hashed to 32 bytes first, so their lengths don't show
+// either, and timingSafeEqual never sees two lengths.
+export function sameSecret(given: string, expected: string): boolean {
+  const digest = (s: string) => createHash("sha256").update(s, "utf8").digest();
+  return timingSafeEqual(digest(given), digest(expected));
 }
