@@ -8,11 +8,9 @@ import {
   inferCadence,
   matches,
   monthlyBurn,
-  monthlySpend,
   recheckCadences,
   recordInvestments,
   renameCategory,
-  savedInMonth,
   subscriptionCharges,
   subscriptionStatus,
 } from "../lib/engine.ts";
@@ -42,24 +40,6 @@ test("balance: who paid decides the direction, settlements pay it down", () => {
   // The partner paid 30 and only owes a third of it, so the owner owes 20.
   assert.equal(balance([thirdPartnerPaid], [], txs), -20);
   assert.equal(balance([halfOwnerPaid, thirdPartnerPaid], [{ amount: 10 }], txs), 0);
-});
-
-test("monthlySpend is the owner's consumption: savings out, shared at their share, partner-paid at their share", () => {
-  const d = db({
-    transactions: [
-      tx("2026-09-01", -100, "Rimi"),
-      tx("2026-09-02", -300, "Lightyear Europe AS"),
-      tx("2026-09-03", -40, "Vapiano"),
-      tx("2026-09-05", 2000, "Employer"),
-      tx("2026-08-30", -50, "Rimi"),
-    ],
-    rules: [rule("lightyear", "Savings")],
-  });
-  d.shares.push(share({ paidBy: "owner", txId: d.transactions[2].id, partnerShare: 0.5 }));
-  d.shares.push(share({ paidBy: "partner", manual: { date: "2026-09-06", description: "Cinema", amount: 30 }, partnerShare: 0.5 }));
-  // 100 + 40 * 0.5 + 30 * 0.5 = 135; Lightyear, income and August stay out.
-  assert.equal(monthlySpend(d, "2026-09"), 135);
-  assert.equal(savedInMonth(d, "2026-09"), 300);
 });
 
 test("categoryTotals buckets the month's outgoings, the unfiled under Uncategorized", () => {

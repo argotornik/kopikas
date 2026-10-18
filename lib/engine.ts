@@ -65,34 +65,6 @@ export function monthKey(date: string): string {
   return date.slice(0, 7);
 }
 
-// Spend for a month = the owner's consumption: his outgoing non-savings expenses,
-// shared ones counted at his portion, plus his portion of partner-paid shared expenses.
-export function monthlySpend(db: Db, month: string): number {
-  const shareByTx = new Map(db.shares.filter((s) => s.txId).map((s) => [s.txId!, s]));
-  let total = 0;
-  for (const tx of db.transactions) {
-    if (monthKey(tx.date) !== month || tx.amount >= 0) continue;
-    if (categoryOf(tx, db.rules, db.overrides) === SAVINGS) continue;
-    const share = shareByTx.get(tx.id);
-    total += Math.abs(tx.amount) * (share ? 1 - partnerShareOf(share) : 1);
-  }
-  for (const s of db.shares) {
-    if (s.manual && s.paidBy === "partner" && monthKey(s.manual.date) === month) {
-      total += s.manual.amount * (1 - partnerShareOf(s));
-    }
-  }
-  return Math.round(total * 100) / 100;
-}
-
-export function savedInMonth(db: Db, month: string): number {
-  let total = 0;
-  for (const tx of db.transactions) {
-    if (monthKey(tx.date) !== month || tx.amount >= 0) continue;
-    if (categoryOf(tx, db.rules, db.overrides) === SAVINGS) total += Math.abs(tx.amount);
-  }
-  return Math.round(total * 100) / 100;
-}
-
 export function categoryTotals(db: Db, month: string): Record<string, number> {
   const totals: Record<string, number> = {};
   for (const tx of db.transactions) {
