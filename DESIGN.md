@@ -286,7 +286,7 @@ Coins are discs turned a touch so their darker rim shows below and to the right;
 
 **The Wobble, Not Filter Rule.** Edges stay vector-smooth at any zoom. No displacement or turbulence filters: they read as hairy or pixelated.
 
-**The Two Dots and a Curve Rule.** Every face is two dots and a curve (open when glad, round when surprised, shut arcs for joy, two flat lines and one small z for sleep). No googly eyes, teeth or tongues on categories.
+**The Two Dots and a Curve Rule.** Every face is two dots and a curve (open when glad, round when surprised, shut arcs for joy, one eye raised and the curve tilted when puzzled, two flat lines and one small z for sleep). No googly eyes, teeth or tongues on categories.
 
 ## Components
 
@@ -314,7 +314,8 @@ A category as a character, at one of four stages. It grows as coins go in.
 ### Coins
 A charge as a coin.
 - **Shape:** a painted disc in copper, brass or nickel with a face, 40px on the stage and in the pile (38px on a phone).
-- **Behaviour:** pick a coin and tap a roll; it hops along an arc into the roll. A picked coin turns and smiles. After filing on the stage, focus moves to the next loose coin, or to the month's name once the pile is empty.
+- **Face:** a coin still to file is lost: puzzled, one eye raised and its curve tilted, the raised eye alternating so a pile isn't one face repeated. It has not found its roll yet; the words beside the pile say how many wait. Every other coin smiles: the wordmark's, the empty pile's, one in the air.
+- **Behaviour:** pick a coin and tap a roll; it hops along an arc into the roll. A picked coin turns and smiles, as if it has found its way. After filing on the stage, focus moves to the next loose coin, or to the month's name once the pile is empty.
 
 ### The Year Strip
 A chosen roll's last twelve months, in the stage head where the figures line sits otherwise.

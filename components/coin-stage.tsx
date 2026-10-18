@@ -327,7 +327,7 @@ export function CoinStage({
             transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : reduce ? { duration: 0 } : { ...SPRING, delay: 0.2 + i * 0.05 }}
             whileHover={{ y: isPicked ? -18 : -4 }}
           >
-            <PaintedCoin size={pileCoin} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "happy"} seed={i + 2} />
+            <PaintedCoin size={pileCoin} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "puzzled"} seed={i + 2} />
             {splitMark(t)}
           </motion.button>
         );
@@ -577,7 +577,7 @@ export function CoinStage({
                         animate={isPicked ? { y: -10, scale: 1.15, rotate: [0, -10, 10, 0] } : { y: 0, scale: 1, rotate: 0 }}
                         transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : SPRING}
                       >
-                        <PaintedCoin size={40} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "happy"} seed={i + 2} />
+                        <PaintedCoin size={40} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "puzzled"} seed={i + 2} />
                         {splitMark(t)}
                       </motion.button>
                     );

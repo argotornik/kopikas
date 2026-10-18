@@ -134,8 +134,25 @@ export function PaintedSleep({ ink }: { ink: string }) {
   );
 }
 
-// Two dots and a curve in a 40 by 28 box. Glad opens the smile, wow rounds it.
-export function PaintedFace({ ink, mood = "happy", blink = 0 }: { ink: string; mood?: Mood; blink?: number }) {
+// Two dots and a curve in a 40 by 28 box. Glad opens the smile, wow rounds it. Puzzled, a
+// coin still looking for its roll, raises one eye and tilts the curve; `flip` raises the
+// other, so a pile isn't one face repeated. Each eye blinks on its own there, about its own
+// middle, since the blink squashes a group about its centre and these eyes sit apart.
+export function PaintedFace({ ink, mood = "happy", blink = 0, flip = false }: { ink: string; mood?: Mood; blink?: number; flip?: boolean }) {
+  if (mood === "puzzled") {
+    const eye = (cx: number, cy: number, rx: number, ry: number) => (
+      <g className="goofy-blink" style={{ animationDelay: `${-blink}s` }}>
+        <ellipse cx={cx} cy={cy} rx={rx} ry={ry} style={{ fill: ink }} />
+      </g>
+    );
+    return (
+      <g>
+        {flip ? eye(14, 7.6, 2.6, 3.1) : eye(14, 11, 2.4, 2.6)}
+        {flip ? eye(26, 10.6, 2.3, 2.6) : eye(26, 7.4, 2.6, 3.1)}
+        <path d={flip ? "M15.5 17.6 Q20 18.4 24.5 19.6" : "M15.5 19.6 Q20 18.6 24.5 17.4"} stroke={ink} strokeWidth="2.4" fill="none" strokeLinecap="round" />
+      </g>
+    );
+  }
   return (
     <g>
       <PaintedEyes ink={ink} blink={blink} />
@@ -180,7 +197,7 @@ export function PaintedCoin({
       </g>
       {face && (
         <g transform="translate(8.6 10.5) scale(0.55)">
-          <PaintedFace ink={metal === "copper" ? "#2E3A8C" : BROWN} mood={mood} blink={seed * 1.37} />
+          <PaintedFace ink={metal === "copper" ? "#2E3A8C" : BROWN} mood={mood} blink={seed * 1.37} flip={seed % 2 === 1} />
         </g>
       )}
     </svg>

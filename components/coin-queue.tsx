@@ -81,7 +81,7 @@ export function CoinQueue({
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: -40, scale: 0.7, transition: { duration: 0.2 } }}
             transition={SPRING}
           >
-            <PaintedCoin size={76} mood="happy" seed={(queue.length % 5) + 2} />
+            <PaintedCoin size={76} mood="puzzled" seed={(queue.length % 5) + 2} />
             <h2 id="queue-heading" className={cn(DISPLAY, "mt-3 line-clamp-2 text-[20px] font-semibold leading-tight")}>
               {tx.name}
             </h2>

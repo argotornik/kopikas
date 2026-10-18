@@ -91,7 +91,8 @@ export function wobblyRect(x: number, y: number, w: number, h: number, r: number
   return smoothClosed(pts);
 }
 
-export type Mood = "happy" | "glad" | "wow";
+// Puzzled is the painted look's only (a coin still looking for its roll); the goofy faces draw it as happy.
+export type Mood = "happy" | "glad" | "wow" | "puzzled";
 export type Persona = { eyes: "googly" | "dots" | "sleepy" | "odd"; mouth: "crooked" | "grin" | "o" | "tongue" | "wavy" };
 // Every roll and coin gets one of these by its place, so each has its own face.
 export const PERSONAS: Persona[] = [
