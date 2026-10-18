@@ -1,6 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- The kopikas coin: copper (--primary: oklch(0.60 0.11 55)) with a lowercase k struck into it,
-       Bricolage Grotesque 700 as an outline. Same drawing as components/coin-mark.tsx. -->
-  <circle cx="16" cy="16" r="15" fill="#b06e3e"/>
-  <path fill="#1c2433" d="M11.18 23.6 L11.18 8.59 L14.16 8.59 L14.16 16.92 Q14.81 16.48 15.41 15.96 Q16.01 15.45 16.51 14.88 Q17.0 14.32 17.38 13.73 Q17.77 13.14 18.05 12.58 L21.51 12.58 Q21.2 13.37 20.69 14.18 Q20.17 14.99 19.47 15.68 Q18.76 16.36 17.84 16.84 Q16.91 17.32 15.8 17.49 L15.8 17.85 Q17.21 17.59 18.13 17.88 Q19.06 18.18 19.66 18.82 Q20.25 19.46 20.61 20.29 Q20.97 21.12 21.26 21.96 L21.74 23.6 L18.45 23.6 L18.17 22.57 Q17.88 21.54 17.52 20.77 Q17.17 19.99 16.59 19.56 Q16.01 19.13 15.0 19.13 L14.16 19.13 L14.16 23.6 L11.18 23.6 Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="2.8 1.85 36 36">
+  <!-- The painted kopikas coin, as in the header (components/painted.tsx, PaintedCoin, seed 3), its face a third larger so it reads at 16px. -->
+  <path fill="#9A5A2E" d="M38.1 20.0C38.2 23.2 37.1 27.0 35.3 29.7C33.4 32.3 30.2 34.7 27.1 35.8C24.0 36.9 19.9 37.1 16.8 36.1C13.6 35.2 10.3 32.6 8.4 29.9C6.5 27.2 5.4 23.2 5.5 20.0C5.5 16.8 7.0 13.2 8.9 10.5C10.7 7.7 13.6 4.7 16.7 3.6C19.7 2.5 24.3 2.6 27.3 3.7C30.3 4.9 33.0 8.0 34.8 10.7C36.6 13.4 38.1 16.8 38.1 20.0Z"/>
+  <path fill="#C9773F" d="M35.6 20.0C35.4 23.2 34.2 26.7 32.4 29.3C30.6 31.9 27.6 34.6 24.7 35.6C21.7 36.5 17.7 36.1 14.7 35.1C11.7 34.1 8.4 32.0 6.5 29.5C4.7 27.0 3.5 23.2 3.4 20.0C3.4 16.8 4.4 12.9 6.3 10.3C8.1 7.8 11.5 5.7 14.6 4.6C17.7 3.5 21.7 2.8 24.9 3.7C28.0 4.6 31.7 7.2 33.5 9.9C35.3 12.6 35.8 16.8 35.6 20.0Z"/>
+  <circle cx="19.6" cy="20" r="12.8" fill="none" stroke="#E7A06A" stroke-width="1.6"/>
+  <g transform="translate(5.2 7.87) scale(0.72)" fill="#2E3A8C">
+    <ellipse cx="14" cy="10.4" rx="2.6" ry="3"/>
+    <ellipse cx="26" cy="9.8" rx="2.4" ry="2.8"/>
+    <path d="M13 17.5 Q20 24.5 27 17" fill="none" stroke="#2E3A8C" stroke-width="2.4" stroke-linecap="round"/>
+  </g>
 </svg>
