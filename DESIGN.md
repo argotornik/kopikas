@@ -392,6 +392,10 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 - **Contents:** the coin and the wordmark, with when the last sync was under it in Muted at 13px on the board; the other pages as links on the right (icons on a phone), Pooleks and Settings from the board, Board and Settings from Pooleks, Board and Pooleks from Settings, none for the partner; and the theme toggle.
 - **Late sync:** more than a day and two hours without one, the line becomes "Last synced 3 days ago. Check the connection" in Ink with a small sun-yellow dot, and leads to Settings; on a phone it takes its own line under the header.
 
+### App Icons
+- **Shape:** the header's smiling coin, no letter on it. The browser tab's (`app/icon.svg`) has its face a third larger so it reads at 16px. The home screen's (`app/apple-icon.png`, `public/icon-192.png` and `icon-512.png`) sets that coin at 70% on a full Oat Paper square, which iOS rounds and Android masks; the coin stays inside Android's round safe zone, so the 512px icon is also the maskable one.
+- **Behaviour:** added to a home screen, Kopikas opens full screen like an app (`app/manifest.ts`). The browser's bar takes the page's ground, Page White or Night, following the system's theme rather than the header's toggle.
+
 ### Motion
 Springs everywhere: the general one at stiffness 260 and damping 18, rolls at 200 and 20. A gulp lasts 0.6s, a hop 0.7s (easing out, then in), rolls rise over 1.1s on `cubic-bezier(0.16, 1, 0.3, 1)`, floaters drift ±7px and ±7° back and forth. A press takes 0.16s on the same curve and springs back; a loading screen fades in over 0.2s after waiting 0.3s. While a request is out, the painted coin hops beside its words, the app's one loading sign: every 0.9s it rises 38% of its height and squashes from its foot as it lands. With reduced motion every state stays and the movement goes.
 

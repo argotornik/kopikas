@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,14 @@ import { coinFontVariables } from "@/components/coin-fonts";
 export const metadata: Metadata = {
   title: "Kopikas",
   description: "Iga kopikas loeb — personal money board",
+};
+
+// The browser's bar takes the page's own ground: Page White, or Night in dark.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FFFFFF" },
+    { media: "(prefers-color-scheme: dark)", color: "#0F1015" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
