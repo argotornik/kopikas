@@ -9,7 +9,7 @@ import { act } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";
 import { PaintedCoin } from "@/components/painted";
 import { CoinStage, eur, label, looseCoins, monthOf, shortDate, type CoinStageHandle } from "@/components/coin-stage";
-import { DISPLAY, FOCUS, MUTED, PAGE, PANEL } from "@/components/coin-look";
+import { DISPLAY, FOCUS, MUTED, OAT, PAGE, PANEL } from "@/components/coin-look";
 import { CoinLedger } from "@/components/coin-ledger";
 import { CoinQueue } from "@/components/coin-queue";
 import { CoinSubscriptions } from "@/components/coin-subscriptions";
@@ -24,7 +24,6 @@ import { cn, shareLabel } from "@/lib/utils";
 // The board: the coin tray on top, the charges below, and on a phone the backlog one
 // coin at a time.
 
-const OAT = "bg-oat dark:bg-oat-night";
 // The list's view of money that came in, beside the categories a roll can pick.
 const MONEY_IN = "money-in";
 // Notices sit above the phone's tab bar. The editors' new look is `.coins-panel`, in globals.css.
