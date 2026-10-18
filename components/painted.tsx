@@ -137,7 +137,9 @@ export function PaintedSleep({ ink }: { ink: string }) {
 // Two dots and a curve in a 40 by 28 box. Glad opens the smile, wow rounds it. Puzzled, a
 // coin still looking for its roll, raises one eye and tilts the curve; `flip` raises the
 // other, so a pile isn't one face repeated. Each eye blinks on its own there, about its own
-// middle, since the blink squashes a group about its centre and these eyes sit apart.
+// middle, since the blink squashes a group about its centre and these eyes sit apart. The
+// raised eye and the flat curve pull the face up, so it sits 2.4 lower than the smile's
+// marks: its middle then lands where the smile's does, a little above the coin's centre.
 export function PaintedFace({ ink, mood = "happy", blink = 0, flip = false }: { ink: string; mood?: Mood; blink?: number; flip?: boolean }) {
   if (mood === "puzzled") {
     const eye = (cx: number, cy: number, rx: number, ry: number) => (
@@ -146,7 +148,7 @@ export function PaintedFace({ ink, mood = "happy", blink = 0, flip = false }: { 
       </g>
     );
     return (
-      <g>
+      <g transform="translate(0 2.4)">
         {flip ? eye(14, 7.6, 2.6, 3.1) : eye(14, 11, 2.4, 2.6)}
         {flip ? eye(26, 10.6, 2.3, 2.6) : eye(26, 7.4, 2.6, 3.1)}
         <path d={flip ? "M15.5 17.6 Q20 18.4 24.5 19.6" : "M15.5 19.6 Q20 18.6 24.5 17.4"} stroke={ink} strokeWidth="2.4" fill="none" strokeLinecap="round" />
