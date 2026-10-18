@@ -17,6 +17,7 @@ const LIGHT = {
   colorInput: "#FFFFFF",
   colorInputForeground: "#16171C",
   colorNeutral: "#16171C",
+  colorDanger: "#B8233F",
 };
 const DARK = {
   colorPrimary: "#F3F2EE",
@@ -27,6 +28,7 @@ const DARK = {
   colorInput: "#23252E",
   colorInputForeground: "#F3F2EE",
   colorNeutral: "#F3F2EE",
+  colorDanger: "#FF7A8A",
 };
 
 export function ClerkThemed({ children }: { children: React.ReactNode }) {

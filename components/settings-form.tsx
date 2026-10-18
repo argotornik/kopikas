@@ -191,7 +191,7 @@ function StatusLine({ status }: { status: Status }) {
         {status.tone !== "ok" && (
           <CircleAlertIcon
             aria-hidden
-            className={cn("mt-px size-4 shrink-0", status.tone === "error" ? "text-error dark:text-error-night" : "text-sun-ink dark:text-sun")}
+            className={cn("mt-px size-4 shrink-0", status.tone === "error" ? "text-stamp dark:text-stamp-night" : "text-sun-ink dark:text-sun")}
           />
         )}
         <span>{status.text}</span>

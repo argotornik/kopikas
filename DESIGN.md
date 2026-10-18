@@ -31,6 +31,8 @@ colors:
   received-green-night: "#4FD18B"
   sun: "#FFB020"
   sun-ink: "#B07A12"
+  stamp-red: "#B8233F"
+  stamp-red-night: "#FF7A8A"
   wrapper-cornflower: "#6C8EEA"
   wrapper-tomato: "#E2553B"
   wrapper-pink: "#F0A3B4"
@@ -216,7 +218,8 @@ A white page, a warm oat stage, copper as the house colour, Crayon Blue for ever
 - **Muted** (muted) and **Muted Night** (muted-night): secondary text, captions and the prototype strip; 4.8:1 on Oat Paper, 7.1:1 on Oat Paper Night.
 - **Limb Brown** (limb-brown) and **Limb Sand** (limb-sand): the characters' arms, legs and dark marks, swapped by theme so feet and confetti never vanish on the night ground.
 - **Received Green** (received-green / received-green-night): money coming in. 4.8:1 on Oat Paper, 5.7:1 on white and 5.2:1 on Mist; the night value is 8.6:1 on Oat Paper Night.
-- **Sun Yellow** (sun) and **Sun Ink** (sun-ink): what needs dealing with, such as a late sync or a failed connection: a dot, a tint behind the words, or Sun Ink for an icon on a light ground. Errors have no colour of their own yet; they keep a red until that is decided.
+- **Sun Yellow** (sun) and **Sun Ink** (sun-ink): what needs dealing with, such as a late sync or a failed connection: a dot, a tint behind the words, or Sun Ink for an icon on a light ground. It is not for errors.
+- **Stamp Red** (stamp-red / stamp-red-night): what you just did didn't go through: a field that didn't take, a request that failed, a sync that LHV refused. It colours the alert icon and the field's edge; the words beside them stay Ink, except an editor's one-line hint, which may be red itself. A crimson, away from the orange-red wrappers (Cash's brick, Eating out's tomato): 6.3:1 on white and 5.3:1 on Oat Paper, the night value 6.7:1 on Oat Paper Night.
 
 In code these are Tailwind colours in `app/globals.css` under the same names, shortened where long (`oat` is Oat Paper, `received` is Received Green, `muted-text` is Muted, since shadcn's `muted` is a fill). Each theme has its own token and a class names both: `bg-oat dark:bg-oat-night`. Components never write the warm night greys: inside anything wearing `dark:bg-oat-night`, and inside the dialogs, one rule points card-night and mist-night (and shadcn's card, secondary, muted and accent) at them, so a card on a panel is `bg-white dark:bg-card-night` like any other. shadcn's parts read the same colours through its variables. The painted cast keeps its palette in `painted.tsx`.
 
@@ -379,7 +382,7 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 - **Style:** a white card (card-night) with 16px corners, a 1px Ink ring at 10% and 6px padding; rows of Body type in 12px-cornered rows that fill with Mist when highlighted; groups divided by a hairline. A charge's chip opens one (its category, a split with the partner, Name and icon…); a subscription's ⋯ opens one (Name and icon…, Make yearly or monthly, Stop tracking).
 
 ### Notices
-- **Style:** one line of what happened ("Filed Coop under Groceries."), with Undo, and Always where a rule can be taught. Errors say what went wrong, with a retry where one helps.
+- **Style:** one line of what happened ("Filed Coop under Groceries."), with Undo, and Always where a rule can be taught. Errors say what went wrong, with a retry where one helps, behind a Stamp Red alert icon.
 - **Shape:** dressed as a menu: a white card (card-night in dark) with a 1px Ink ring at 10% and no shadow, at the foot of the screen (above the tab bar on a phone). The buttons are Mist pills and the ✕ is round; when the words need the room, the buttons drop under them to the right, so a phone shows two lines, never more.
 
 ### Inputs

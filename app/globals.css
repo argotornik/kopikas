@@ -51,10 +51,11 @@
     --color-ink-hover: #2B2D35;
     --color-card-night-hover: #2C2F3A;
     --color-card-oat-night-hover: #333139;
-    /* Errors aren't settled in DESIGN.md yet: Settings' red, as it was. Notices and fields
-       use --destructive below. */
-    --color-error: #C7432F;
-    --color-error-night: #FF8A75;
+    /* Stamp Red: what you just did didn't go through. A crimson, readable as text on every
+       ground and away from the orange-red wrappers; Sun stays for what needs dealing with.
+       shadcn's --destructive points here, so fields, notices and hints share it. */
+    --color-stamp: #B8233F;
+    --color-stamp-night: #FF7A8A;
 }
 
 @theme inline {
@@ -124,8 +125,7 @@
     --muted-foreground: var(--color-muted-text);
     --accent: var(--color-mist);
     --accent-foreground: var(--color-ink);
-    /* Error red, kept from the old theme until DESIGN.md settles it. */
-    --destructive: oklch(0.588 0.21 25.33);
+    --destructive: var(--color-stamp);
     --border: color-mix(in srgb, var(--color-ink) 12%, transparent);
     /* A field's edge at 3:1 against the card, so the field can be found. */
     --input: color-mix(in srgb, var(--color-ink) 20%, transparent);
@@ -149,7 +149,7 @@
     --muted-foreground: var(--color-muted-text-night);
     --accent: var(--color-card-night-hover);
     --accent-foreground: var(--color-chalk);
-    --destructive: oklch(0.74 0.17 25.33);
+    --destructive: var(--color-stamp-night);
     --border: color-mix(in srgb, var(--color-white) 12%, transparent);
     --input: color-mix(in srgb, var(--color-white) 22%, transparent);
     --ring: var(--color-chalk);
