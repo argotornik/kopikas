@@ -133,7 +133,7 @@ export function RulesList({ initial, categories }: { initial: RuleRow[]; categor
           </section>
         )}
         {/* Cards flow into columns by their height, so a short one never leaves a hole beside a tall one. */}
-        <div className="columns-1 gap-3 sm:columns-2 lg:columns-3">
+        <div className="columns-1 gap-3 sm:columns-2 lg:columns-3 ultra:columns-4">
           {cards.map((g) => (
             <section key={g.key} aria-label={`${g.title}, ${g.rules.length}`} className={cn("mb-3 break-inside-avoid rounded-[20px] p-4", CARD)}>
               <h3 className="flex items-center gap-2.5 text-[15px] font-medium">

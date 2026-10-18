@@ -396,7 +396,7 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
   return (
     <MotionConfig reducedMotion="user">
     <div className={cn(fontClass, PAGE)}>
-    <div className="mx-auto max-w-[1200px] px-5 pb-28 sm:px-6 sm:pb-20 wide:max-w-[1848px]">
+    <div className="mx-auto max-w-[1200px] px-5 pb-28 sm:px-6 sm:pb-20 wide:max-w-[1848px] ultra:max-w-[2088px]">
       <CoinHeader
         links={
           role === "owner"
@@ -409,11 +409,12 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
       />
 
       {/* From 1900px, as on the board: where the tab stands on the left, staying put, and the
-          statement beside it at the board's charges width. */}
-      <main className="flex flex-col gap-8 wide:grid wide:grid-cols-[720px_minmax(0,1fr)] wide:items-start">
+          statement beside it at the board's charges width. On an ultrawide, as the board's
+          stage, the head is drawn a third larger and the statement keeps its width. */}
+      <main className="flex flex-col gap-8 wide:grid wide:grid-cols-[720px_minmax(0,1fr)] wide:items-start ultra:grid-cols-[960px_minmax(0,1fr)]">
         <h1 className="sr-only">Pooleks</h1>
         {/* Where the tab stands, and who has been paying since the last repayment. */}
-        <section aria-label="Where the tab stands" className={cn(PANEL, OAT, "flex flex-col gap-6 p-5 sm:p-8 lg:flex-row lg:items-center wide:sticky wide:top-5")}>
+        <section aria-label="Where the tab stands" className={cn(PANEL, OAT, "flex flex-col gap-6 p-5 sm:p-8 lg:flex-row lg:items-center wide:sticky wide:top-5 ultra:[zoom:1.3333]")}>
           <div className="min-w-0 lg:flex-1">
             <p className={cn("text-[15px]", MUTED)}>{since}</p>
             {!flat && <p className={cn(DISPLAY, "mt-1 text-[26px] font-semibold")}>{balanceText}</p>}
