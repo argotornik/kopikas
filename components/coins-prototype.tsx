@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDownIcon, SettingsIcon, UsersIcon } from "lucide-react";
 import type { Board, BoardTx } from "@/lib/board";
-import { GOOFY_CSS } from "@/components/goofy";
+import { Coin, GOOFY_CSS } from "@/components/goofy";
 import { PaintedCoin, PaintedDefs } from "@/components/painted";
-import { Coin, CoinStage, eur, label, looseCoins, monthOf, shortDate, wrapperOf, type CoinStageHandle } from "@/components/coin-stage";
+import { CoinStage, eur, label, looseCoins, monthOf, shortDate, wrapperOf, type CoinStageHandle } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { ThemeToggle } from "@/components/theme-toggle";

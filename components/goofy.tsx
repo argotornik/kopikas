@@ -3,6 +3,8 @@
 // character keeps its own wobble from render to render; three seeds shown in
 // turn make the line boil like a hand-drawn animation (the .goofy-boil rule).
 
+import { useId, useMemo } from "react";
+
 export const INK = "#17181D";
 
 export function rng(seed: number) {
@@ -187,3 +189,96 @@ export const GOOFY_CSS = `
     .goofy-blink { animation: none; }
   }
 `;
+
+// The goofy look's roll wrappers, one bright colour per category by its place in the
+// list (the painted look's are PAINTED_WRAPPERS in painted.tsx).
+export const GOOFY_WRAPPERS = [
+  "#FF6B57", // coral
+  "#FFB020", // sun
+  "#3D8BFF", // blue
+  "#8E6CFF", // violet
+  "#2FC27A", // green
+  "#FF8BC4", // pink
+  "#19C2D6", // cyan
+  "#FF4F8B", // raspberry
+  "#A3D93A", // lime
+  "#FF8A3D", // orange
+  "#8C97A6", // nickel
+  "#F2C14E", // brass
+  "#B98B5E", // tan
+];
+export const GOOFY_METALS = {
+  copper: ["#B9663A", "#E08A4F", "#F7BC90"],
+  brass: ["#C9952C", "#F2C14E", "#FCE39A"],
+  nickel: ["#9EA6B1", "#D3D8DF", "#F1F3F6"],
+} as const;
+type Metal = keyof typeof GOOFY_METALS;
+// A coin face is shaded like struck metal, light at the top left; its milled
+// edge shows on the right, so it reads as a coin, never a sweet.
+const SHADES: Record<Metal, { light: string; mid: string; dark: string; edge: string; reed: string; glint: string }> = {
+  copper: { light: "#F9C08F", mid: "#E58C50", dark: "#B85E2C", edge: "#A3552C", reed: "#7A3A1A", glint: "#FFF4E8" },
+  brass: { light: "#FDE7A6", mid: "#F2C14E", dark: "#C9952C", edge: "#B3831F", reed: "#7E5C12", glint: "#FFFBEA" },
+  nickel: { light: "#F7F9FB", mid: "#D3D8DF", dark: "#9EA6B1", edge: "#8E96A1", reed: "#5E6670", glint: "#FFFFFF" },
+};
+
+// A coin, drawn by hand: struck metal shaded light at the top left, its
+// milled edge showing on the right so it reads as a coin, a face of its own.
+export function Coin({
+  size = 36,
+  metal = "copper",
+  mood = "happy",
+  face = true,
+  blink = 0,
+  seed = 1,
+}: {
+  size?: number;
+  metal?: Metal;
+  mood?: Mood;
+  face?: boolean;
+  blink?: number;
+  seed?: number;
+}) {
+  const uid = useId().replace(/:/g, "");
+  const m = SHADES[metal];
+  const takes = useMemo(
+    () => [0, 1, 2].map((k) => ({ edge: wobblyCircle(22.4, 20, 16.5, seed * 31 + k * 7, 0.6), face: wobblyCircle(19.6, 20, 16.5, seed * 17 + k * 5, 0.6) })),
+    [seed]
+  );
+  return (
+    <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden className="block overflow-visible">
+      <defs>
+        <linearGradient id={`${uid}-face`} x1="0.15" y1="0.1" x2="0.85" y2="0.95">
+          <stop offset="0" stopColor={m.light} />
+          <stop offset="0.45" stopColor={m.mid} />
+          <stop offset="1" stopColor={m.dark} />
+        </linearGradient>
+        <linearGradient id={`${uid}-rim`} x1="0.15" y1="0.1" x2="0.85" y2="0.95">
+          <stop offset="0" stopColor={m.dark} />
+          <stop offset="1" stopColor={m.light} />
+        </linearGradient>
+        <pattern id={`${uid}-reed`} width="1.6" height="4" patternUnits="userSpaceOnUse">
+          <rect width="0.75" height="4" fill={m.reed} opacity="0.55" />
+        </pattern>
+      </defs>
+      <g className="goofy-boil">
+        {takes.map((t, k) => (
+          <g key={k}>
+            <path d={t.edge} fill={m.edge} stroke={INK} strokeWidth="1.3" strokeLinejoin="round" />
+            <path d={t.edge} fill={`url(#${uid}-reed)`} />
+            <path d={t.face} fill={`url(#${uid}-face)`} stroke={INK} strokeWidth="1.3" strokeLinejoin="round" />
+          </g>
+        ))}
+      </g>
+      <circle cx="19.6" cy="20" r="13.8" fill="none" stroke={`url(#${uid}-rim)`} strokeWidth="1.2" />
+      <path d="M7.6 17 Q9.6 10.6 15.2 7.8" stroke={m.glint} strokeWidth="2.2" strokeLinecap="round" fill="none" opacity="0.85" />
+      {face && (
+        <g transform="translate(8.6 11) scale(0.55)">
+          <GoofyFace persona={PERSONAS[seed % PERSONAS.length]} mood={mood} lid={m.mid} blink={blink} />
+        </g>
+      )}
+    </svg>
+  );
+}
+
+// Confetti in the goofy look's wrapper colours.
+export const GOOFY_CONFETTI = ["#3D8BFF", "#FF8BC4", "#FF6B57", "#2FC27A", "#FFB020", "#8E6CFF"];
