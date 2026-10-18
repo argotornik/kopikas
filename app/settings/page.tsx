@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { pageRole } from "@/lib/auth";
 import { getAccounts, getLhvTokens, readDb } from "@/lib/storage";
@@ -6,6 +7,7 @@ import { SettingsView } from "@/components/settings-view";
 import { coinFonts } from "@/components/coin-fonts";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Settings · Kopikas" };
 
 export default async function SettingsPage() {
   const role = await pageRole();

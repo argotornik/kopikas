@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { pageRole } from "@/lib/auth";
 import { Pooleks } from "@/components/pooleks";
@@ -6,6 +7,7 @@ import { readDb } from "@/lib/storage";
 import { sharedView } from "@/lib/shared-view";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Pooleks · Kopikas" };
 
 // The shared ledger — one page for both of them, labels flipped by role.
 export default async function PooleksPage() {
