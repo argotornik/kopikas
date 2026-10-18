@@ -417,7 +417,8 @@ function Burst({ painted }: { painted: boolean }) {
 }
 
 // Where a coin in the air is going: a roll by its category, or the Pooleks jar (null).
-type Flight = { tx: BoardTx; to: string | null; from: { x: number; y: number }; dx: number; dy: number };
+// `size` is the coin's, so it leaves a magnified stage (the board on an ultrawide) at its size there.
+type Flight = { tx: BoardTx; to: string | null; from: { x: number; y: number }; dx: number; dy: number; size: number };
 
 // Unfiled money, newest first: the coins in the pile, and the queue's rows. One
 // month's, or every month's when `month` is null. Round-ups are never loose.
@@ -840,12 +841,15 @@ export function CoinStage({
     }
     const a = src.getBoundingClientRect();
     const b = target.getBoundingClientRect();
+    // The coin flies over the page, outside the stage, so it takes the stage's zoom itself.
+    const size = 40 * (parseFloat(getComputedStyle(target.closest("section") ?? target).zoom) || 1);
     setFlight({
       tx,
       to,
-      from: { x: a.left + a.width / 2 - 20, y: a.top + a.height / 2 - 20 },
+      from: { x: a.left + a.width / 2 - size / 2, y: a.top + a.height / 2 - size / 2 },
       dx: b.left + b.width / 2 - (a.left + a.width / 2),
       dy: b.top - 6 - (a.top + a.height / 2),
+      size,
     });
     return true;
   };
@@ -1210,7 +1214,7 @@ export function CoinStage({
             setFlight(null);
           }}
         >
-          {painted ? <PaintedCoin size={40} mood="glad" seed={9} /> : <Coin size={40} mood="glad" />}
+          {painted ? <PaintedCoin size={flight.size} mood="glad" seed={9} /> : <Coin size={flight.size} mood="glad" />}
         </motion.div>
       )}
     </>

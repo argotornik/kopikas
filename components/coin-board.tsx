@@ -330,7 +330,7 @@ export function CoinBoard({
     <div
       className={cn(fontClass, PAGE)}
     >
-      <div className="mx-auto max-w-[1200px] px-5 pb-28 sm:px-6 sm:pb-20 wide:max-w-[2280px]">
+      <div className="mx-auto max-w-[1200px] px-5 pb-28 sm:px-6 sm:pb-20 wide:max-w-[2280px] ultra:max-w-[2664px]">
         {/* Past the tray's rolls and the cards, to the list; on a phone, from either tab. */}
         <a
           href="#charges"
@@ -378,10 +378,12 @@ export function CoinBoard({
           {/* From 1900px the month spreads out: the tray with the cards under it on the left,
               every charge on the right, so any row can be dragged onto a roll without
               scrolling back up. */}
-          <div className={cn(tab === "queue" && "max-sm:hidden", "wide:grid wide:grid-cols-[1152px_minmax(0,1fr)] wide:grid-rows-[auto_1fr] wide:items-start wide:gap-x-8")}>
+          <div className={cn(tab === "queue" && "max-sm:hidden", "wide:grid wide:grid-cols-[1152px_minmax(0,1fr)] wide:grid-rows-[auto_1fr] wide:items-start wide:gap-x-8 ultra:grid-cols-[1536px_minmax(0,1fr)]")}>
           {/* On a screen tall enough, the tray stays put while the charges scroll; the cards slide
-              under it, behind a strip of page above and below so nothing shows past its corners. */}
-          <div className="wide:col-start-1 wide:row-start-1 wide:pb-8 wide:tall:sticky wide:tall:top-0 wide:tall:z-10 wide:tall:-mt-5 wide:tall:bg-white wide:tall:pt-5 dark:wide:tall:bg-night">
+              under it, behind a strip of page above and below so nothing shows past its corners.
+              On an ultrawide the tray is drawn a third larger, the whole picture at once, while the
+              charges keep their reading size. */}
+          <div className="wide:col-start-1 wide:row-start-1 wide:pb-8 wide:tall:sticky wide:tall:top-0 wide:tall:z-10 wide:tall:-mt-5 wide:tall:bg-white wide:tall:pt-5 dark:wide:tall:bg-night ultra:[&>section]:[zoom:1.3333]">
           {/* The stage: the month's rolls on one floor, its loose change beside them. */}
           <CoinStage
             ref={stage}

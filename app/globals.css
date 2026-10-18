@@ -9,6 +9,10 @@
 /* A screen tall enough for the 727px tray to stay put while the charges scroll. */
 @custom-variant tall (@media (min-height: 50rem));
 
+/* An ultrawide screen, 2700px wide and tall enough for the tray drawn a third larger
+   (about 990px) to stay put: the board magnifies the tray there (coin-board.tsx). */
+@custom-variant ultra (@media (min-width: 168.75rem) and (min-height: 69rem));
+
 /* From 1900px the board lays the tray and the charges side by side (coin-board.tsx). */
 @theme {
     --breakpoint-wide: 118.75rem;
