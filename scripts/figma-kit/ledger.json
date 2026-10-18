@@ -5,7 +5,8 @@
  "note": "Starter plan: one mode per collection, so themes are light/ and dark/ groups. IDs as of 2026-10-18; the builds find frames, styles and most variables by name.",
  "pages": {
   "Stage": "0:1",
-  "Parts": "2:46"
+  "Parts": "2:46",
+  "Decisions": "115:1074"
  },
  "vars": {
   "light/page": "VariableID:2:3",
@@ -67,7 +68,9 @@
  "frames": {
   "Stage · 1440 · light": "100:1081",
   "Stage · 1440 · dark": "100:1137",
-  "Phone · 375 · light": "100:1193"
+  "Phone · 375 · light": "100:1193",
+  "To file · 390 · light": "108:1074",
+  "To file · 390 · dark": "108:1167"
  },
  "componentSets": {
   "Roll": "9:85",

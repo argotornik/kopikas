@@ -58,7 +58,7 @@ ${helpers}
         let inSeen = false; for (let a = el; a && a !== root; a = a.parentElement) if (seen.has(a)) { inSeen = true; break; } if (inSeen) continue;
         seen.add(el); const tb = el.getBoundingClientRect(); if (!onScreen(tb) || tb.width < 2) continue;
         const block = el.closest("div,p,h1,h2,h3,span,button,a");
-        items.push({ kind: "text", text: el.textContent.replace(/\\s+/g, " ").trim(), x: tb.left, y: tb.top, w: tb.width, h: tb.height, family: cs.fontFamily.split(",")[0].replace(/['"]/g, "").trim(), weight: cs.fontWeight, size: parseFloat(cs.fontSize), lineHeight: cs.lineHeight === "normal" ? null : parseFloat(cs.lineHeight), color: paintOf(cs.color), align: getComputedStyle(block).textAlign, p: parentOf(el) });
+        items.push({ kind: "text", text: el.textContent.replace(/\\s+/g, " ").trim(), x: tb.left, y: tb.top, w: tb.width, h: tb.height, family: cs.fontFamily.split(",")[0].replace(/['"]/g, "").trim(), weight: cs.fontWeight, size: parseFloat(cs.fontSize), lineHeight: cs.lineHeight === "normal" ? null : parseFloat(cs.lineHeight), color: paintOf(cs.color), align: getComputedStyle(block).textAlign, p: isContainer(el) && index.has(el) ? index.get(el) : parentOf(el) });
       }
     }
   };

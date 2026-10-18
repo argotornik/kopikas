@@ -72,6 +72,8 @@ for (const S of SCREENS) {
     const g = figma.group([byItem[i].n, ...kids], frame);
     g.name = it.name; holder[i] = g;
   }
+  // Grouping can lift a filled box over a label beside it: every label goes back on top.
+  for (const t of frame.findAll((n) => n.type === "TEXT")) t.parent.appendChild(t);
   // The tab bar sits over the panel's last tiles, as it does on the phone.
   const bar = frame.children.find((c) => c.name === "Tab bar"); if (bar) frame.appendChild(bar);
   out.push({ frame: frame.id, name: S.name, x: frame.x, children: frame.children.map((c) => c.name), missing });

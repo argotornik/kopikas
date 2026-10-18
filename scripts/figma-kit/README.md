@@ -12,7 +12,7 @@ A frame that is rebuilt keeps its old self, renamed "· replaced <date>" and mov
 ## Needs
 
 - The dev server on :3000 with the local mock data, and Google Chrome (the exporters drive it headless).
-- The Figma MCP's `upload_assets` and `use_figma`. The team is on the Starter plan, whose daily tool-call limit is small. A full refresh costs four calls: two `upload_assets`, because more than 60 SVGs go up and each call hands out at most 60 URLs, and two `use_figma`.
+- The Figma MCP's `upload_assets` and `use_figma`, with a Full or Dev seat on a paid plan (Professional allows 200 calls a day). On the free Starter plan or a View or Collab seat, the allowance is a handful a month, and a full refresh costs four calls: two `upload_assets`, because more than 60 SVGs go up and each call hands out at most 60 URLs, and two `use_figma`.
 
 ## Refresh
 
@@ -30,10 +30,6 @@ node scripts/figma-kit/svgs.mjs s2l s2d p2l t2l t2d
 1. Call `upload_assets` with `count` set to the number of new files (60 at most) and `currentPageId` set to `0:1`. Save the returned `submitUrl`s one per line, then run `node scripts/figma-kit/upload.mjs urls.txt`. Repeat until every file has gone up: `out/uploaded.txt` records them, so a rerun skips them.
 2. Run `node scripts/figma-kit/gen-calls.mjs stage s2l s2d p2l` and `node scripts/figma-kit/gen-calls.mjs screens t2l t2d`.
 3. Pass `out/call-stage.js`, then `out/call-screens.js`, to `use_figma` as the code. Each stays under its 50,000-character limit. Check the returned `missing` lists: a name there means its upload did not land.
-
-## Pending
-
-As of 2026-10-18, `out/call-screens.js` (generated with `--with-parts`) has not run yet: Figma's limit stopped it. Its 16 layers are already uploaded, loose on the Stage page under the names `t19l__…`, `t19d__…` and `parts__…`. Run it as it is. It builds the two To file frames, adds Mood=Happy/Puzzled to the Coin set, and lays out the busy coin's hop on Parts.
 
 ## Files
 
