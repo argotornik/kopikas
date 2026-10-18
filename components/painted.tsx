@@ -366,20 +366,28 @@ export function PaintedRoll({
   );
 }
 
-// A sleeper in miniature, for the phone's "Nothing yet" line: its wrapper as a
-// small blob with the shut eyes and the z painted on, the name set beside it.
-export function PaintedMini({ index, colour }: { index: number; colour: string }) {
+// A roll in miniature, its wrapper as a small blob with the name set beside it. Asleep, for
+// the phone's "Nothing yet" line and a To file tile with nothing in its month, it wears the
+// shut eyes and the z; awake, for a tile whose roll holds money, the painted face. The z sits
+// off the wrapper, so it takes the stage's ink.
+export function PaintedMini({ index, colour, awake = false }: { index: number; colour: string; awake?: boolean }) {
   const seed = index * 613 + 29 + 5;
   const d = useMemo(() => wobblyRect(1, 1, 28, 24, 9, seed, 0.6, 24), [seed]);
   const ink = faceInk(colour);
   return (
     <svg width="30" height="26" viewBox="0 0 30 26" aria-hidden className="block shrink-0 overflow-visible">
       <path d={d} fill={colour} />
-      <g fill="none" stroke={ink} strokeLinecap="round" strokeLinejoin="round">
-        <path d="M8 15 H13" strokeWidth="2.2" />
-        <path d="M17 15 H22" strokeWidth="2.2" />
-        <path d="M25.5 -1 H30.5 L25.5 3.5 H30.5" strokeWidth="1.8" />
-      </g>
+      {awake ? (
+        <g transform="translate(4 5) scale(0.55)">
+          <PaintedFace ink={ink} blink={index * 0.83 + 0.4} />
+        </g>
+      ) : (
+        <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M8 15 H13" stroke={ink} strokeWidth="2.2" />
+          <path d="M17 15 H22" stroke={ink} strokeWidth="2.2" />
+          <path d="M25.5 -1 H30.5 L25.5 3.5 H30.5" strokeWidth="1.8" style={{ stroke: STAGE_INK }} />
+        </g>
+      )}
     </svg>
   );
 }

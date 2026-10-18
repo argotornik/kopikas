@@ -331,7 +331,7 @@ A chosen roll's last twelve months, in the stage head where the figures line sit
 
 ### To File, One Coin at a Time (phone)
 The phone's To file tab: the backlog as a queue.
-- **Shape:** an Oat Paper panel: "N to file" (and "N skipped"), one big painted coin with the merchant in Fredoka 20, the amount and day under it, then Skip and "Split with {partner}" as outlined pills (no fill, a 1.5px ring of Ink at 15%, white at 15% in dark) that shrink a little under the thumb like the tiles, then "Where does it go?" over a two-column grid of white tiles (card-oat-night in dark), the only solid things to tap, one per category, each with its wrapper chip, its name (two lines at most, never cut) and what it holds in the coin's month.
+- **Shape:** an Oat Paper panel: "N to file" (and "N skipped"), one big painted coin with the merchant in Fredoka 20, the amount and day under it, then Skip and "Split with {partner}" as outlined pills (no fill, a 1.5px ring of Ink at 15%, white at 15% in dark) that shrink a little under the thumb like the tiles, then "Where do I go?", the lost coin asking, over a two-column grid of white tiles (card-oat-night in dark), the only solid things to tap, one per category, each with its roll in miniature (awake while it holds money in the coin's month, asleep with shut eyes and a z when it holds nothing, as in the Month tab's "Nothing yet" line), its name (two lines at most, never cut) and what it holds in the coin's month.
 - **Behaviour:** a tile files the coin with the usual notice (Always, Undo) and the next coin drops in; Skip sends a coin to the back; an empty queue says "All filed" and leads to the month. Skip and Split stay put from coin to coin, above the fold.
 
 ### Pooleks

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS } from "@/lib/engine";
-import { PaintedCoin } from "@/components/painted";
+import { PaintedCoin, PaintedMini } from "@/components/painted";
 import { eur, label, looseCoins, monthOf, wrapperOf } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 import { cn, shareLabel } from "@/lib/utils";
@@ -114,9 +114,9 @@ export function CoinQueue({
           </button>
         )}
       </div>
-      <p className="mt-5 px-1 text-[15px] font-medium">Where does it go?</p>
+      <p className="mt-5 px-1 text-[15px] font-medium">Where do I go?</p>
       <div role="group" aria-label={`Categories for ${tx.name}`} className="mt-2 grid grid-cols-2 gap-2">
-        {categories.map((c) => {
+        {categories.map((c, i) => {
           const total = totals.get(c.name) ?? 0;
           return (
             <button
@@ -125,11 +125,12 @@ export function CoinQueue({
               onClick={() => onFile(tx, c.name)}
               aria-label={`File under ${c.name}${c.name === SAVINGS ? "" : `, ${eur.format(total)} in ${label(monthOf(tx.date))}`}`}
               className={cn(
-                "flex min-h-14 items-center gap-2 rounded-2xl bg-white px-3 py-2 text-left transition-transform hover:bg-mist motion-safe:active:scale-[0.96] dark:bg-card-night dark:hover:bg-card-night-hover",
+                "flex min-h-14 items-center gap-2.5 rounded-2xl bg-white py-2 pl-2.5 pr-3 text-left transition-transform hover:bg-mist motion-safe:active:scale-[0.96] dark:bg-card-night dark:hover:bg-card-night-hover",
                 FOCUS
               )}
             >
-              <span aria-hidden className="h-5 w-6 shrink-0 rounded-[8px]" style={{ background: wrapperOf(categories, c.name) }} />
+              {/* The tile's roll in miniature: awake while it holds money in the coin's month, asleep with nothing. */}
+              <PaintedMini index={i} colour={wrapperOf(categories, c.name)} awake={c.name === SAVINGS || total > 0} />
               <span className="min-w-0">
                 <span className="line-clamp-2 break-words text-[13px] font-medium leading-tight hyphens-auto">{c.name}</span>
                 {c.name !== SAVINGS && <span className={cn("block text-[12px] tabular-nums", MUTED)}>{eur.format(total)}</span>}
