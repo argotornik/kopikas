@@ -389,7 +389,7 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 - **Late sync:** more than a day and two hours without one, the line becomes "Last synced 3 days ago. Check the connection" in Ink with a small sun-yellow dot, and leads to Settings; on a phone it takes its own line under the header.
 
 ### Motion
-Springs everywhere: the general one at stiffness 260 and damping 18, rolls at 200 and 20. A gulp lasts 0.6s, a hop 0.7s (easing out, then in), rolls rise over 1.1s on `cubic-bezier(0.16, 1, 0.3, 1)`, floaters drift ±7px and ±7° back and forth. A press takes 0.16s on the same curve and springs back; a loading screen fades in over 0.2s after waiting 0.3s. With reduced motion every state stays and the movement goes.
+Springs everywhere: the general one at stiffness 260 and damping 18, rolls at 200 and 20. A gulp lasts 0.6s, a hop 0.7s (easing out, then in), rolls rise over 1.1s on `cubic-bezier(0.16, 1, 0.3, 1)`, floaters drift ±7px and ±7° back and forth. A press takes 0.16s on the same curve and springs back; a loading screen fades in over 0.2s after waiting 0.3s. While a request is out, the painted coin hops beside its words, the app's one loading sign: every 0.9s it rises 38% of its height and squashes from its foot as it lands. With reduced motion every state stays and the movement goes.
 
 ## Do's and Don'ts
 

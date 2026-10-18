@@ -80,11 +80,16 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
-    /* The coin mark spinning on its edge while a sync runs. */
-    --animate-coin-turn: coin-turn 1.4s linear infinite;
-    @keyframes coin-turn {
-        from { transform: rotateY(0deg); }
-        to { transform: rotateY(360deg); }
+    /* The busy coin hopping in place while a request is out: up easing out, down easing in,
+       a squash from its foot as it lands, then still for a beat (form-status.tsx). The rise
+       is a share of its own height, so any size hops alike. */
+    --animate-coin-hop: coin-hop 0.9s infinite;
+    @keyframes coin-hop {
+        0% { transform: translateY(0) scale(1, 1); animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1); }
+        38% { transform: translateY(-38%) scale(1, 1); animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4); }
+        62% { transform: translateY(0) scale(1.12, 0.84); }
+        76% { transform: translateY(0) scale(0.97, 1.04); }
+        88%, 100% { transform: translateY(0) scale(1, 1); }
     }
     /* A loading screen shows only when opening takes a while: it waits 300ms, then fades
        in, so most opens finish first and show nothing at all. */

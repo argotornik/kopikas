@@ -1,13 +1,23 @@
 import { useId } from "react";
 import { CircleAlertIcon } from "lucide-react";
-import { CoinMark } from "@/components/coin-mark";
+import { PaintedCoin } from "@/components/painted";
 
-// A button's label while its request is out: the coin turns beside it, the
-// one loading sign the app has. The label stays, so the button keeps its size.
+// The one loading sign the app has: the painted coin hopping in place, squashing as it
+// lands, the way a coin hops into its roll on the board. With reduced motion it stands still.
+export function BusyCoin() {
+  return (
+    <span aria-hidden className="inline-block size-4 shrink-0 origin-bottom animate-coin-hop motion-reduce:animate-none">
+      <PaintedCoin size={16} seed={3} />
+    </span>
+  );
+}
+
+// A button's label while its request is out: the coin hops beside it. The label
+// stays, so the button keeps its size.
 export function Pending({ on, children }: { on: boolean; children: React.ReactNode }) {
   return (
     <>
-      {on && <CoinMark turning className="size-4" />}
+      {on && <BusyCoin />}
       {children}
     </>
   );

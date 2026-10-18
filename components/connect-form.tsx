@@ -8,7 +8,7 @@ import { act } from "@/lib/act";
 import { runSync } from "@/lib/sync-report";
 import { cn } from "@/lib/utils";
 import { TokenField } from "@/components/token-field";
-import { CoinMark } from "@/components/coin-mark";
+import { BusyCoin } from "@/components/form-status";
 import { CARD, FOCUS, MUTED, PILL, WHITE } from "@/components/coin-look";
 
 type Phase =
@@ -108,7 +108,7 @@ export function ConnectForm({ hasToken }: { hasToken: boolean }) {
                 status.failed && "items-start rounded-2xl bg-sun/15 px-3 py-2 text-ink dark:text-chalk"
               )}
             >
-              {busy && <CoinMark turning className="size-4" />}
+              {busy && <BusyCoin />}
               {status.failed && <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-sun-ink dark:text-sun" />}
               <span>{status.text}</span>
             </motion.span>

@@ -3,13 +3,14 @@ import { cn } from "@/lib/utils";
 // The kopikas coin: a copper disc with a lowercase k struck into it — the
 // wordmark's own letter (Bricolage Grotesque 700), as an outline so no
 // font needs to load. The ink is the dark board's colour on every theme,
-// so on the dark board the k reads as a hole in the coin. Turning, it spins
-// on its edge: the one loading state in the app, while a sync runs.
-export function CoinMark({ className, turning = false }: { className?: string; turning?: boolean } = {}) {
+// so on the dark board the k reads as a hole in the coin. The old board's mark, kept for
+// the /stripes sketch; the app's own mark is the painted coin, and its loading sign is
+// BusyCoin (form-status.tsx).
+export function CoinMark({ className }: { className?: string } = {}) {
   return (
     <svg
       viewBox="0 0 32 32"
-      className={cn("size-5 shrink-0", turning && "animate-coin-turn motion-reduce:animate-none", className)}
+      className={cn("size-5 shrink-0", className)}
       aria-hidden="true"
     >
       <circle cx="16" cy="16" r="15" className="fill-copper" />
