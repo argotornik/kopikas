@@ -125,7 +125,7 @@ export function CoinQueue({
               onClick={() => onFile(tx, c.name)}
               aria-label={`File under ${c.name}${c.name === SAVINGS ? "" : `, ${eur.format(total)} in ${label(monthOf(tx.date))}`}`}
               className={cn(
-                "flex min-h-14 items-center gap-2 rounded-2xl bg-white px-3 py-2 text-left transition-transform hover:bg-mist motion-safe:active:scale-[0.96] dark:bg-card-oat-night dark:hover:bg-card-oat-night-hover",
+                "flex min-h-14 items-center gap-2 rounded-2xl bg-white px-3 py-2 text-left transition-transform hover:bg-mist motion-safe:active:scale-[0.96] dark:bg-card-night dark:hover:bg-card-night-hover",
                 FOCUS
               )}
             >

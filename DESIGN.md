@@ -10,6 +10,7 @@ colors:
   mist-night: "#191B22"
   card-night: "#23252E"
   card-oat-night: "#2A282E"
+  mist-oat-night: "#1A181D"
   ink: "#16171C"
   chalk: "#F3F2EE"
   muted: "#63666F"
@@ -208,7 +209,7 @@ A white page, a warm oat stage, copper as the house colour, Crayon Blue for ever
 
 ### Neutral
 - **Page White** (page-white) and **Night** (night): the page ground in light and dark. Cards and the speech bubble sit on Page White (card-night in dark).
-- **Card on Oat Night** (card-oat-night): the phone queue's tiles in dark, a step up from Oat Paper Night in its own warm grey, so the tiles and their panel read as one material where card-night's blue-grey would read as a second. The other cards on Oat Paper keep card-night for now.
+- **Card on Oat Night** (card-oat-night) and **Mist on Oat Night** (mist-oat-night): in dark, what sits on an Oat Paper panel or dialog turns warm, cards a step above Oat Paper Night and quiet fills a step below, so the panel and everything on it read as one material where the blue-greys would read as a second. Cards on the page itself keep card-night and mist-night, cool on Night.
 - **Oat Paper** (oat-paper) and **Oat Paper Night** (oat-paper-night): the stage and the panels below it, where the characters live.
 - **Mist** (mist) and **Mist Night** (mist-night): quiet fills for inputs, hover backgrounds and the plain panel.
 - **Ink** (ink) and **Chalk** (chalk): all text and the active pill, in light and dark. Ink on Oat Paper is 15:1.
@@ -217,7 +218,7 @@ A white page, a warm oat stage, copper as the house colour, Crayon Blue for ever
 - **Received Green** (received-green / received-green-night): money coming in. 4.8:1 on Oat Paper, 5.7:1 on white and 5.2:1 on Mist; the night value is 8.6:1 on Oat Paper Night.
 - **Sun Yellow** (sun) and **Sun Ink** (sun-ink): what needs dealing with, such as a late sync or a failed connection: a dot, a tint behind the words, or Sun Ink for an icon on a light ground. Errors have no colour of their own yet; they keep a red until that is decided.
 
-In code these are Tailwind colours in `app/globals.css` under the same names, shortened where long (`oat` is Oat Paper, `received` is Received Green, `muted-text` is Muted, since shadcn's `muted` is a fill). Each theme has its own token and a class names both: `bg-oat dark:bg-oat-night`. shadcn's parts read the same colours through its variables. The painted cast keeps its palette in `painted.tsx`.
+In code these are Tailwind colours in `app/globals.css` under the same names, shortened where long (`oat` is Oat Paper, `received` is Received Green, `muted-text` is Muted, since shadcn's `muted` is a fill). Each theme has its own token and a class names both: `bg-oat dark:bg-oat-night`. Components never write the warm night greys: inside anything wearing `dark:bg-oat-night`, and inside the dialogs, one rule points card-night and mist-night (and shadcn's card, secondary, muted and accent) at them, so a card on a panel is `bg-white dark:bg-card-night` like any other. shadcn's parts read the same colours through its variables. The painted cast keeps its palette in `painted.tsx`.
 
 ### Named Rules
 **The One Wrapper Rule.** A category owns one wrapper colour, given by its place in the list, everywhere it appears. Never pick a wrapper for looks.
@@ -369,10 +370,10 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 - **Navigation links** (Pooleks, Settings): Body type, 8px by 14px pill that fills with Mist on hover.
 
 ### Category Chips
-- **Style:** a white pill (card-night in dark) with the wrapper colour as a dot and the name in Label type, 4px by 10px. An unfiled charge shows a dashed outline pill instead.
+- **Style:** a white pill (card-night in dark, card-oat-night on a panel) with the wrapper colour as a dot and the name in Label type, 4px by 10px. An unfiled charge shows a dashed outline pill instead.
 
 ### Cards
-- **Style:** Page White (card-night) on Oat Paper, 16px corners, 12px padding, no border, no shadow.
+- **Style:** Page White on Oat Paper (card-oat-night on Oat Paper Night), 16px corners, 12px padding, no border, no shadow.
 
 ### Menus
 - **Style:** a white card (card-night) with 16px corners, a 1px Ink ring at 10% and 6px padding; rows of Body type in 12px-cornered rows that fill with Mist when highlighted; groups divided by a hairline. A charge's chip opens one (its category, a split with the partner, Name and icon…); a subscription's ⋯ opens one (Name and icon…, Make yearly or monthly, Stop tracking).

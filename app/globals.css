@@ -31,9 +31,11 @@
     --color-mist: #F4F5F7;
     --color-mist-night: #191B22;
     --color-card-night: #23252E;
-    /* A card on Oat Paper Night: a step up in the panel's own warm grey, where card-night's
-       blue-grey would read as a second material. The phone queue's tiles for now. */
+    /* On Oat Paper Night the night greys turn warm, a step above and a step below the panel,
+       where card-night's and mist-night's blue-greys would read as a second material. The
+       panel rule below swaps them in; components keep writing dark:bg-card-night. */
     --color-card-oat-night: #2A282E;
+    --color-mist-oat-night: #1A181D;
     /* DESIGN.md's Muted: secondary text. shadcn already has `muted` as a fill (Mist here). */
     --color-muted-text: #63666F;
     --color-muted-text-night: #A7A9B4;
@@ -152,6 +154,23 @@
     --input: color-mix(in srgb, var(--color-white) 22%, transparent);
     --ring: var(--color-chalk);
 }
+
+/* Inside an Oat Paper Night panel (anything wearing dark:bg-oat-night, and the dialogs, which
+   are panels too) cards and quiet fills take the warm greys, so a panel and what sits on it
+   read as one material. Cards on the page itself keep the cool ones. shadcn's roles are
+   resolved where they are set, so they are set again here. Only the dialog itself counts:
+   Settings wears .coins-panel on its whole page for its fields. */
+.dark :is(.dark\:bg-oat-night, .coins-panel[data-slot="dialog-content"]) {
+    --color-card-night: var(--color-card-oat-night);
+    --color-card-night-hover: var(--color-card-oat-night-hover);
+    --color-mist-night: var(--color-mist-oat-night);
+    --card: var(--color-card-oat-night);
+    --secondary: var(--color-mist-oat-night);
+    --muted: var(--color-mist-oat-night);
+}
+/* A panel's hover highlight turns warm too; inside .coins-panel (below) accent is the card's
+   own colour instead, the dark side of its white highlights. */
+.dark .dark\:bg-oat-night { --accent: var(--color-card-oat-night-hover); }
 
 /* The new look's display face, and its panels: dialogs and editors re-tint the theme's
    variables inside `.coins-panel` to Oat Paper, with white highlights and generous corners. */
