@@ -1,7 +1,6 @@
 // Kopikas, painted, as plain data: every shape and every pose, in the units
 // of the figure's 124 by 150 box. The code-drawn Kopikas (kopikas-painted.tsx)
-// and the Lottie file (scripts/kopikas-lottie.mjs) both draw from here, so the
-// two never drift apart. No imports, so the build script can load it as is.
+// draws from here.
 
 // Each pose belongs to one moment of the product, so the coin always says
 // what is going on:
@@ -53,7 +52,7 @@ export const EYE_STROKE = 3.4;
 export const EYES_CLOSED = ["M44 63 Q49 57 54 63", "M66 62 Q71 56 76 62"];
 export const EYES_CONTENT = ["M44 60.5 Q49 65.5 54 60.5", "M66 60 Q71 65 76 60"];
 // Sleepy: the lower half of each eye under a lid line; each half is two curves
-// (a half ellipse), so the Lottie file can draw and droop it too.
+// (a half ellipse).
 export const EYES_SLEEPY = [
   { lid: "M44.6 63 C44.6 64.77 46.57 66.2 49 66.2 C51.43 66.2 53.4 64.77 53.4 63 Z", line: "M43.8 62.8 L54.2 62.8", cx: 49, cy: 63 },
   { lid: "M66.6 62.4 C66.6 64.19 68.57 65.65 71 65.65 C73.43 65.65 75.4 64.19 75.4 62.4 Z", line: "M65.8 62.2 L76.2 62.2", cx: 71, cy: 62.4 },

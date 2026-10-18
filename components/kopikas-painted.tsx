@@ -39,8 +39,8 @@ import {
 
 // Kopikas, painted, after the character sheet: a copper coin turned a touch
 // so its edge shows, the k on its forehead, a blue face, thick rounded limbs
-// with mitten hands. Its shapes and poses are data in kopikas-figure.ts, which
-// the Lottie file is built from too; this draws them and moves between them.
+// with mitten hands. Its shapes and poses are data in kopikas-figure.ts; this
+// draws them and moves between them.
 export type { PaintedPose };
 
 const LIMB = "var(--painted-limb)";

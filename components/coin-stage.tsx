@@ -8,8 +8,7 @@ import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS } from "@/lib/engine";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 import { GOOFY_CSS, GoofyFace, INK, PERSONAS, rng, wobblyCircle, wobblyRect, type Mood } from "@/components/goofy";
-import { KopikasAnimated } from "@/components/kopikas-animated";
-import type { MascotPose } from "@/components/kopikas-mascot";
+import { KopikasMascot, type MascotPose } from "@/components/kopikas-mascot";
 import type { PaintedPose } from "@/components/kopikas-painted";
 import { PAINTED_CONFETTI, PAINTED_WRAPPERS, PaintedBar, PaintedCoin, PaintedDefs, PaintedMini, PaintedRoll } from "@/components/painted";
 import { RollingNumber } from "@/components/rolling-number";
@@ -666,7 +665,7 @@ export function CoinStage({
         onMouseLeave={() => setWaving(false)}
         className={cn("rounded-3xl", FOCUS)}
       >
-        <KopikasAnimated
+        <KopikasMascot
           look={look}
           pose={pose}
           paintedPose={paintedPose}

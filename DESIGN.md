@@ -319,7 +319,7 @@ The bank connection and what the board has been taught.
 - **Wide (1900px and up):** two columns: the title, the connection and the Pooleks rules (720px) on the left, and the filing rules on the right from the top, so the whole page often fits one screen.
 
 ### Kopikas and the Speech Bubble (off the stage)
-Taken off the painted stage on 2026-10-15, with his bubble: the stage reads better with the rolls and the loose coins as the only characters. The coin beside the wordmark stays. His eight poses, their Lottie file and the bubble remain in the code (the goofy look on `/coins/sketch` still shows them, and `/coins/kopikas` shows the poses) and are not to be put back on the painted stage without a new decision.
+Taken off the painted stage on 2026-10-15, with his bubble: the stage reads better with the rolls and the loose coins as the only characters. The coin beside the wordmark stays. His eight poses and the bubble remain in the code, drawn (their Lottie file was removed on 2026-10-18, since it only ever played on the painted stage) (the goofy look on `/coins/sketch` still shows them, and `/coins/kopikas` shows the poses) and are not to be put back on the painted stage without a new decision.
 - **Voice, kept for screen readers:** progress first, never shaming ("Hi! 2 coins to sort in September.", "In it goes!", "All sorted! Every coin is in its roll."), announced politely after every step.
 
 ### Buttons and Pills
