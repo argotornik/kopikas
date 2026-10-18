@@ -14,7 +14,9 @@ export function SignInFrame({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col items-center gap-1.5 text-center">
           <PaintedCoin size={56} seed={3} />
           <p className={cn(DISPLAY, "text-[32px] font-semibold leading-tight")}>Kopikas</p>
-          <p className={cn("text-[15px] italic", MUTED)}>iga kopikas loeb</p>
+          <p lang="et" className={cn("text-[15px] italic", MUTED)}>
+            iga kopikas loeb
+          </p>
         </div>
         {children ?? (
           <div className={cn(PANEL, OAT, "flex flex-col items-center gap-4 p-6 text-center")}>

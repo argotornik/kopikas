@@ -473,7 +473,7 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
                 onClick={toggleDetails}
                 aria-pressed={details}
                 title={details ? "Hide the balance after every line" : "Show the balance after every line"}
-                className={cn("h-9 rounded-full px-3.5 text-[13px] font-medium", details ? INK : WHITE, FOCUS)}
+                className={cn("relative h-9 rounded-full px-3.5 text-[13px] font-medium pointer-coarse:after:absolute pointer-coarse:after:-inset-1 pointer-coarse:after:content-['']", details ? INK : WHITE, FOCUS)}
               >
                 {details ? "Hide details" : "Details"}
               </button>
@@ -745,7 +745,9 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
       }}
       className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:hidden dark:border-white/10 dark:bg-night"
     >
-      <div className="mx-auto flex max-w-md items-center gap-2 rounded-full bg-mist py-1.5 pl-4 pr-1.5 focus-within:ring-2 focus-within:ring-ink/25 dark:bg-card-night dark:focus-within:ring-white/30">
+      {/* The field fills the pill, so a tap anywhere on it lands; it has no edge of its own, so
+          the pill shows its focus, in the board's Ink outline. */}
+      <div className="mx-auto flex max-w-md items-center gap-2 rounded-full bg-mist pr-1.5 has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-solid has-[input:focus-visible]:outline-ink dark:bg-card-night dark:has-[input:focus-visible]:outline-chalk">
         <input
           ref={composer}
           name="composer"
@@ -754,9 +756,13 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
           placeholder="Add something you paid for…"
           aria-label="Add something you paid for"
           enterKeyHint="next"
-          className="h-9 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-text dark:placeholder:text-muted-text-night"
+          className="h-12 min-w-0 flex-1 rounded-l-full bg-transparent pl-4 text-[16px] outline-none placeholder:text-muted-text dark:placeholder:text-muted-text-night"
         />
-        <button type="submit" aria-label="Add expense" className={cn("flex size-9 shrink-0 items-center justify-center rounded-full", INK, FOCUS)}>
+        <button
+          type="submit"
+          aria-label="Add expense"
+          className={cn("relative flex size-9 shrink-0 items-center justify-center rounded-full pointer-coarse:after:absolute pointer-coarse:after:-inset-1 pointer-coarse:after:content-['']", INK, FOCUS)}
+        >
           <PlusIcon aria-hidden className="size-5" />
         </button>
       </div>

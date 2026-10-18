@@ -1037,7 +1037,9 @@ export function CoinStage({
                     animate={pickedTx && !reduce ? { x: [0, 4, 0] } : { x: 0 }}
                     // Only the nudge repeats; a press springs back once.
                     transition={pickedTx ? { x: { duration: 0.9, repeat: Infinity, delay: i * 0.06 }, default: SPRING } : SPRING}
-                    whileTap={(pickedTx || onSelect) && !reduce ? { scale: 0.98, transition: PRESS } : undefined}
+                    // Whether there is a press never hangs on reduce, which the server doesn't
+                    // know: Motion gives a pressable a tabindex, and the two renders must agree.
+                    whileTap={pickedTx || onSelect ? { scale: reduce ? 1 : 0.98, transition: PRESS } : undefined}
                   >
                     <div className="flex items-baseline justify-between gap-3 text-[14px]">
                       <span className="truncate font-medium">{r.name}</span>
@@ -1130,7 +1132,8 @@ export function CoinStage({
                       // Only the bob repeats; hover and press settle once.
                       transition={pickedTx ? { y: { duration: 0.9, repeat: Infinity, delay: i * 0.08 }, default: SPRING } : SPRING}
                       whileHover={pickedTx ? { scale: 1.06, rotate: -2 } : undefined}
-                      whileTap={(pickedTx || onSelect) && !reduce ? { scale: 0.96, transition: PRESS } : undefined}
+                      // As on the bars: the press is there either way, a no-op when motion is reduced.
+                      whileTap={pickedTx || onSelect ? { scale: reduce ? 1 : 0.96, transition: PRESS } : undefined}
                     >
                       {painted ? (
                         <PaintedRoll

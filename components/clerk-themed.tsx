@@ -3,6 +3,7 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { useTheme } from "next-themes";
+import { FOCUS } from "@/components/coin-look";
 
 // Clerk's components in the board's look: an Oat Paper card with generous corners, white
 // fields, Ink for the action, Rubik and Fredoka, following the theme. Sign-up is
@@ -48,10 +49,16 @@ export function ClerkThemed({ children }: { children: React.ReactNode }) {
           footerAction: "hidden",
           cardBox: "shadow-none rounded-[28px]",
           card: "shadow-none",
+          // "Secured by Clerk" sits in the same Oat Paper, so the card is one piece.
+          footer: "bg-none bg-oat dark:bg-oat-night",
           headerTitle: "coins-display text-[22px] font-semibold",
-          formButtonPrimary: "rounded-full h-11 text-[15px] shadow-none",
+          // Flat Ink, without Clerk's gloss (a gradient on ::after).
+          formButtonPrimary: "rounded-full h-11 text-[15px] shadow-none after:hidden",
           socialButtonsBlockButton: "rounded-full h-11",
-          formFieldInput: "rounded-full h-11",
+          // The token field's look: a white pill with its own edge, darker in focus, the
+          // board's outline for the keyboard. Clerk's rings are box-shadows, its error
+          // ring among them, so an error colours the edge instead.
+          formFieldInput: `rounded-full h-11 shadow-none border-2 border-ink/15 focus:border-ink/35 aria-invalid:border-destructive dark:border-white/15 dark:focus:border-white/35 dark:aria-invalid:border-destructive ${FOCUS}`,
         },
       }}
       localization={{

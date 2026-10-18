@@ -199,6 +199,7 @@ In code these are Tailwind colours in `app/globals.css` under the same names, sh
 
 **Display Font:** Fredoka (with ui-rounded, system-ui, sans-serif)
 **Body Font:** Rubik (with system-ui, sans-serif)
+**Code Font:** the system monospace (ui-monospace, SF Mono, Menlo), as `font-mono`: only for something typed exactly as shown, such as a variable's name on the setup screen.
 
 **Character:** Fredoka is round, soft and bold: the friendly voice of the book. Rubik is a calm, slightly rounded sans for everything that is read and compared. Fredoka is provisional: the display face may still change to one chosen from Free Faces.
 
@@ -304,7 +305,7 @@ A fresh deployment's board, waiting: an empty board is not a quiet month.
 - **Before it:** "Who owns this board?" and "Not on this board" wear the same frame, without the floor.
 
 ### Sign-in, Not Found and Couldn't Open
-- **Sign-in:** the coin, "Kopikas" in Fredoka and "iga kopikas loeb" over Clerk's card, which wears the board's look: Oat Paper with 28px corners, white fields, an Ink pill, Rubik with a Fredoka title, in both themes. The same theme dresses Clerk's account menu in every header.
+- **Sign-in:** the coin, "Kopikas" in Fredoka and "iga kopikas loeb" over Clerk's card, which wears the board's look: one piece of Oat Paper with 28px corners, "Secured by Clerk" included, white pill fields with their own edge as the token field has, a flat Ink pill, Rubik with a Fredoka title, in both themes. The same theme dresses Clerk's account menu in every header.
 - **Not found:** one coin, surprised and tilted as if it rolled off, "This page isn't on the board", a sentence on why, and Back to the board.
 - **Couldn't open:** a page that failed to open, the not-found page's sibling: the coin tipped onto its side over its floor oval, still smiling, "This page couldn't open", that nothing filed is lost and trying again usually works, Try again (Ink) and Back to the board (white, not on the board itself), and the server's reference in Muted for the log. When the root layout itself fails, the same page shows without the header, in the light theme.
 

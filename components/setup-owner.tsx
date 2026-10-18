@@ -82,7 +82,7 @@ function Frame({ fontClass, children }: { fontClass: string; children: React.Rea
 // A variable's name, as it is typed.
 function Var({ children }: { children: React.ReactNode }) {
   return (
-    <code className={cn("rounded-md px-1.5 py-0.5 text-[13px] [font-family:ui-monospace,SFMono-Regular,Menlo,monospace]", CARD, INK_TEXT)}>
+    <code className={cn("rounded-md px-1.5 py-0.5 font-mono text-[13px]", CARD, INK_TEXT)}>
       {children}
     </code>
   );
