@@ -385,7 +385,7 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
       ? `Nothing new since the repayment on ${shortDate.format(new Date(fold.date))}`
       : `${openLines} ${openLines === 1 ? "line" : "lines"} since the repayment on ${shortDate.format(new Date(fold.date))}`
     : `${view.sharedItems.length} shared ${view.sharedItems.length === 1 ? "cost" : "costs"}, no repayments yet`;
-  const colourOf = (category: string) => wrapperOf(view.categories.map((name) => ({ name })), category, true);
+  const colourOf = (category: string) => wrapperOf(view.categories.map((name) => ({ name })), category);
   const dialogLook = cn(fontClass, "coins-panel rounded-[28px] p-6 sm:max-w-sm");
   const openAdd = (from: HTMLElement | null) => {
     addReturn.current = from;

@@ -48,7 +48,7 @@ export function CoinYear({
   const average = past.length ? past.reduce((a, b) => a + b, 0) / past.length : 0;
   const limit = categories.find((c) => c.name === category)?.budget ?? null;
   const scale = H / Math.max(...totals, limit ?? 0, 1);
-  const colour = wrapperOf(categories, category, true);
+  const colour = wrapperOf(categories, category);
   const seed = Math.max(0, categories.findIndex((c) => c.name === category)) * 977 + 13;
   const note = [average > 0 && `on average ${eur.format(average)}`, limit != null && `limit ${limitText(limit)}`].filter(Boolean).join(" · ");
 

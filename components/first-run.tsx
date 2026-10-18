@@ -87,7 +87,7 @@ export function FirstRun({
               <div key={name} className="flex w-full max-w-[84px] flex-col items-center">
                 <PaintedRoll
                   index={categories.indexOf(name)}
-                  colour={wrapperOf(all, name, true)}
+                  colour={wrapperOf(all, name)}
                   body={0}
                   extra={0}
                   budget={null}
@@ -111,7 +111,7 @@ export function FirstRun({
             <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
               {floor.map((name) => (
                 <li key={name} className="flex min-h-9 items-center gap-2 text-[13px] font-medium">
-                  <PaintedMini index={categories.indexOf(name)} colour={wrapperOf(all, name, true)} />
+                  <PaintedMini index={categories.indexOf(name)} colour={wrapperOf(all, name)} />
                   <span className="min-w-0 truncate">{name}</span>
                 </li>
               ))}

@@ -65,7 +65,7 @@ export function RulesList({ initial, categories }: { initial: RuleRow[]; categor
     );
   };
 
-  const colourOf = (category: string) => wrapperOf(categories.map((name) => ({ name })), category, true);
+  const colourOf = (category: string) => wrapperOf(categories.map((name) => ({ name })), category);
   const charges = (n: number) => `${n} ${n === 1 ? "charge matches" : "charges match"}`;
   const chip = (r: RuleRow, withCategory: boolean) => (
     <RuleChip

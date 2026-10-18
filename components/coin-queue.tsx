@@ -128,7 +128,7 @@ export function CoinQueue({
                 FOCUS
               )}
             >
-              <span aria-hidden className="h-5 w-6 shrink-0 rounded-[8px]" style={{ background: wrapperOf(categories, c.name, true) }} />
+              <span aria-hidden className="h-5 w-6 shrink-0 rounded-[8px]" style={{ background: wrapperOf(categories, c.name) }} />
               <span className="min-w-0">
                 <span className="line-clamp-2 break-words text-[13px] font-medium leading-tight hyphens-auto">{c.name}</span>
                 {c.name !== SAVINGS && <span className={cn("block text-[12px] tabular-nums", MUTED)}>{eur.format(total)}</span>}

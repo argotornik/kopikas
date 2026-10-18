@@ -394,7 +394,6 @@ export function CoinBoard({
             currentMonth={initial.month}
             onMonthChange={setMonth}
             onFile={onFile}
-            look="painted"
             selected={only === MONEY_IN ? null : only}
             onSelect={toggle}
             // A chosen roll's year takes the figures' place; they come back when it is let go.

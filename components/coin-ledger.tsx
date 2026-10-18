@@ -125,7 +125,7 @@ function Row({
             )}
           >
             {t.category && (
-              <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: wrapperOf(categories, t.category, true) }} />
+              <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: wrapperOf(categories, t.category) }} />
             )}
             <span className="truncate">{t.category ?? "To file"}</span>
           </Menu.Trigger>
@@ -189,7 +189,7 @@ function FileMenu({ txs, categories, onFile, partner, onSplit, onUnshare, onEdit
                     >
                       {categories.map((c) => (
                         <Menu.RadioItem key={c.name} value={c.name} closeOnClick className={MENU_ITEM}>
-                          <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: wrapperOf(categories, c.name, true) }} />
+                          <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: wrapperOf(categories, c.name) }} />
                           <span className="min-w-0 flex-1 truncate">{c.name}</span>
                           <Menu.RadioItemIndicator>
                             <CheckIcon aria-hidden className="size-4" />

@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
+import { useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { AnimatePresence, motion, useReducedMotion, useSpring, useTransform } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS } from "@/lib/engine";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
-import { Coin, GOOFY_CONFETTI, GOOFY_CSS, GOOFY_METALS, GOOFY_WRAPPERS, GoofyFace, INK, PERSONAS, rng, wobblyRect, type Mood } from "@/components/goofy";
-import { KopikasMascot, type MascotPose } from "@/components/kopikas-mascot";
-import type { PaintedPose } from "@/components/kopikas-painted";
+// The hand both looks share: the painted faces blink with its keyframes.
+import { GOOFY_CSS, type Mood } from "@/components/goofy";
 import { PAINTED_CONFETTI, PAINTED_WRAPPERS, PaintedBar, PaintedCoin, PaintedDefs, PaintedMini, PaintedRoll } from "@/components/painted";
 import { RollingNumber } from "@/components/rolling-number";
 import { cn, shareLabel } from "@/lib/utils";
 
-// The coin tray's stage: the month, its total and the loose change in the head, the
+// The coin tray's stage, painted: the month, its total and the loose change in the head, the
 // rolls on the floor below. The page that shows it owns the month and decides what
 // filing does; the stage picks a coin up, flies it to its roll and hands it over.
 
@@ -57,203 +56,37 @@ function paidOut(txs: BoardTx[], month: string) {
   return { byCat, loose, total: [...byCat.values()].reduce((a, b) => a + b, 0) + loose };
 }
 
-// Confetti marks: dashes, squiggles, dots and zigzags in the wrappers' colours.
-type MarkKind = "dash" | "squiggle" | "dot" | "zig";
-function ConfettiMark({ kind, colour, size, rotate = 0, fine = false }: { kind: MarkKind; colour: string; size: number; rotate?: number; fine?: boolean }) {
-  if (fine)
-    return (
-      <svg viewBox="0 0 24 24" width={size} height={size} style={{ rotate: `${rotate}deg` }} className="block overflow-visible">
-        {kind === "dash" && <path d="M4 12 L20 12" style={{ stroke: colour }} strokeWidth="2.6" strokeLinecap="round" />}
-        {kind === "squiggle" && <path d="M2 14 Q6 7 10 12 T18 12 T23 9" style={{ stroke: colour }} strokeWidth="2" fill="none" strokeLinecap="round" />}
-        {kind === "dot" && <circle cx="12" cy="12" r="4.5" style={{ fill: colour }} />}
-        {kind === "zig" && <path d="M3 15 Q8 6 12 13 Q16 19 21 9" style={{ stroke: colour }} strokeWidth="2" fill="none" strokeLinecap="round" />}
-      </svg>
-    );
+// Marks in the air: squiggles and dots in the painted confetti colours. On the stage a dash
+// means a limit, and a floating coin would read as one more to file, so neither floats.
+type MarkKind = "squiggle" | "dot";
+function ConfettiMark({ kind, colour, size, rotate = 0 }: { kind: MarkKind; colour: string; size: number; rotate?: number }) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} style={{ rotate: `${rotate}deg` }} className="block overflow-visible">
-      {kind === "dash" && <rect x="2" y="9.5" width="20" height="5" rx="2.5" fill={colour} />}
-      {kind === "squiggle" && <path d="M2 14 Q6 6 10 12 T18 12 T23 9" stroke={colour} strokeWidth="3.2" fill="none" strokeLinecap="round" />}
-      {kind === "dot" && <circle cx="12" cy="12" r="9" fill={colour} />}
-      {kind === "zig" && <path d="M2 16 L7 8 L12 16 L17 8 L22 16" stroke={colour} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />}
+      {kind === "squiggle" && <path d="M2 14 Q6 7 10 12 T18 12 T23 9" style={{ stroke: colour }} strokeWidth="2" fill="none" strokeLinecap="round" />}
+      {kind === "dot" && <circle cx="12" cy="12" r="4.5" style={{ fill: colour }} />}
     </svg>
   );
 }
 
-// What floats behind the stage, top right, out of the way of every number.
-const FLOATERS: { kind: MarkKind | "coin"; metal?: Metal; x: number; y: number; s: number; d: number; c?: number; r?: number }[] = [
-  { kind: "coin", metal: "brass", x: 60, y: 6, s: 22, d: 7 },
-  { kind: "squiggle", x: 69, y: 22, s: 26, d: 9, c: 0, r: -12 },
-  { kind: "dash", x: 83, y: 5, s: 16, d: 8, c: 2, r: 35 },
-  { kind: "dot", x: 91, y: 18, s: 9, d: 10, c: 1 },
-  { kind: "zig", x: 52, y: 3, s: 20, d: 6, c: 3, r: 10 },
-  { kind: "dash", x: 76, y: 12, s: 12, d: 7, c: 4, r: -50 },
-  { kind: "coin", metal: "copper", x: 96, y: 4, s: 15, d: 11 },
-  { kind: "dot", x: 64, y: 30, s: 7, d: 9, c: 2 },
-  { kind: "squiggle", x: 88, y: 31, s: 22, d: 8, c: 5, r: 20 },
-  { kind: "dash", x: 57, y: 18, s: 10, d: 7, c: 1, r: 70 },
-];
-
-// What floats around the loose change on the painted stage, in % of the pile's 120px
-// column, clear of every spot a coin can take. Squiggles and dots only: on the painted
-// stage a dash means a limit, and a floating coin would read as one more to file.
-const AIR: (typeof FLOATERS)[number][] = [
+// What floats around the loose change, in % of the pile's 120px column, clear of every
+// spot a coin can take.
+type Mark = { kind: MarkKind; x: number; y: number; s: number; d: number; c?: number; r?: number };
+const AIR: Mark[] = [
   { kind: "squiggle", x: -82, y: 4, s: 30, d: 9, c: 3, r: -8 },
   { kind: "squiggle", x: -63, y: 62, s: 30, d: 8, c: 0, r: 6 },
   { kind: "dot", x: -18, y: 32, s: 8, d: 10, c: 1 },
   { kind: "dot", x: 109, y: 43, s: 7, d: 9, c: 4 },
 ];
 
-function Floater({ f, painted, always = false }: { f: (typeof FLOATERS)[number]; painted: boolean; always?: boolean }) {
+function Floater({ f }: { f: Mark }) {
   return (
     <span
       aria-hidden
-      className={cn("coins-float pointer-events-none absolute", !always && f.x < 84 && "hidden sm:block")}
+      className="coins-float pointer-events-none absolute"
       style={{ left: `${f.x}%`, top: `${f.y}%`, animationDuration: `${f.d}s`, animationDelay: `${-f.d / 2}s` }}
     >
-      {f.kind === "coin" ? (
-        painted ? (
-          <PaintedCoin size={f.s} metal={f.metal} face={false} seed={f.d} />
-        ) : (
-          <Coin size={f.s} metal={f.metal} face={false} seed={f.d} />
-        )
-      ) : painted ? (
-        <ConfettiMark kind={f.kind} colour={PAINTED_CONFETTI[(f.c ?? 0) % PAINTED_CONFETTI.length]} size={f.s} rotate={f.r} fine />
-      ) : (
-        <ConfettiMark kind={f.kind} colour={GOOFY_CONFETTI[(f.c ?? 0) % GOOFY_CONFETTI.length]} size={f.s} rotate={f.r} />
-      )}
+      <ConfettiMark kind={f.kind} colour={PAINTED_CONFETTI[(f.c ?? 0) % PAINTED_CONFETTI.length]} size={f.s} rotate={f.r} />
     </span>
-  );
-}
-
-// A roll as a character: a hand-drawn block in its wrapper colour on two
-// little feet, the coins sticking out of the top as spiky hair (wilder and
-// taller past the limit), a face of its own, and stubby arms that go up when
-// there is a coin to catch. Its height springs to what it holds; the first
-// render already stands at it, and only then does it rise in.
-function GoofyRoll({
-  index,
-  colour,
-  body,
-  extra,
-  budget,
-  over,
-  picking,
-  gulping,
-  height: H,
-  width: RW,
-  delay,
-}: {
-  index: number;
-  colour: string;
-  body: number;
-  extra: number;
-  budget: number | null;
-  over: boolean;
-  picking: boolean;
-  gulping: boolean;
-  height: number;
-  width: number;
-  delay: number;
-}) {
-  const reduce = useReducedMotion();
-  const PAD = 12;
-  const FOOT = 9;
-  const target = Math.max(46, body);
-  const hv = useSpring(target, { stiffness: 220, damping: 17 });
-  const first = useRef(true);
-  useLayoutEffect(() => {
-    if (first.current) {
-      first.current = false;
-      if (reduce) return;
-      hv.jump(0);
-      const t = setTimeout(() => hv.set(target), delay * 1000);
-      return () => clearTimeout(t);
-    }
-    hv.set(target);
-  }, [hv, target, reduce, delay]);
-
-  const seed = index * 977 + 13;
-  const d0 = useTransform(hv, (v) => wobblyRect(PAD, H - FOOT - v, RW, v, 15, seed));
-  const d1 = useTransform(hv, (v) => wobblyRect(PAD, H - FOOT - v, RW, v, 15, seed + 101));
-  const d2 = useTransform(hv, (v) => wobblyRect(PAD, H - FOOT - v, RW, v, 15, seed + 202));
-  const top = useTransform(hv, (v) => H - FOOT - v);
-  const hair = useMemo(() => {
-    const rand = rng(seed + 5);
-    const wild = over ? Math.min(12, Math.max(2, Math.round(extra / 8))) : 0;
-    return Array.from({ length: 4 + wild }, (_, i) =>
-      i < 4
-        ? { x: PAD + RW * (0.22 + i * 0.185) + (rand() - 0.5) * 3, y: -3 + rand() * 2, r: -38 + i * 25 + (rand() - 0.5) * 14 }
-        : { x: PAD + RW * (0.28 + rand() * 0.44), y: -10 - (i - 4) * 8 - rand() * 3, r: (rand() - 0.5) * 100 }
-    );
-  }, [seed, over, extra, RW]);
-  const persona = PERSONAS[index % PERSONAS.length];
-  const mood: Mood = gulping ? "glad" : over ? "wow" : "happy";
-  const arm = (side: 1 | -1) => (
-    <motion.g
-      style={{ originX: side === 1 ? 1 : 0, originY: 0 }}
-      animate={{ rotate: picking ? (reduce ? 120 * side : [115 * side, 138 * side, 115 * side]) : 0 }}
-      transition={picking && !reduce ? { duration: 0.6, repeat: Infinity } : SPRING}
-    >
-      {side === 1 ? (
-        <>
-          <path d={`M${PAD + 1} 30 Q${PAD - 7} 36 ${PAD - 8} 46`} stroke={INK} strokeWidth="2.6" fill="none" strokeLinecap="round" />
-          <circle cx={PAD - 8} cy={48} r="3.2" fill={INK} />
-        </>
-      ) : (
-        <>
-          <path d={`M${PAD + RW - 1} 30 Q${PAD + RW + 7} 36 ${PAD + RW + 8} 46`} stroke={INK} strokeWidth="2.6" fill="none" strokeLinecap="round" />
-          <circle cx={PAD + RW + 8} cy={48} r="3.2" fill={INK} />
-        </>
-      )}
-    </motion.g>
-  );
-  return (
-    <svg width={RW + PAD * 2} height={H} viewBox={`0 0 ${RW + PAD * 2} ${H}`} aria-hidden className="block overflow-visible">
-      {budget != null && !over && (
-        <path
-          d={wobblyRect(PAD, H - FOOT - budget, RW, budget, 15, seed + 7)}
-          fill="none"
-          stroke={colour}
-          strokeOpacity="0.7"
-          strokeWidth="2"
-          strokeDasharray="6 5"
-          strokeLinecap="round"
-        />
-      )}
-      <ellipse cx={PAD + RW * 0.3} cy={H - 5} rx="7.5" ry="4" fill={INK} />
-      <ellipse cx={PAD + RW * 0.7} cy={H - 5} rx="7.5" ry="4" fill={INK} />
-      <motion.g style={{ originY: 1 }} animate={gulping && !reduce ? { scaleY: [1, 0.88, 1.06, 1] } : { scaleY: 1 }} transition={{ duration: 0.6 }}>
-        <motion.g style={{ y: top }}>
-          {hair.map((c, i) => (
-            <rect
-              key={i}
-              x={c.x - 2.8}
-              y={c.y - 7.5}
-              width="5.6"
-              height="15"
-              rx="2.8"
-              fill={GOOFY_METALS.brass[1]}
-              stroke={INK}
-              strokeWidth="1.3"
-              transform={`rotate(${c.r.toFixed(1)} ${c.x.toFixed(1)} ${c.y.toFixed(1)})`}
-            />
-          ))}
-        </motion.g>
-        <g className="goofy-boil">
-          {[d0, d1, d2].map((d, k) => (
-            <motion.path key={k} d={d} fill={colour} stroke={INK} strokeWidth="2.3" strokeLinejoin="round" />
-          ))}
-        </g>
-        <motion.g style={{ y: top }}>
-          <path d={`M${PAD + RW * 0.2} 12 L${PAD + RW * 0.2} 24`} stroke="#fff" strokeOpacity="0.35" strokeWidth="4" strokeLinecap="round" />
-          {arm(1)}
-          {arm(-1)}
-          <g transform={`translate(${PAD + RW / 2 - 20} 7)`}>
-            <GoofyFace persona={persona} mood={mood} lid={colour} blink={index * 0.7 + 0.2} />
-          </g>
-        </motion.g>
-      </motion.g>
-    </svg>
   );
 }
 
@@ -289,44 +122,7 @@ const PILE = [
 ];
 const PILE_METALS: Metal[] = ["copper", "brass", "nickel"];
 
-// What Kopikas says when clicked: how to read the tray.
-const TIPS = [
-  "Tap a coin, then the roll it goes in.",
-  "A dashed outline is a roll's limit.",
-  "Coins piled on top mean a roll went past its limit.",
-  "Each roll's height is what it holds. Same scale for all.",
-];
 const coinCount = (n: number) => `${n} ${n === 1 ? "coin" : "coins"}`;
-
-// Confetti thrown out from Kopikas when everything is sorted.
-function Burst({ painted }: { painted: boolean }) {
-  const kinds: MarkKind[] = ["dash", "squiggle", "dot", "zig"];
-  return (
-    <span aria-hidden className="pointer-events-none absolute left-1/2 top-[38%]">
-      {Array.from({ length: 14 }, (_, i) => {
-        const a = (i / 14) * Math.PI * 2;
-        const s = i % 2 ? 14 : 19;
-        return (
-          <motion.span
-            key={i}
-            className="absolute"
-            style={{ left: -s / 2, top: -s / 2 }}
-            initial={{ x: 0, y: 0, scale: 0, opacity: 1, rotate: 0 }}
-            animate={{ x: Math.cos(a) * 96, y: Math.sin(a) * 80, scale: 1, opacity: 0, rotate: 200 }}
-            transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <ConfettiMark
-              kind={kinds[i % kinds.length]}
-              colour={(painted ? PAINTED_CONFETTI : GOOFY_CONFETTI)[i % (painted ? PAINTED_CONFETTI : GOOFY_CONFETTI).length]}
-              size={s}
-              fine={painted}
-            />
-          </motion.span>
-        );
-      })}
-    </span>
-  );
-}
 
 // Where a coin in the air is going: a roll by its category, or the Pooleks jar (null).
 // `size` is the coin's, so it leaves a magnified stage (the board on an ultrawide) at its size there.
@@ -340,10 +136,8 @@ export const looseCoins = (txs: BoardTx[], month: string | null) =>
     .sort((a, b) => b.date.localeCompare(a.date));
 
 // A category's wrapper colour, by its place in the list.
-export const wrapperOf = (categories: { name: string }[], name: string, painted: boolean) => {
-  const list = painted ? PAINTED_WRAPPERS : GOOFY_WRAPPERS;
-  return list[Math.max(0, categories.findIndex((c) => c.name === name)) % list.length];
-};
+export const wrapperOf = (categories: { name: string }[], name: string) =>
+  PAINTED_WRAPPERS[Math.max(0, categories.findIndex((c) => c.name === name)) % PAINTED_WRAPPERS.length];
 
 // What a page can ask of the stage: file a charge from outside it, such as a queue or
 // ledger row, with the coin hopping from that row to its roll. False when a coin is
@@ -361,7 +155,6 @@ export function CoinStage({
   currentMonth,
   onMonthChange,
   onFile,
-  look,
   selected = null,
   onSelect,
   figures,
@@ -376,7 +169,6 @@ export function CoinStage({
   currentMonth: string;
   onMonthChange: (month: string) => void;
   onFile: (tx: BoardTx, category: string) => void;
-  look: "painted" | "goofy";
   // The category the page is showing on its own, marked on its roll.
   selected?: string | null;
   // With no coin in hand, a roll picks its category for the page to show.
@@ -399,21 +191,12 @@ export function CoinStage({
   const [cheer, setCheer] = useState(0);
   const [celebrating, setCelebrating] = useState(false);
   const [lastFiled, setLastFiled] = useState<{ category: string; n: number } | null>(null);
-  const [tip, setTip] = useState<number | null>(null);
-  const [waving, setWaving] = useState(false);
-  const [lookAt, setLookAt] = useState<{ x: number; y: number } | null>(null);
   // A coin held in one month is put back when another month is shown.
   const [shown, setShown] = useState(month);
   if (shown !== month) {
     setShown(month);
     setPicked(null);
   }
-  const [greeting, setGreeting] = useState(true);
-  useEffect(() => {
-    const t = setTimeout(() => setGreeting(false), 2600);
-    return () => clearTimeout(t);
-  }, []);
-  const painted = look === "painted";
   // A phone gets a shorter floor, so several rolls fit before it scrolls.
   const [narrow, setNarrow] = useState(false);
   useEffect(() => {
@@ -432,8 +215,8 @@ export function CoinStage({
     const ro = new ResizeObserver(([e]) => setListW(Math.round(e.contentRect.width)));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [narrow, painted]);
-  // The floor's width sets the painted columns: 84px while they fit, narrower with the count, down to 60px.
+  }, [narrow]);
+  // The floor's width sets the columns: 84px while they fit, narrower with the count, down to 60px.
   const floorRef = useRef<HTMLDivElement>(null);
   const [floorW, setFloorW] = useState(0);
   useEffect(() => {
@@ -442,17 +225,17 @@ export function CoinStage({
     const ro = new ResizeObserver(([e]) => setFloorW(Math.round(e.contentRect.width)));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [narrow, painted]);
+  }, [narrow]);
 
   const index = useMemo(() => new Map(categories.map((c, i) => [c.name, i])), [categories]);
-  const wrapper = (name: string) => wrapperOf(categories, name, painted);
+  const wrapper = (name: string) => wrapperOf(categories, name);
   const now = paidOut(txs, month);
   const before = paidOut(txs, shiftMonth(month, -1));
   const isCurrent = month === currentMonth;
 
-  // Every category stands on the painted floor, asleep when nothing is filed; the goofy look still hides empties.
+  // Every category stands on the floor, asleep when nothing is filed.
   const rolls = categories
-    .filter((c) => c.name !== SAVINGS && (painted || (now.byCat.get(c.name) ?? 0) > 0))
+    .filter((c) => c.name !== SAVINGS)
     .map((c) => ({ name: c.name, total: now.byCat.get(c.name) ?? 0, budget: c.budget }));
   const sleeping = rolls.filter((r) => r.total <= 0);
   // A limit is set in whole euros as a rule, so it shows without cents unless it has them.
@@ -487,112 +270,24 @@ export function CoinStage({
   // One shared scale: a euro is the same height on every roll. A sleeper's limit
   // waits for its first coin, so it stretches nothing.
   const tallest = Math.max(1, ...rolls.map((r) => Math.max(r.total, r.total > 0 ? (r.budget ?? 0) : 0)));
-  // The painted floor has the stage's full width, and in one row the height to match: the floor is the
+  // The floor has the stage's full width, and in one row the height to match: the floor is the
   // picture. A floor that wraps keeps the shorter stage, so its second shelf isn't mostly air.
-  const tall = painted && !narrow && floorFits;
+  const tall = !narrow && floorFits;
   const MAX = narrow ? 112 : tall ? 280 : 200;
   // A month with nothing filed yet stands its sleepers on a short floor, under a line that says so:
   // the tall one would be empty air. It grows back with the first coin.
-  const empty = painted && !narrow && rolls.every((r) => r.total <= 0);
+  const empty = !narrow && rolls.every((r) => r.total <= 0);
   const px = (v: number) => (v / tallest) * MAX;
 
-  // What Kopikas says and does, from the state of the tray.
-  const pose: MascotPose = pickedTx ? "point" : celebrating || lastFiled ? "cheer" : waving ? "wave" : "idle";
-  // The painted Kopikas has a pose for each moment of the board.
-  const paintedPose: PaintedPose = pickedTx
-    ? "budgeting"
-    : celebrating
-      ? "excited"
-      : lastFiled
-        ? "jump"
-        : waving
-          ? "friendly"
-          : greeting
-            ? "hello"
-            : loose.length > 0
-              ? "saving"
-              : !isCurrent && before.total > 0 && now.total < before.total
-                ? "proud"
-                : "resting";
+  // What the tray says to a screen reader after every step: progress first, never shaming.
   let said: string;
-  let bubbleKey: string;
-  let bubble: React.ReactNode;
-  if (pickedTx) {
-    said = `Tap the roll ${pickedTx.name} goes in.`;
-    bubbleKey = `picked-${pickedTx.id}`;
-    bubble = (
-      <>
-        Tap the roll <span className="font-semibold">{pickedTx.name}</span> goes in.{" "}
-        <button type="button" onClick={() => setPicked(null)} className={cn("underline underline-offset-2", MUTED, FOCUS)}>
-          Put it back
-        </button>
-      </>
-    );
-  } else if (celebrating || (lastFiled && loose.length === 0)) {
-    said = "All sorted! Every coin is in its roll.";
-    bubbleKey = `sorted-${cheer}`;
-    bubble = <span className="font-semibold">{said}</span>;
-  } else if (lastFiled) {
-    said = `In it goes! ${coinCount(loose.length)} to go.`;
-    bubbleKey = `filed-${lastFiled.n}`;
-    bubble = said;
-  } else if (tip !== null) {
-    said = TIPS[tip];
-    bubbleKey = `tip-${tip}`;
-    bubble = said;
-  } else {
-    said = loose.length ? `Hi! ${coinCount(loose.length)} to sort in ${label(month)}.` : `All sorted for ${label(month)}. Nice work.`;
-    bubbleKey = `hello-${month}-${loose.length}`;
-    bubble = said;
-  }
+  if (pickedTx) said = `Tap the roll ${pickedTx.name} goes in.`;
+  else if (celebrating || (lastFiled && loose.length === 0)) said = "All sorted! Every coin is in its roll.";
+  else if (lastFiled) said = `In it goes! ${coinCount(loose.length)} to go.`;
+  else said = loose.length ? `Hi! ${coinCount(loose.length)} to sort in ${label(month)}.` : `All sorted for ${label(month)}. Nice work.`;
 
-  const bubbleEl = (
-    <AnimatePresence mode="popLayout" initial={false}>
-      <motion.div
-        key={bubbleKey}
-        initial={reduce ? false : { opacity: 0, scale: 0.85, x: narrow ? 0 : 12, y: narrow ? -6 : 0 }}
-        animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
-        exit={reduce ? undefined : { opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
-        transition={SPRING}
-        style={narrow ? { originX: 0.9, originY: 0 } : { originX: 1, originY: 0.3 }}
-        className={cn(
-          "relative rounded-2xl bg-white px-4 py-3 text-[15px] leading-snug shadow-[0_10px_30px_-14px_rgb(0_0_0/0.3)] dark:bg-card-night",
-          narrow ? "w-full" : "mt-5 max-w-[260px]"
-        )}
-      >
-        {bubble}
-        <span
-          aria-hidden
-          className={cn("absolute size-3 rotate-45 bg-white dark:bg-card-night", narrow ? "-top-1.5 right-9" : "-right-1.5 top-6")}
-        />
-      </motion.div>
-    </AnimatePresence>
-  );
-  const mascotEl = (
-    <div className={cn("z-10 shrink-0", narrow ? "absolute right-3 top-3" : "relative")}>
-      <button
-        type="button"
-        aria-label="Kopikas: show a tip"
-        onClick={() => setTip((t) => ((t ?? -1) + 1) % TIPS.length)}
-        onMouseEnter={() => setWaving(true)}
-        onMouseLeave={() => setWaving(false)}
-        className={cn("rounded-3xl", FOCUS)}
-      >
-        <KopikasMascot
-          look={look}
-          pose={pose}
-          paintedPose={paintedPose}
-          mood={celebrating || lastFiled ? "glad" : "happy"}
-          lookAt={lookAt}
-          jump={painted ? 0 : cheer}
-          size={narrow ? 62 : 112}
-        />
-      </button>
-      {celebrating && !reduce && <Burst key={cheer} painted={painted} />}
-    </div>
-  );
-  // The loose change: a pile of coins to pick up, and its count. The painted stage keeps it in
-  // its head, top right, at 40px a coin; the goofy one stands it on the floor's row.
+  // The loose change: a pile of coins to pick up, and its count, in the stage's head, top
+  // right, at 40px a coin.
   // A loose coin already split with the partner wears its part; it still needs a roll.
   const splitNote = (t: BoardTx) => (t.shared ? `, split with ${jar?.partner ?? "your partner"}` : "");
   const splitMark = (t: BoardTx) =>
@@ -604,10 +299,10 @@ export function CoinStage({
         {shareLabel(t.partnerShare)}
       </span>
     );
-  const pileScale = painted ? 0.8 : narrow ? 0.72 : 1;
-  const pileCoin = painted ? 40 : narrow ? 38 : 50;
+  const pileScale = 0.8;
+  const pileCoin = 40;
   const pileBox = (
-    <div className={cn("relative", painted ? "size-[120px]" : "h-[112px] w-[112px] sm:h-[150px] sm:w-[150px]")} role="group" aria-label={`Loose change: ${loose.length} to file`}>
+    <div className="relative size-[120px]" role="group" aria-label={`Loose change: ${loose.length} to file`}>
       {loose.slice(0, PILE.length).map((t, i) => {
         const spot = PILE[i];
         const isPicked = picked === t.id;
@@ -632,18 +327,14 @@ export function CoinStage({
             transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : reduce ? { duration: 0 } : { ...SPRING, delay: 0.2 + i * 0.05 }}
             whileHover={{ y: isPicked ? -18 : -4 }}
           >
-            {painted ? (
-              <PaintedCoin size={pileCoin} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "happy"} seed={i + 2} />
-            ) : (
-              <Coin size={pileCoin} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "happy"} blink={i * 0.9} seed={i + 2} />
-            )}
+            <PaintedCoin size={pileCoin} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "happy"} seed={i + 2} />
             {splitMark(t)}
           </motion.button>
         );
       })}
       {loose.length === 0 && (
         <div className="absolute inset-x-6 bottom-0 flex justify-center">
-          {painted ? <PaintedCoin size={36} mood="glad" seed={5} /> : <Coin size={42} metal="copper" mood="glad" blink={0.4} />}
+          <PaintedCoin size={36} mood="glad" seed={5} />
         </div>
       )}
     </div>
@@ -695,22 +386,6 @@ export function CoinStage({
     return () => clearTimeout(t);
   }, [lastFiled]);
   useEffect(() => {
-    if (tip === null) return;
-    const t = setTimeout(() => setTip(null), 4500);
-    return () => clearTimeout(t);
-  }, [tip]);
-  // Kopikas looks at the coin you are holding, then at the roll it landed in;
-  // the rest of the time its eyes follow the pointer.
-  useEffect(() => {
-    const at = (sel: string) => {
-      const r = document.querySelector(sel)?.getBoundingClientRect();
-      return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
-    };
-    if (picked) setLookAt(at(`[data-coin="${picked}"]`));
-    else if (lastFiled) setLookAt(at(`[data-roll="${CSS.escape(lastFiled.category)}"]`));
-    else setLookAt(null);
-  }, [picked, lastFiled]);
-  useEffect(() => {
     if (!picked) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPicked(null);
     window.addEventListener("keydown", onKey);
@@ -722,14 +397,12 @@ export function CoinStage({
     onFile(tx, category);
     setGulp((g) => ({ category, n: (g?.n ?? 0) + 1 }));
     setLastFiled((f) => ({ category, n: (f?.n ?? 0) + 1 }));
-    setTip(null);
     if (last) setCheer((c) => c + 1);
   };
 
   const commitSplit = (tx: BoardTx) => {
     jar?.onSplit(tx);
     setJarGulp((n) => n + 1);
-    setTip(null);
   };
   const land = (tx: BoardTx, to: string | null) => (to === null ? commitSplit(tx) : commit(tx, to));
 
@@ -792,11 +465,10 @@ export function CoinStage({
       {/* The stage: the month's rolls on one floor, the loose change beside them. */}
       <section
         aria-labelledby="month-heading"
-        className={cn(PANEL, "relative overflow-hidden px-5 pb-6 pt-6 sm:px-8 sm:pt-8", painted && "bg-oat dark:bg-oat-night")}
+        className={cn(PANEL, "relative overflow-hidden bg-oat px-5 pb-6 pt-6 sm:px-8 sm:pt-8 dark:bg-oat-night")}
       >
-        {/* The painted tray floats nothing up by the month: on the phone the marks there sat on
-            the panel's edge and read as strays. On desktop its air is around the loose change. */}
-        {!painted && FLOATERS.map((f, i) => <Floater key={i} f={f} painted={false} />)}
+        {/* Nothing floats up by the month: on the phone the marks there sat on the panel's
+            edge and read as strays. On desktop the air is around the loose change. */}
 
         {/* One row from 1024px: the month gives way and its figures wrap, so the jar and the
             loose change keep their place beside it instead of dropping below. */}
@@ -836,8 +508,7 @@ export function CoinStage({
             )}
             {figures && <div className={cn("mt-2 max-w-[44rem] text-balance text-[13px]", MUTED)}>{figures}</div>}
           </div>
-          {!narrow &&
-            (painted ? (
+          {!narrow && (
               // The loose change, top right: pick a coin up here, drop it on a roll below,
               // or in the Pooleks jar beside it. The air marks float in the gap between them.
               <div className="ml-auto flex shrink-0 items-start gap-[104px]">
@@ -871,32 +542,20 @@ export function CoinStage({
                 )}
                 <div className="relative flex w-[120px] flex-col items-center">
                   {AIR.map((f, i) => (
-                    <Floater key={i} f={f} painted always />
+                    <Floater key={i} f={f} />
                   ))}
                   {pileBox}
                   {pileLabel}
                 </div>
               </div>
-            ) : (
-              <div className="flex items-start gap-3">
-                {bubbleEl}
-                {mascotEl}
-              </div>
-            ))}
+          )}
         </div>
-        {/* Kopikas and his bubble stay on the goofy look only; the painted stage has no narrator. */}
-        {narrow && !painted && (
-          <>
-            {mascotEl}
-            <div className="relative mt-4">{bubbleEl}</div>
-          </>
-        )}
         <p className="sr-only" aria-live="polite">
           {said}
         </p>
 
         {/* On a phone the rolls lie down: one list, every category in it, on one shared scale. */}
-        {narrow && painted ? (
+        {narrow ? (
           <div className="relative mt-5 flex flex-col gap-4">
             <div className="flex items-center gap-3" role="group" aria-label={`Loose change: ${loose.length} to file`}>
               <div className="flex items-center -space-x-1.5">
@@ -964,7 +623,10 @@ export function CoinStage({
                         {r.budget != null && <span className={MUTED}> of {limitText(r.budget)}</span>}
                       </span>
                     </div>
+                    {/* Redrawn when the list's width changes, as a roll is when its size does: with
+                        reduced motion a bar otherwise keeps the length of its first, guessed width. */}
                     <PaintedBar
+                      key={`w-${listW}`}
                       index={index.get(r.name) ?? i}
                       colour={wrapper(r.name)}
                       length={hpx(over ? (r.budget as number) : r.total)}
@@ -1007,29 +669,19 @@ export function CoinStage({
         <>
         {empty && <p className={cn("relative mt-6 text-[15px]", MUTED)}>Nothing filed in {label(month)} yet.</p>}
         <div className="relative mt-6 flex items-end gap-6 overflow-x-auto pb-1 sm:gap-8 lg:overflow-visible">
-          {!painted && (
-            <>
-              <div className="flex shrink-0 flex-col items-center">
-                {pileBox}
-                {pileLabel}
-              </div>
-              <div className="w-px shrink-0 self-stretch bg-ink/10 dark:bg-white/10" aria-hidden />
-            </>
-          )}
-
           <div
             ref={floorRef}
             role="group"
             aria-label={`Where ${label(month)}'s money went`}
-            className={cn("flex flex-1 gap-y-6", painted ? "flex-wrap items-start" : "min-w-max items-end", floorFits ? "justify-between" : "justify-start")}
+            className={cn("flex flex-1 flex-wrap items-start gap-y-6", floorFits ? "justify-between" : "justify-start")}
             style={{ columnGap: floorGap }}
           >
             {rolls.map((r, i) => {
               const over = r.budget != null && r.total > r.budget;
               const colour = wrapper(r.name);
               // A narrower column gives up its side padding before its body: the body stays 44px or wider.
-              const RW = painted ? Math.max(44, Math.min(60, colW - 24)) : narrow ? 46 : 60;
-              const pad = painted ? (colW - RW) / 2 : 12;
+              const RW = Math.max(44, Math.min(60, colW - 24));
+              const pad = (colW - RW) / 2;
               const H = narrow ? 150 : empty ? 56 : tall ? 310 : 230;
               return (
                 <div key={r.name} className={cn("flex shrink-0 flex-col items-center transition-opacity duration-200", faded(r.name))} style={{ width: RW + pad * 2 }}>
@@ -1051,8 +703,7 @@ export function CoinStage({
                       // As on the bars: the press is there either way, a no-op when motion is reduced.
                       whileTap={pickedTx || onSelect ? { scale: reduce ? 1 : 0.96, transition: PRESS } : undefined}
                     >
-                      {painted ? (
-                        <PaintedRoll
+                      <PaintedRoll
                           key={`p-${RW}-${H}`}
                           index={index.get(r.name) ?? i}
                           colour={colour}
@@ -1066,37 +717,16 @@ export function CoinStage({
                           pad={pad}
                           delay={0.15 + i * 0.05}
                         />
-                      ) : (
-                      <GoofyRoll
-                        key={`g-${RW}-${H}`}
-                        index={index.get(r.name) ?? i}
-                        colour={colour}
-                        body={px(over ? (r.budget as number) : r.total)}
-                        extra={over ? px(r.total - (r.budget as number)) : 0}
-                        budget={r.budget != null ? px(r.budget) : null}
-                        over={over}
-                        picking={!!pickedTx}
-                        gulping={gulp?.category === r.name}
-                        height={H}
-                        width={RW}
-                        delay={0.15 + i * 0.05}
-                      />
-                      )}
                     </motion.button>
                   </RollTarget>
-                  {/* A painted name may use the gap on either side and run to two lines, hyphenated where the
+                  {/* A name may use the gap on either side and run to two lines, hyphenated where the
                       browser can; two lines are kept for every name, so the floor stays level when one wraps. */}
-                  <div
-                    className={cn("mt-3 text-center", !painted && "w-[68px] sm:w-[84px] lg:w-[100px]")}
-                    style={painted ? { width: RW + pad * 2 + floorGap, marginInline: -floorGap / 2 } : undefined}
-                  >
-                    <div
-                      className={cn("text-[13px] font-medium", painted ? "flex min-h-[2lh] flex-col justify-end leading-tight hyphens-auto wrap-anywhere" : "truncate")}
-                    >
-                      <span className={cn(painted && "line-clamp-2")}>{painted ? breakable(r.name) : r.name}</span>
+                  <div className="mt-3 text-center" style={{ width: RW + pad * 2 + floorGap, marginInline: -floorGap / 2 }}>
+                    <div className="flex min-h-[2lh] flex-col justify-end text-[13px] font-medium leading-tight hyphens-auto wrap-anywhere">
+                      <span className="line-clamp-2">{breakable(r.name)}</span>
                     </div>
                     <div className={cn("truncate text-[13px] tabular-nums", over ? "font-medium" : MUTED)}>{eur.format(r.total)}</div>
-                    {painted && r.budget != null && <div className={cn("truncate text-[12px] tabular-nums", MUTED)}>of {limitText(r.budget)}</div>}
+                    {r.budget != null && <div className={cn("truncate text-[12px] tabular-nums", MUTED)}>of {limitText(r.budget)}</div>}
                   </div>
                 </div>
               );
@@ -1126,7 +756,7 @@ export function CoinStage({
             setFlight(null);
           }}
         >
-          {painted ? <PaintedCoin size={flight.size} mood="glad" seed={9} /> : <Coin size={flight.size} mood="glad" />}
+          <PaintedCoin size={flight.size} mood="glad" seed={9} />
         </motion.div>
       )}
     </>
