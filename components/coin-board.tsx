@@ -648,7 +648,8 @@ export function CoinBoard({
           )}
         </DragOverlay>
         </DndContext>
-        {/* The phone's two tabs, in thumb reach. */}
+        {/* The phone's two tabs, in thumb reach. The active one wears the colour of the panel
+            it shows, so it never outshines the coin above it. */}
         <nav aria-label="Board views" className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:hidden dark:border-white/10 dark:bg-night">
           <div className="mx-auto flex max-w-md gap-2">
             {(["queue", "month"] as const).map((t) => (
@@ -659,7 +660,7 @@ export function CoinBoard({
                 onClick={() => showTab(t)}
                 className={cn(
                   "h-11 flex-1 rounded-full text-[15px] font-medium tabular-nums",
-                  tab === t ? "bg-ink text-white dark:bg-chalk dark:text-ink" : MUTED,
+                  tab === t ? "bg-oat text-ink dark:bg-oat-night dark:text-chalk" : MUTED,
                   FOCUS
                 )}
               >

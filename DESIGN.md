@@ -9,6 +9,7 @@ colors:
   mist: "#F4F5F7"
   mist-night: "#191B22"
   card-night: "#23252E"
+  card-oat-night: "#2A282E"
   ink: "#16171C"
   chalk: "#F3F2EE"
   muted: "#63666F"
@@ -207,6 +208,7 @@ A white page, a warm oat stage, copper as the house colour, Crayon Blue for ever
 
 ### Neutral
 - **Page White** (page-white) and **Night** (night): the page ground in light and dark. Cards and the speech bubble sit on Page White (card-night in dark).
+- **Card on Oat Night** (card-oat-night): the phone queue's tiles in dark, a step up from Oat Paper Night in its own warm grey, so the tiles and their panel read as one material where card-night's blue-grey would read as a second. The other cards on Oat Paper keep card-night for now.
 - **Oat Paper** (oat-paper) and **Oat Paper Night** (oat-paper-night): the stage and the panels below it, where the characters live.
 - **Mist** (mist) and **Mist Night** (mist-night): quiet fills for inputs, hover backgrounds and the plain panel.
 - **Ink** (ink) and **Chalk** (chalk): all text and the active pill, in light and dark. Ink on Oat Paper is 15:1.
@@ -325,7 +327,7 @@ A chosen roll's last twelve months, in the stage head where the figures line sit
 
 ### To File, One Coin at a Time (phone)
 The phone's To file tab: the backlog as a queue.
-- **Shape:** an Oat Paper panel: "N to file" (and "N skipped"), one big painted coin with the merchant in Fredoka 20, the amount and day under it, then Skip and "Split with {partner}" as white pills, then "Where does it go?" over a two-column grid of white tiles, one per category, each with its wrapper chip, its name (two lines at most, never cut) and what it holds in the coin's month.
+- **Shape:** an Oat Paper panel: "N to file" (and "N skipped"), one big painted coin with the merchant in Fredoka 20, the amount and day under it, then Skip and "Split with {partner}" as outlined pills (no fill, a 1.5px ring of Ink at 15%, white at 15% in dark) that shrink a little under the thumb like the tiles, then "Where does it go?" over a two-column grid of white tiles (card-oat-night in dark), the only solid things to tap, one per category, each with its wrapper chip, its name (two lines at most, never cut) and what it holds in the coin's month.
 - **Behaviour:** a tile files the coin with the usual notice (Always, Undo) and the next coin drops in; Skip sends a coin to the back; an empty queue says "All filed" and leads to the month. Skip and Split stay put from coin to coin, above the fold.
 
 ### Pooleks
@@ -363,6 +365,7 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 ### Buttons and Pills
 - **Shape:** full pill.
 - **Toggle:** Muted Label text; the active option is an Ink pill with white text (Chalk pill with Ink text in dark).
+- **The phone's tab bar:** Muted Body text; the active tab wears the colour of the panel it shows, an Oat Paper pill with Ink text (Oat Paper Night with Chalk in dark), so the brightest thing on the screen stays the coin above it.
 - **Navigation links** (Pooleks, Settings): Body type, 8px by 14px pill that fills with Mist on hover.
 
 ### Category Chips

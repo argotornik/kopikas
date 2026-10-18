@@ -92,12 +92,13 @@ export function CoinQueue({
           </motion.div>
         </AnimatePresence>
       </div>
+      {/* Skip and Split are outlined, so the tiles are the only solid things to tap. */}
       <div className="mt-3 flex gap-2">
         <button
           type="button"
           onClick={() => setSkipped((s) => [...s.filter((id) => id !== tx.id), tx.id])}
           disabled={queue.length < 2}
-          className={cn("h-11 flex-1 rounded-full bg-white text-[15px] font-medium disabled:opacity-40 dark:bg-card-night", FOCUS)}
+          className={cn("h-11 flex-1 rounded-full inset-ring-[1.5px] inset-ring-ink/15 text-[15px] font-medium transition-transform disabled:opacity-40 motion-safe:active:scale-[0.96] dark:inset-ring-white/15", FOCUS)}
         >
           Skip
         </button>
@@ -107,7 +108,7 @@ export function CoinQueue({
             onClick={() => onSplit(tx, 0.5)}
             disabled={tx.shared}
             aria-label={tx.shared ? `Split with ${partner} already` : `Split with ${partner}, who pays 1/2`}
-            className={cn("h-11 flex-[2] rounded-full bg-white text-[15px] font-medium disabled:opacity-40 dark:bg-card-night", FOCUS)}
+            className={cn("h-11 flex-[2] rounded-full inset-ring-[1.5px] inset-ring-ink/15 text-[15px] font-medium transition-transform disabled:opacity-40 motion-safe:active:scale-[0.96] dark:inset-ring-white/15", FOCUS)}
           >
             Split with {partner}
           </button>
@@ -124,7 +125,7 @@ export function CoinQueue({
               onClick={() => onFile(tx, c.name)}
               aria-label={`File under ${c.name}${c.name === SAVINGS ? "" : `, ${eur.format(total)} in ${label(monthOf(tx.date))}`}`}
               className={cn(
-                "flex min-h-14 items-center gap-2 rounded-2xl bg-white px-3 py-2 text-left transition-transform hover:bg-mist motion-safe:active:scale-[0.96] dark:bg-card-night dark:hover:bg-card-night-hover",
+                "flex min-h-14 items-center gap-2 rounded-2xl bg-white px-3 py-2 text-left transition-transform hover:bg-mist motion-safe:active:scale-[0.96] dark:bg-card-oat-night dark:hover:bg-card-oat-night-hover",
                 FOCUS
               )}
             >

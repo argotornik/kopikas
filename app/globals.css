@@ -31,6 +31,9 @@
     --color-mist: #F4F5F7;
     --color-mist-night: #191B22;
     --color-card-night: #23252E;
+    /* A card on Oat Paper Night: a step up in the panel's own warm grey, where card-night's
+       blue-grey would read as a second material. The phone queue's tiles for now. */
+    --color-card-oat-night: #2A282E;
     /* DESIGN.md's Muted: secondary text. shadcn already has `muted` as a fill (Mist here). */
     --color-muted-text: #63666F;
     --color-muted-text-night: #A7A9B4;
@@ -45,6 +48,7 @@
     --color-mist-hover: #E9EBEF;
     --color-ink-hover: #2B2D35;
     --color-card-night-hover: #2C2F3A;
+    --color-card-oat-night-hover: #333139;
     /* Errors aren't settled in DESIGN.md yet: Settings' red, as it was. Notices and fields
        use --destructive below. */
     --color-error: #C7432F;
