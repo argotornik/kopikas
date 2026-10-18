@@ -15,7 +15,7 @@ export function SetupOwner({ email, fontClass }: { email: string; fontClass: str
       <main className={cn(PANEL, OAT, "p-5 sm:p-8")}>
         <div className="max-w-[640px]">
           <p className={cn("text-[15px]", MUTED)}>Before the board opens</p>
-          <h1 className={cn(DISPLAY, "mt-1 text-[30px] font-semibold leading-tight sm:text-[40px]")}>Who owns this board?</h1>
+          <h1 className={cn(DISPLAY, "mt-1 text-[34px] font-semibold leading-tight sm:text-[40px]")}>Who owns this board?</h1>
           <p className={cn("mt-2 text-[15px]", MUTED)}>
             You are signed in as <span className={cn("font-medium", INK_TEXT)}>{email}</span>, and this deployment has not
             been told who its owner is yet. Three steps, once.
@@ -52,7 +52,7 @@ export function NotOnBoard({ email, fontClass }: { email: string | null; fontCla
     <Frame fontClass={fontClass}>
       <main className={cn(PANEL, OAT, "flex flex-col items-center px-6 py-12 text-center")}>
         <PaintedCoin size={64} seed={4} />
-        <h1 className={cn(DISPLAY, "mt-4 text-[24px] font-semibold")}>Not on this board</h1>
+        <h1 className={cn(DISPLAY, "mt-4 text-[34px] font-semibold leading-tight sm:text-[40px]")}>Not on this board</h1>
         <p className={cn("mt-1 max-w-[46ch] text-[15px]", MUTED)}>
           This account isn&apos;t one of the two on this board. Ask {OWNER_NAME === "Owner" ? "whoever set it up" : OWNER_NAME} to
           add it.

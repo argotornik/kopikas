@@ -49,7 +49,7 @@ export function CoinQueue({
     return (
       <section aria-labelledby="queue-heading" className={cn(PANEL, "flex flex-col items-center bg-oat px-6 py-12 text-center dark:bg-oat-night")}>
         <PaintedCoin size={72} mood="glad" seed={5} />
-        <h2 id="queue-heading" className={cn(DISPLAY, "mt-4 text-[24px] font-semibold")}>
+        <h2 id="queue-heading" className={cn(DISPLAY, "mt-4 text-[20px] font-semibold")}>
           All filed
         </h2>
         <p className={cn("mt-1 text-[15px]", MUTED)}>Every charge has its roll.</p>
@@ -130,7 +130,7 @@ export function CoinQueue({
             >
               <span aria-hidden className="h-5 w-6 shrink-0 rounded-[8px]" style={{ background: wrapperOf(categories, c.name, true) }} />
               <span className="min-w-0">
-                <span className="line-clamp-2 break-words text-[14px] font-medium leading-tight hyphens-auto">{c.name}</span>
+                <span className="line-clamp-2 break-words text-[13px] font-medium leading-tight hyphens-auto">{c.name}</span>
                 {c.name !== SAVINGS && <span className={cn("block text-[12px] tabular-nums", MUTED)}>{eur.format(total)}</span>}
               </span>
             </button>

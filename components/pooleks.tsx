@@ -416,7 +416,7 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
         <section aria-label="Where the tab stands" className={cn(PANEL, OAT, "flex flex-col gap-6 p-5 sm:p-8 lg:flex-row lg:items-center wide:sticky wide:top-5")}>
           <div className="min-w-0 lg:flex-1">
             <p className={cn("text-[15px]", MUTED)}>{since}</p>
-            {!flat && <p className={cn(DISPLAY, "mt-1 text-[22px] font-semibold sm:text-[26px]")}>{balanceText}</p>}
+            {!flat && <p className={cn(DISPLAY, "mt-1 text-[26px] font-semibold")}>{balanceText}</p>}
             <p className={cn(DISPLAY, "text-[44px] font-semibold leading-tight tabular-nums sm:text-[52px]")}>
               {flat ? "All square" : eur.format(Math.abs(shownBalance))}
             </p>
@@ -454,7 +454,7 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
           // The same empty state as the board's, said from the reader's side.
           <section className={cn(PANEL, OAT, "flex flex-col items-center px-6 py-12 text-center")}>
             <PaintedCoin size={64} mood="glad" seed={5} />
-            <h2 className={cn(DISPLAY, "mt-4 text-[22px] font-semibold")}>Nothing shared yet</h2>
+            <h2 className={cn(DISPLAY, "mt-4 text-[20px] font-semibold")}>Nothing shared yet</h2>
             <p className={cn("mt-1 max-w-[40ch] text-[15px]", MUTED)}>
               {role === "owner"
                 ? `On the board, split a charge with ${PARTNER_NAME} from its menu, or add something you paid for in cash.`

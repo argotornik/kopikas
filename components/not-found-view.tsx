@@ -17,7 +17,7 @@ export function NotFoundView() {
           <span className="inline-block -rotate-12">
             <PaintedCoin size={80} mood="wow" seed={6} />
           </span>
-          <h1 className={cn(DISPLAY, "mt-5 text-balance text-[26px] font-semibold leading-tight sm:text-[32px]")}>This page isn&apos;t on the board</h1>
+          <h1 className={cn(DISPLAY, "mt-5 text-balance text-[34px] font-semibold leading-tight sm:text-[40px]")}>This page isn&apos;t on the board</h1>
           <p className={cn("mt-2 max-w-[44ch] text-balance text-[15px]", MUTED)}>
             The address may be mistyped, or the page moved when the board was rebuilt.
           </p>

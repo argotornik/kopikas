@@ -36,7 +36,7 @@ export function FirstRun({
         <main className={cn(PANEL, OAT, "coins-panel p-5 sm:p-8")}>
           <div className="max-w-[640px]">
             <p className={cn("text-[15px]", MUTED)}>Before your first month</p>
-            <h1 className={cn(DISPLAY, "mt-1 text-[30px] font-semibold leading-tight sm:text-[40px]")}>Connect your LHV account</h1>
+            <h1 className={cn(DISPLAY, "mt-1 text-[34px] font-semibold leading-tight sm:text-[40px]")}>Connect your LHV account</h1>
             <p className={cn("mt-2 text-[15px]", MUTED)}>
               Every category is waiting on the floor. Connect LHV and your charges arrive as coins; from then on a sync
               runs every hour by itself.
@@ -107,7 +107,7 @@ export function FirstRun({
           </div>
           {/* On a phone they sleep in one list, as the phone's tray shows them. */}
           <div role="group" aria-label="Your categories, waiting for their first charges" className="mt-6 border-t border-ink/10 pt-5 sm:hidden dark:border-white/10">
-            <div className={cn("text-[14px] font-medium", MUTED)}>Nothing yet</div>
+            <div className={cn("text-[13px] font-medium", MUTED)}>Nothing yet</div>
             <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
               {floor.map((name) => (
                 <li key={name} className="flex min-h-9 items-center gap-2 text-[13px] font-medium">

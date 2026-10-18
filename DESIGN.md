@@ -76,6 +76,37 @@ typography:
     fontSize: "13px"
     fontWeight: 500
     lineHeight: 1.25
+  display-phone:
+    fontFamily: "Fredoka, ui-rounded, system-ui, sans-serif"
+    fontSize: "44px"
+    fontWeight: 600
+    lineHeight: 1.25
+    fontFeature: "\"tnum\" 1"
+  headline-phone:
+    fontFamily: "Fredoka, ui-rounded, system-ui, sans-serif"
+    fontSize: "34px"
+    fontWeight: 600
+    lineHeight: 1
+  small-head:
+    fontFamily: "Fredoka, ui-rounded, system-ui, sans-serif"
+    fontSize: "16px"
+    fontWeight: 600
+    lineHeight: 1.25
+  field:
+    fontFamily: "Rubik, system-ui, sans-serif"
+    fontSize: "16px"
+    fontWeight: 400
+    lineHeight: 1.375
+  caption:
+    fontFamily: "Rubik, system-ui, sans-serif"
+    fontSize: "12px"
+    fontWeight: 400
+    lineHeight: 1.25
+  code:
+    fontFamily: "ui-monospace, SF Mono, Menlo, monospace"
+    fontSize: "13px"
+    fontWeight: 400
+    lineHeight: 1.25
 rounded:
   card: "16px"
   roll: "22px"
@@ -204,12 +235,15 @@ In code these are Tailwind colours in `app/globals.css` under the same names, sh
 **Character:** Fredoka is round, soft and bold: the friendly voice of the book. Rubik is a calm, slightly rounded sans for everything that is read and compared. Fredoka is provisional: the display face may still change to one chosen from Free Faces.
 
 ### Hierarchy
-- **Display** (600, 52px, 44px on a phone, line-height 1.25, tabular figures): the month's total, the biggest thing on the board.
-- **Headline** (600, 40px, 34px on a phone, line-height 1): the month's name on the stage.
-- **Wordmark** (600, 26px, line-height 1, -0.01em): "Kopikas" in the header, beside the coin.
-- **Title** (600, 20px): section heads such as "Every charge" and "To file".
-- **Body** (400, 15px, line-height 1.375): merchant names, amounts in lists, the speech bubble, navigation.
-- **Label** (500, 13px): category chips, roll names, captions and the prototype strip.
+Eight steps, and every size in the app is one of them.
+- **Display** (600, 52px, 44px on a phone, line-height 1.25, tabular figures): the month's total, the biggest thing on the board, and the amount owed in Pooleks.
+- **Headline** (600, 40px, 34px on a phone, line-height 1): the month's name on the stage, and the title of a page of its own (Settings, the first run, the setup screens, not found, couldn't open); "Kopikas" over the sign-in card at 34px.
+- **Wordmark** (600, 26px, line-height 1, -0.01em): "Kopikas" in the header, beside the coin, and who owes whom in Pooleks.
+- **Title** (600, 20px): section heads such as "Every charge" and "To file", the phone queue's "N to file", an empty section's head, and Clerk's card title.
+- **Small head** (Fredoka 600, 16px): a head that sits inside a section, such as "Loose change" by the pile and the months in Pooleks.
+- **Body** (400, 15px, line-height 1.375): merchant names, amounts in lists, rows on the phone, the speech bubble, navigation.
+- **Label** (500, 13px): category chips and rule chips, roll names and the phone queue's category tiles, "Nothing yet", captions and the prototype strip.
+- **Caption** (400, 12px): the smallest text, always under or beside a Label: a roll's limit, a queue tile's amount, the year strip's month letters, the pile's count, the balance after a Pooleks line, technical details under an error.
 
 ### Named Rules
 **The Rounded Voice Rule.** Fredoka speaks, Rubik informs. Fredoka is for the wordmark, the month, the total and section heads only; every list, label and sentence is Rubik.
@@ -342,6 +376,7 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 - **Shape:** dressed as a menu: a white card (card-night in dark) with a 1px Ink ring at 10% and no shadow, at the foot of the screen (above the tab bar on a phone). The buttons are Mist pills and the ✕ is round; when the words need the room, the buttons drop under them to the right, so a phone shows two lines, never more.
 
 ### Inputs
+- **Text fields:** type at 16px, a step above Body, because iOS zooms into any field set smaller.
 - **Select pill:** Mist fill, 2px Ink border at 10% (25% on hover), full pill, 40px tall, Body type at 500.
 - **Focus:** a visible 2px Ink outline (Chalk in dark) offset by 2px on every control, following the control's own corners. In Tailwind 4 both `outline-none` and `outline-hidden` also cancel a later outline's style, so the focus state sets it back with `outline-solid`.
 - **Skip link:** "Skip to the charges", an Ink pill top left on the first Tab, past the rolls and the cards to the list; on a phone it opens the Month tab first.

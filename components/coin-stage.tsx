@@ -686,7 +686,7 @@ export function CoinStage({
     t.shared && (
       <span
         aria-hidden
-        className="absolute -bottom-1 -right-1.5 rounded-full bg-white px-1 text-[10px] font-semibold leading-4 tabular-nums text-ink ring-1 ring-ink/10 dark:bg-card-night dark:text-chalk dark:ring-white/10"
+        className="absolute -bottom-1 -right-1.5 rounded-full bg-white px-1 text-[12px] font-semibold leading-4 tabular-nums text-ink ring-1 ring-ink/10 dark:bg-card-night dark:text-chalk dark:ring-white/10"
       >
         {shareLabel(t.partnerShare)}
       </span>
@@ -1041,7 +1041,7 @@ export function CoinStage({
                     // know: Motion gives a pressable a tabindex, and the two renders must agree.
                     whileTap={pickedTx || onSelect ? { scale: reduce ? 1 : 0.98, transition: PRESS } : undefined}
                   >
-                    <div className="flex items-baseline justify-between gap-3 text-[14px]">
+                    <div className="flex items-baseline justify-between gap-3 text-[15px]">
                       <span className="truncate font-medium">{r.name}</span>
                       <span className="shrink-0 tabular-nums">
                         <span className={over ? "font-medium" : MUTED}>{eur.format(r.total)}</span>
@@ -1066,7 +1066,7 @@ export function CoinStage({
             {/* The categories with nothing filed yet sleep in one line after the list, each still a place to file. */}
             {sleeping.length > 0 && (
               <div role="group" aria-label="Categories with nothing filed yet" className="flex flex-col gap-2">
-                <div className={cn("text-[14px] font-medium", MUTED)}>Nothing yet</div>
+                <div className={cn("text-[13px] font-medium", MUTED)}>Nothing yet</div>
                 <div className="flex flex-wrap gap-x-[18px] gap-y-1.5">
                   {sleeping.map((r) => (
                     <button

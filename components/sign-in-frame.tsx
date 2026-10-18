@@ -13,7 +13,7 @@ export function SignInFrame({ children }: { children: React.ReactNode }) {
       <main className="mx-auto flex min-h-dvh max-w-sm flex-col items-center justify-center gap-6 px-5 py-10">
         <div className="flex flex-col items-center gap-1.5 text-center">
           <PaintedCoin size={56} seed={3} />
-          <p className={cn(DISPLAY, "text-[32px] font-semibold leading-tight")}>Kopikas</p>
+          <p className={cn(DISPLAY, "text-[34px] font-semibold leading-tight")}>Kopikas</p>
           <p lang="et" className={cn("text-[15px] italic", MUTED)}>
             iga kopikas loeb
           </p>

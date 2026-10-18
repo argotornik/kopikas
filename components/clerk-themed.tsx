@@ -48,10 +48,11 @@ export function ClerkThemed({ children }: { children: React.ReactNode }) {
         elements: {
           footerAction: "hidden",
           cardBox: "shadow-none rounded-[28px]",
-          card: "shadow-none",
-          // "Secured by Clerk" sits in the same Oat Paper, so the card is one piece.
+          // "Secured by Clerk" sits in the same Oat Paper, so the card is one piece: the
+          // inner card's bottom corners stay square, or the page shows where they curve.
+          card: "shadow-none rounded-b-none",
           footer: "bg-none bg-oat dark:bg-oat-night",
-          headerTitle: "coins-display text-[22px] font-semibold",
+          headerTitle: "coins-display text-[20px] font-semibold",
           // Flat Ink, without Clerk's gloss (a gradient on ::after).
           formButtonPrimary: "rounded-full h-11 text-[15px] shadow-none after:hidden",
           socialButtonsBlockButton: "rounded-full h-11",

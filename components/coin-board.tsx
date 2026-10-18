@@ -579,7 +579,7 @@ export function CoinBoard({
                     placeholder="Search every month"
                     aria-label="Search charges in every month"
                     className={cn(
-                      "h-10 w-full rounded-full border-2 border-transparent bg-white pl-10 pr-10 text-[15px] placeholder:text-muted-text focus:border-ink/20 dark:bg-card-night dark:placeholder:text-muted-text-night dark:focus:border-white/25 [&::-webkit-search-cancel-button]:hidden",
+                      "h-10 w-full rounded-full border-2 border-transparent bg-white pl-10 pr-10 text-[16px] placeholder:text-muted-text focus:border-ink/20 dark:bg-card-night dark:placeholder:text-muted-text-night dark:focus:border-white/25 [&::-webkit-search-cancel-button]:hidden",
                       FOCUS
                     )}
                   />

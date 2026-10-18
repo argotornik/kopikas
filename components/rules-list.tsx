@@ -115,7 +115,7 @@ export function RulesList({ initial, categories }: { initial: RuleRow[]; categor
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className={cn(
-              "h-11 w-full rounded-full border-2 border-transparent bg-white pl-10 pr-4 text-[15px] placeholder:text-muted-text focus:border-ink/20 dark:bg-card-night dark:placeholder:text-muted-text-night dark:focus:border-white/25 [&::-webkit-search-cancel-button]:hidden",
+              "h-11 w-full rounded-full border-2 border-transparent bg-white pl-10 pr-4 text-[16px] placeholder:text-muted-text focus:border-ink/20 dark:bg-card-night dark:placeholder:text-muted-text-night dark:focus:border-white/25 [&::-webkit-search-cancel-button]:hidden",
               FOCUS
             )}
           />
@@ -175,7 +175,7 @@ export function RuleChip({
       data-row
       title={title}
       className={cn(
-        "inline-flex max-w-full items-center gap-1.5 rounded-full py-1 pl-3 pr-1 text-[14px]",
+        "inline-flex max-w-full items-center gap-1.5 rounded-full py-1 pl-3 pr-1 text-[13px]",
         onWhite ? "bg-oat dark:bg-oat-night" : CARD
       )}
     >

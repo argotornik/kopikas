@@ -26,7 +26,7 @@ export function ErrorView({ digest, retry, header = true }: { digest?: string; r
             {/* The floor oval: the one shadow the board allows, so the coin lies on something. */}
             <span className="mt-1 h-2 w-[72px] rounded-[50%] bg-black/12 dark:bg-black/35" />
           </span>
-          <h1 className={cn(DISPLAY, "mt-5 text-balance text-[26px] font-semibold leading-tight sm:text-[32px]")}>
+          <h1 className={cn(DISPLAY, "mt-5 text-balance text-[34px] font-semibold leading-tight sm:text-[40px]")}>
             This page couldn&apos;t open
           </h1>
           <p className={cn("mt-2 max-w-[44ch] text-balance text-[15px]", MUTED)}>
