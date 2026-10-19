@@ -6,29 +6,30 @@ import { useTheme } from "next-themes";
 import { FOCUS } from "@/components/coin-look";
 
 // Clerk's components in the board's look: an Oat Paper card with generous corners, white
-// fields, Ink for the action, Rubik and Fredoka, following the theme. Sign-up is
+// fields, Ink for the action, Rubik and Fredoka, following the theme. The colours are the
+// board's own tokens (globals.css), so a change there reaches the sign-in card too. Sign-up is
 // invite-only, so the "Don't have an account?" footer has nothing to point at and is hidden.
 const LIGHT = {
-  colorPrimary: "#16171C",
-  colorPrimaryForeground: "#FFFFFF",
-  colorBackground: "#EFEBE3",
-  colorForeground: "#16171C",
-  colorMutedForeground: "#63666F",
-  colorInput: "#FFFFFF",
-  colorInputForeground: "#16171C",
-  colorNeutral: "#16171C",
-  colorDanger: "#B8233F",
+  colorPrimary: "var(--color-ink)",
+  colorPrimaryForeground: "var(--color-white)",
+  colorBackground: "var(--color-oat)",
+  colorForeground: "var(--color-ink)",
+  colorMutedForeground: "var(--color-muted-text)",
+  colorInput: "var(--color-white)",
+  colorInputForeground: "var(--color-ink)",
+  colorNeutral: "var(--color-ink)",
+  colorDanger: "var(--color-stamp)",
 };
 const DARK = {
-  colorPrimary: "#F3F2EE",
-  colorPrimaryForeground: "#16171C",
-  colorBackground: "#1F1D22",
-  colorForeground: "#F3F2EE",
-  colorMutedForeground: "#A7A9B4",
-  colorInput: "#23252E",
-  colorInputForeground: "#F3F2EE",
-  colorNeutral: "#F3F2EE",
-  colorDanger: "#FF7A8A",
+  colorPrimary: "var(--color-chalk)",
+  colorPrimaryForeground: "var(--color-ink)",
+  colorBackground: "var(--color-oat-night)",
+  colorForeground: "var(--color-chalk)",
+  colorMutedForeground: "var(--color-muted-text-night)",
+  colorInput: "var(--color-card-night)",
+  colorInputForeground: "var(--color-chalk)",
+  colorNeutral: "var(--color-chalk)",
+  colorDanger: "var(--color-stamp-night)",
 };
 
 export function ClerkThemed({ children }: { children: React.ReactNode }) {
