@@ -1,8 +1,8 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { MoonIcon, SunIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MoonIcon, SunIcon } from "@/components/header-icons";
 
 // Icon visibility is CSS-driven (dark: variants), so SSR and client render
 // identically — no mounted-state dance needed.

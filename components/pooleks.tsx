@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRightIcon, HouseIcon, PlusIcon, SettingsIcon, XIcon } from "lucide-react";
+import { ArrowRightIcon, PlusIcon, XIcon } from "lucide-react";
 import { motion, MotionConfig } from "motion/react";
 import { amountInput, cn, parseAmount, shareLabel } from "@/lib/utils";
 import { act, focusAfterRemoval } from "@/lib/act";
@@ -21,6 +21,7 @@ import { announceError, announceUndoable } from "@/components/toaster";
 import { Field, FormError, Pending } from "@/components/form-status";
 import { SplitPicker } from "@/components/split-picker";
 import { CoinHeader } from "@/components/coin-header";
+import { HouseIcon, SettingsIcon } from "@/components/header-icons";
 import { PaintedCoin } from "@/components/painted";
 import { wrapperOf } from "@/components/coin-stage";
 import { CARD, DISPLAY, FOCUS, INK, INK_TEXT, MUTED, OAT, PAGE, PANEL, PILL, WHITE } from "@/components/coin-look";

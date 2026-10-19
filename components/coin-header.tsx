@@ -1,5 +1,4 @@
-import type { ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
+import type { ComponentType, ReactNode, SVGProps } from "react";
 import { PaintedCoin } from "@/components/painted";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
@@ -14,7 +13,7 @@ export function CoinHeader({
   sub,
   heading = false,
 }: {
-  links: { href: string; label: string; icon: LucideIcon }[];
+  links: { href: string; label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }[];
   sub?: ReactNode;
   // The wordmark is the page's heading on the board; other pages name themselves.
   heading?: boolean;

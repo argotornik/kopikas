@@ -393,6 +393,7 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 
 ### Header
 - **Contents:** the coin and the wordmark, with when the last sync was under it in Muted at 13px on the board; the other pages as links on the right (icons on a phone), Pooleks and Settings from the board, Board and Settings from Pooleks, Board and Pooleks from Settings, none for the partner; and the theme toggle.
+- **Icons:** flat cut-outs, like the look's paper ones (`components/header-icons.tsx`): a solid house with an arched door cut through for the Board, two solid coins for Pooleks, the front one cut free of the back, and a solid cog with a hole for Settings, in Ink (Chalk in dark) at 20px; the theme's sun and moon solid too, in Muted at 16px. They fill with the text colour and their gaps are cut through, so a hover fill shows in them. The logo coin stays the header's only colour.
 - **Late sync:** more than a day and two hours without one, the line becomes "Last synced 3 days ago. Check the connection" in Ink with a small sun-yellow dot, and leads to Settings; on a phone it takes its own line under the header.
 
 ### App Icons

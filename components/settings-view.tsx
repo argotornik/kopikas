@@ -1,7 +1,7 @@
 "use client";
 
-import { HouseIcon, UsersIcon } from "lucide-react";
 import { CoinHeader } from "@/components/coin-header";
+import { HouseIcon, PooleksIcon } from "@/components/header-icons";
 import { DISPLAY, FOCUS, MUTED, PAGE } from "@/components/coin-look";
 import { SettingsForm } from "@/components/settings-form";
 import { RulesList, type RuleRow } from "@/components/rules-list";
@@ -29,7 +29,7 @@ export function SettingsView({
         <CoinHeader
           links={[
             { href: "/", label: "Board", icon: HouseIcon },
-            { href: "/pooleks", label: "Pooleks", icon: UsersIcon },
+            { href: "/pooleks", label: "Pooleks", icon: PooleksIcon },
           ]}
         />
         {/* The theme's variables re-tinted, so the fields and buttons shared with

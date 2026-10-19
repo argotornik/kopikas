@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDownIcon, SearchIcon, SettingsIcon, UsersIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, SearchIcon, XIcon } from "lucide-react";
 import { DndContext, DragOverlay, MouseSensor, pointerWithin, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS, SUBSCRIPTIONS } from "@/lib/engine";
@@ -19,6 +19,7 @@ import { MerchantEditor, type MerchantSubject } from "@/components/merchant-edit
 import { SnapshotEditor } from "@/components/snapshot-editor";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { CoinHeader } from "@/components/coin-header";
+import { PooleksIcon, SettingsIcon } from "@/components/header-icons";
 import { cn, shareLabel } from "@/lib/utils";
 
 // The board: the coin tray on top, the charges below, and on a phone the backlog one
@@ -345,7 +346,7 @@ export function CoinBoard({
         <CoinHeader
           heading
           links={[
-            { href: "/pooleks", label: "Pooleks", icon: UsersIcon },
+            { href: "/pooleks", label: "Pooleks", icon: PooleksIcon },
             { href: "/settings", label: "Settings", icon: SettingsIcon },
           ]}
           sub={stale ? <div className="mt-1 flex max-sm:hidden">{stale}</div> : synced && <p className={cn("mt-1 text-[13px]", MUTED)}>Synced {synced.ago}</p>}
