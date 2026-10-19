@@ -6,8 +6,6 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
-/* A screen tall enough for the 727px tray to stay put while the charges scroll. */
-@custom-variant tall (@media (min-height: 50rem));
 
 /* An ultrawide screen, 2700px wide and tall enough for the tray drawn a third larger
    (about 990px) to stay put: the board magnifies the tray there (coin-board.tsx). */

@@ -88,6 +88,51 @@ export function CoinBoard({
   const [synced, setSynced] = useState<{ ago: string; stale: boolean } | null>(null);
   useEffect(() => setSynced(sinceLabel(syncedAt)), [syncedAt]);
   const stage = useRef<CoinStageHandle>(null);
+  // From 1900px the tray and the cards under it travel as one column beside the charges: they go
+  // with the page until an edge reaches the window's, then hold there, the tray's top 20px from the
+  // top edge or the cards' bottom 80px (the page's own bottom padding) from the bottom one. So
+  // scrolling down keeps the rolls and the cards in view, scrolling up brings the month back, and a
+  // list opened in the cards just reaches further down. Nor does the column rest lower than the
+  // end of the grid the two sides share: the browser would stop the cards there and not the tray.
+  // Only the two tops change while scrolling.
+  const trayBox = useRef<HTMLDivElement>(null);
+  const cardsBox = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const tray = trayBox.current, cards = cardsBox.current, grid = tray?.parentElement;
+    if (!tray || !cards || !grid) return;
+    let trayH = 0, columnH = 0, gridEnd = 0, hold = 20, lastY = window.scrollY;
+    const place = (next: number) => {
+      const low = Math.min(20, window.innerHeight - columnH - 80);
+      hold = Math.min(20, gridEnd - lastY - columnH, Math.max(low, next));
+      tray.style.top = `${hold}px`;
+      cards.style.top = `${hold + trayH}px`;
+    };
+    const measure = () => {
+      trayH = tray.offsetHeight;
+      columnH = trayH + cards.offsetHeight;
+      lastY = window.scrollY;
+      gridEnd = grid.getBoundingClientRect().bottom + lastY;
+      place(hold);
+    };
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y === lastY) return;
+      const next = hold - (y - lastY);
+      lastY = y;
+      place(next);
+    };
+    const watch = new ResizeObserver(measure);
+    watch.observe(tray);
+    watch.observe(cards);
+    watch.observe(grid);
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      watch.disconnect();
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
   const categories = board.categories;
   // One month at a time, as on the tray; the rest wait in their own months.
   const loose = looseCoins(board.txs, month);
@@ -379,11 +424,11 @@ export function CoinBoard({
               every charge on the right, so any row can be dragged onto a roll without
               scrolling back up. */}
           <div className={cn(tab === "queue" && "max-sm:hidden", "wide:grid wide:grid-cols-[1152px_minmax(0,1fr)] wide:grid-rows-[auto_1fr] wide:items-start wide:gap-x-8 ultra:grid-cols-[1536px_minmax(0,1fr)]")}>
-          {/* On a screen tall enough, the tray stays put while the charges scroll; the cards slide
-              under it, behind a strip of page above and below so nothing shows past its corners.
+          {/* The tray and the cards travel together beside the charges (see trayBox above), so a row
+              anywhere in the list can still be dragged onto a roll and nothing goes under the tray.
               On an ultrawide the tray is drawn a third larger, the whole picture at once, while the
               charges keep their reading size. */}
-          <div className="wide:col-start-1 wide:row-start-1 wide:pb-8 wide:tall:sticky wide:tall:top-0 wide:tall:z-10 wide:tall:-mt-5 wide:tall:bg-white wide:tall:pt-5 dark:wide:tall:bg-night ultra:[&>section]:[zoom:1.3333]">
+          <div ref={trayBox} className="wide:col-start-1 wide:row-start-1 wide:pb-8 wide:sticky ultra:[&>section]:[zoom:1.3333]">
           {/* The stage: the month's rolls on one floor, its loose change beside them. */}
           <CoinStage
             ref={stage}
@@ -425,7 +470,10 @@ export function CoinBoard({
           </div>
 
           <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px] wide:contents">
-            <aside className="flex flex-col gap-8 lg:col-start-2 lg:row-start-1 wide:col-start-1 wide:row-start-2 wide:grid wide:grid-cols-2 wide:items-start">
+            <aside
+              ref={cardsBox}
+              className="flex flex-col gap-8 lg:col-start-2 lg:row-start-1 wide:col-start-1 wide:row-start-2 wide:grid wide:grid-cols-2 wide:items-start wide:sticky"
+            >
               {/* The same loose change as the pile, as rows: the way to file from the keyboard. */}
               <section aria-labelledby="tofile-heading" className={cn(PANEL, OAT, "p-5 max-sm:hidden sm:p-6 lg:hidden")}>
                 <h2 id="tofile-heading" className={cn(DISPLAY, "flex items-baseline justify-between text-[20px] font-semibold")}>
