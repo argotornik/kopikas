@@ -7,6 +7,8 @@ What it builds, on the Stage page:
 - **Stage · 1440 · light / dark** and **Phone · 375 · light**: the board's stage at `/?month=2026-09`, every drawing an editable vector, the text live and on the kit's text styles, colours bound to its variables, each roll grouped with its labels.
 - **To file · 390 · light / dark**: the whole phone screen, with the header, panel, pills, tiles and tab bar as grouped layers.
 
+Every coin, squiggle and dot in these frames is an instance of its component on the Parts page, so a Part edited there reaches every frame; each keeps its place, turn, size and colour. The header's coin stays drawn, named Logo: the app always draws the brand mark with the same wobble, and the Part's differs. Rolls, bars and the tiles' mini rolls stay drawn too, since each one's height is its amount and the inside of an instance can't be resized.
+
 A frame that is rebuilt keeps its old self, renamed "· replaced <date>" and moved left of everything. Delete those in Figma once they are no longer needed.
 
 ## Needs
@@ -29,7 +31,9 @@ node scripts/figma-kit/svgs.mjs s2l s2d p2l t2l t2d
 
 1. Call `upload_assets` with `count` set to the number of new files (60 at most) and `currentPageId` set to `0:1`. Save the returned `submitUrl`s one per line, then run `node scripts/figma-kit/upload.mjs urls.txt`. Repeat until every file has gone up: `out/uploaded.txt` records them, so a rerun skips them.
 2. Run `node scripts/figma-kit/gen-calls.mjs stage s2l s2d p2l` and `node scripts/figma-kit/gen-calls.mjs screens t2l t2d`.
-3. Pass `out/call-stage.js`, then `out/call-screens.js`, to `use_figma` as the code. Each stays under its 50,000-character limit. Check the returned `missing` lists: a name there means its upload did not land.
+3. Pass `out/call-stage.js`, then `out/call-screens.js`, to `use_figma` as the code. Each stays under its 50,000-character limit. Check the returned `missing` lists: a name there means its upload did not land, and `instances`, which says what each coin became.
+
+To turn the coins and marks of frames already on the page into instances without rebuilding them, run `node scripts/figma-kit/gen-calls.mjs instances <frame id>...` and pass `out/call-instances.js` to `use_figma`.
 
 ## Files
 
@@ -39,5 +43,6 @@ node scripts/figma-kit/svgs.mjs s2l s2d p2l t2l t2d
 - `upload.mjs`: posts the waiting SVGs to the upload URLs.
 - `gen-calls.mjs`: writes the `use_figma` scripts into `out/` from the templates and `ledger.json`.
 - `stage.tpl.js`, `screen.tpl.js`: the builds. `parts-2026-10-18.tpl.js` is a one-off, guarded so a second run adds nothing.
+- `instances.tpl.js`: appended to both builds; turns their coins and marks into instances of the Parts, reading each coin's variant (metal and mood) off its drawing.
 - `ledger.json`: the file's IDs for pages, variables, text styles, component sets and the current frames.
 - `out/`: generated, not committed.

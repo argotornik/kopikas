@@ -41,7 +41,7 @@ ${helpers}
   const walk = (el) => {
     if (!shown(el) || el.closest(".sr-only")) return;
     if (el.tagName === "svg") { const b = el.getBoundingClientRect(); if (!onScreen(b)) return; index.set(el, items.length);
-      items.push({ kind: "svg", role: el.closest("[role=group] > button") ? "roll" : el.closest("[data-coin]") || el.querySelector("ellipse") ? "coin" : "icon", cx: b.left + b.width / 2, cy: b.top + b.height / 2, w: +el.getAttribute("width") || b.width, h: +el.getAttribute("height") || b.height, rotation: angleOf(el), p: parentOf(el), svg: serialize(el) }); return; }
+      items.push({ kind: "svg", role: el.closest("[role=group] > button") ? "roll" : el.closest("[data-coin]") || el.querySelector("ellipse") ? (el.closest("header") ? "logo" : "coin") : "icon", cx: b.left + b.width / 2, cy: b.top + b.height / 2, w: +el.getAttribute("width") || b.width, h: +el.getAttribute("height") || b.height, rotation: angleOf(el), p: parentOf(el), svg: serialize(el) }); return; }
     const b = el.getBoundingClientRect(), cs = getComputedStyle(el);
     if (el !== root && onScreen(b)) {
       const fill = paintOf(cs.backgroundColor);

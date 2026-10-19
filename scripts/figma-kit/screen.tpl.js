@@ -40,7 +40,7 @@ for (const S of SCREENS) {
     } else if (it.k === "s") {
       n = stage.findChild((c) => c.name === it.n);
       if (!n) { missing.push(it.n); nodes.push({ it, n: null }); continue; }
-      frame.appendChild(n); n.fills = []; n.clipsContent = false; n.name = it.role === "coin" ? "Coin" : it.role === "roll" ? "Roll" : "Icon";
+      frame.appendChild(n); n.fills = []; n.clipsContent = false; n.name = it.role === "coin" ? "Coin" : it.role === "logo" ? "Logo" : it.role === "roll" ? "Roll" : "Icon";
       const a = (it.r * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
       n.relativeTransform = [[c, -s, it.cx - c * it.w / 2 + s * it.h / 2], [s, c, it.cy - s * it.w / 2 - c * it.h / 2]];
     } else {

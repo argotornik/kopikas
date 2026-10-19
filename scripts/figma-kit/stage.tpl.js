@@ -103,4 +103,4 @@ if (pile.length) { const g = figma.group(pile.map((m) => m.n), frame); g.name = 
 if (month.length) { const g = figma.group(month.map((m) => m.n), frame); g.name = "Month"; groups.push(g.id); }
 results.push({ frame: frame.id, name: D.name, children: frame.children.length, missing });
 }
-return { ensured, warmVars, results };
+const result = { ensured, warmVars, results };
