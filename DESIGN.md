@@ -135,12 +135,6 @@ components:
     textColor: "{colors.ink}"
     rounded: "{rounded.card}"
     padding: "12px"
-  speech-bubble:
-    backgroundColor: "{colors.page-white}"
-    textColor: "{colors.ink}"
-    typography: "{typography.body}"
-    rounded: "{rounded.card}"
-    padding: "12px 16px"
   pill-toggle:
     textColor: "{colors.muted}"
     typography: "{typography.label}"
@@ -210,12 +204,12 @@ A white page, a warm oat stage, copper as the house colour, Crayon Blue for ever
 - **The wrappers** (wrapper-cornflower, -tomato, -pink, -grass, -brown, -sky, -lime, -lavender, -yolk, -grey, -brick, -mint, -apricot, -teal): one per category, in that order, by the category's place in the list; a fifteenth category starts the list again. They are the brightest things on the page and the only large areas of colour; everything around them stays neutral so the month's shape reads first.
 
 ### Neutral
-- **Page White** (page-white) and **Night** (night): the page ground in light and dark. Cards and the speech bubble sit on Page White (card-night in dark).
+- **Page White** (page-white) and **Night** (night): the page ground in light and dark. Cards sit on Page White (card-night in dark).
 - **Card on Oat Night** (card-oat-night) and **Mist on Oat Night** (mist-oat-night): in dark, what sits on an Oat Paper panel or dialog turns warm, cards a step above Oat Paper Night and quiet fills a step below, so the panel and everything on it read as one material where the blue-greys would read as a second. Cards on the page itself keep card-night and mist-night, cool on Night.
 - **Oat Paper** (oat-paper) and **Oat Paper Night** (oat-paper-night): the stage and the panels below it, where the characters live.
 - **Mist** (mist) and **Mist Night** (mist-night): quiet fills for inputs, hover backgrounds and the plain panel.
 - **Ink** (ink) and **Chalk** (chalk): all text and the active pill, in light and dark. Ink on Oat Paper is 15:1.
-- **Muted** (muted) and **Muted Night** (muted-night): secondary text, captions and the prototype strip; 4.8:1 on Oat Paper, 7.1:1 on Oat Paper Night.
+- **Muted** (muted) and **Muted Night** (muted-night): secondary text and captions; 4.8:1 on Oat Paper, 7.1:1 on Oat Paper Night.
 - **Limb Brown** (limb-brown) and **Limb Sand** (limb-sand): the characters' arms, legs and dark marks, swapped by theme so feet and confetti never vanish on the night ground.
 - **Received Green** (received-green / received-green-night): money coming in. 4.8:1 on Oat Paper, 5.7:1 on white and 5.2:1 on Mist; the night value is 8.6:1 on Oat Paper Night.
 - **Sun Yellow** (sun) and **Sun Ink** (sun-ink): what needs dealing with, such as a late sync or a failed connection: a dot, a tint behind the words, or Sun Ink for an icon on a light ground. It is not for errors.
@@ -247,8 +241,8 @@ Eight steps, and every size in the app is one of them.
 - **Wordmark** (600, 26px, line-height 1, -0.01em): "Kopikas" in the header, beside the coin, and who owes whom in Pooleks.
 - **Title** (600, 20px): section heads such as "Every charge" and "To file", the phone queue's "N to file", an empty section's head, and Clerk's card title.
 - **Small head** (Fredoka 600, 16px): a head that sits inside a section, such as "Loose change" by the pile and the months in Pooleks.
-- **Body** (400, 15px, line-height 1.375): merchant names, amounts in lists, rows on the phone, the speech bubble, navigation.
-- **Label** (500, 13px): category chips and rule chips, roll names and the phone queue's category tiles, "Nothing yet", captions and the prototype strip.
+- **Body** (400, 15px, line-height 1.375): merchant names, amounts in lists, rows on the phone, navigation.
+- **Label** (500, 13px): category chips and rule chips, roll names and the phone queue's category tiles, "Nothing yet" and captions.
 - **Caption** (400, 12px): the smallest text, always under or beside a Label: a roll's limit, a queue tile's amount, the year strip's month letters, the pile's count, the balance after a Pooleks line, technical details under an error.
 
 ### Named Rules
