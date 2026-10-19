@@ -64,7 +64,7 @@ Terminology: *file* (categorise), *Always* (write a rule), *to file*, *Paid out*
 The current identity, which the user leans toward keeping but holds open: a redesign may argue for changing any of it, and the user decides.
 
 - The name Kopikas and its Estonian voice: *iga kopikas loeb* (every penny counts), Pooleks, plain-spoken English copy.
-- The coin mark: a copper disc with a lowercase k struck into it (`app/icon.svg`, `components/coin-mark.tsx`).
+- The coin mark: the smiling painted copper coin, no letter on it (`PaintedCoin` in `components/painted.tsx`, beside the wordmark; `app/icon.svg` for the browser tab, `app/apple-icon.png` for the home screen). It replaced the copper disc with a lowercase k struck into it in October 2026.
 - Copper as the colour.
 
 References the user named (2026-10-07), for what they do rather than as templates: bklit.com for chart craft; kokonutui.com and reactbits.dev for motion, animated backgrounds and effects; family.co for fun (its characters, bright friendly colour, little interactions, soft bold type); freefaces.gallery/display as a source of display faces.
