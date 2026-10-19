@@ -1,5 +1,6 @@
 // Emit a use_figma script into out/ from exported scenes (see README.md). Usage:
 //   node gen-calls.mjs stage <light> <dark> <phone>     out/call-stage.js: styles, warm variables, the stage frames
+//                                                       (a tag of - leaves that frame as it is)
 //   node gen-calls.mjs screens <light> <dark> [--with-parts]   out/call-screens.js: the phone's To file screens
 import { readFileSync, writeFileSync } from "node:fs";
 const here = (p) => new URL(p, import.meta.url);
@@ -24,7 +25,7 @@ if (mode === "stage") {
     const items = s.items.map((it, i) => it.kind === "svg" ? { k: "s", n: layer(tag, i, it.role), role: it.role, cx: r1(it.cx), cy: r1(it.cy), w: it.w, h: it.h, r: it.rotation || 0 } : text(it));
     return { D: { name, x, y, w: s.w, h: Math.ceil(s.h), bg: s.bg, radius: s.radius, items }, HV: HV[theme] };
   };
-  const SCENES = [build(light, "Stage · 1440 · light", 0, 0, "light"), build(dark, "Stage · 1440 · dark", 0, 760, "dark"), build(phone, "Phone · 375 · light", 1252, 0, "light")];
+  const SCENES = [[light, "Stage · 1440 · light", 0, 0, "light"], [dark, "Stage · 1440 · dark", 0, 760, "dark"], [phone, "Phone · 375 · light", 1252, 0, "light"]].filter(([tag]) => tag && tag !== "-").map((a) => build(...a));
   write("call-stage.js", `const SCENES = ${JSON.stringify(SCENES)};\nconst LEDGER = ${JSON.stringify({ collection: L.collection, mode: L.mode })};\nconst DATE = ${JSON.stringify(DATE)};\n${read("stage.tpl.js")}`);
 } else if (mode === "screens") {
   const [light, dark] = rest.filter((a) => !a.startsWith("--"));

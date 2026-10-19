@@ -9,19 +9,20 @@ const styleFor = (it) => it.f === "Fredoka" ? ({ 52: "Display", 44: "Display · 
   : it.f === "Rubik" && +it.wt === 400 ? ({ 15: "Body", 16: "Field", 12: "Caption" })[it.sz]
   : it.f === "Rubik" && +it.wt === 500 && it.sz === 13 ? "Label" : null;
 const VARS = Object.fromEntries((await figma.variables.getLocalVariablesAsync("COLOR")).map((v) => [v.name, v]));
-const paint = (c, name) => { const p = typeof c === "string" ? { type: "SOLID", color: rgb(c) } : { type: "SOLID", color: rgb(c.hex), opacity: c.a }; return name && VARS[name] ? figma.variables.setBoundVariableForPaint(p, "color", VARS[name]) : p; };
+// Binding a paint to a variable drops its opacity, so a translucent one gets it back.
+const paint = (c, name) => { const p = typeof c === "string" ? { type: "SOLID", color: rgb(c) } : { type: "SOLID", color: rgb(c.hex), opacity: c.a }; if (!name || !VARS[name]) return p; const b = figma.variables.setBoundVariableForPaint(p, "color", VARS[name]); return p.opacity === undefined ? b : { ...b, opacity: p.opacity }; };
 const fillVar = (theme, hex, box) => WRAP[hex] ? "wrapper/" + WRAP[hex] : theme === "light"
   ? ({ "#ffffff": box === "Tab bar" ? "light/page" : "light/card", "#efebe3": "light/stage", "#16171c": "light/ink" })[hex]
   : ({ "#1f1d22": "dark/stage", "#2a282e": "dark/card-on-stage", "#1a181d": "dark/mist-on-stage", "#23252e": "dark/card", "#0f1015": "dark/page", "#f3f2ee": "dark/ink" })[hex];
 const textVar = (theme, hex) => theme === "light" ? ({ "#16171c": "light/ink", "#63666f": "light/muted" })[hex] : ({ "#f3f2ee": "dark/ink", "#a7a9b4": "dark/muted" })[hex];
 // A frame being rebuilt keeps its old self: renamed with today's date and moved left of everything.
 const retire = (name) => { for (const n of stage.children.filter((c) => c.type === "FRAME" && c.name === name)) { n.name = `${name} · replaced ${DATE}`; n.x = Math.min(0, ...stage.children.map((c) => c.x)) - n.width - 200; } };
-// The first row's right edge: the screens go after it.
+// The old frames step aside first, then the first row's right edge says where the screens go.
+for (const S of SCREENS) retire(S.name);
 const row = stage.children.filter((n) => n.x >= 0 && n.y < 900 && n.y + n.height > 0 && !n.name.includes("__"));
 let X = Math.max(...row.map((n) => n.x + n.width)) + 120;
 const out = [];
 for (const S of SCREENS) {
-  retire(S.name);
   const frame = figma.createFrame();
   stage.appendChild(frame);
   frame.name = S.name; frame.x = X; frame.y = 0; frame.resize(S.w, S.h); frame.clipsContent = true; frame.cornerRadius = 0;
@@ -39,7 +40,7 @@ for (const S of SCREENS) {
     } else if (it.k === "s") {
       n = stage.findChild((c) => c.name === it.n);
       if (!n) { missing.push(it.n); nodes.push({ it, n: null }); continue; }
-      frame.appendChild(n); n.fills = []; n.clipsContent = false; n.name = it.role === "coin" ? "Coin" : "Icon";
+      frame.appendChild(n); n.fills = []; n.clipsContent = false; n.name = it.role === "coin" ? "Coin" : it.role === "roll" ? "Roll" : "Icon";
       const a = (it.r * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
       n.relativeTransform = [[c, -s, it.cx - c * it.w / 2 + s * it.h / 2], [s, c, it.cy - s * it.w / 2 - c * it.h / 2]];
     } else {
