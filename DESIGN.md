@@ -364,7 +364,7 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 - **Shape:** full pill.
 - **Toggle:** Muted Label text; the active option is an Ink pill with white text (Chalk pill with Ink text in dark).
 - **The phone's tab bar:** Muted Body text; the active tab wears the colour of the panel it shows, an Oat Paper pill with Ink text (Oat Paper Night with Chalk in dark), so the brightest thing on the screen stays the coin above it.
-- **Navigation links** (Pooleks, Settings): Body type, 8px by 14px pill that fills with Mist on hover and gives a little on press (to 96%, like the To file buttons; still with reduced motion).
+- **Navigation links** (Pooleks, Settings): Body type, 8px by 14px pill that fills with Mist on hover and gives a little on press (to 96%, like the To file buttons; still with reduced motion). The theme toggle beside them presses the same way.
 
 ### Category Chips
 - **Style:** a white pill (card-night in dark, card-oat-night on a panel) with the wrapper colour as a dot and the name in Label type, 4px by 10px. An unfiled charge shows a dashed outline pill instead.
