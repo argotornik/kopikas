@@ -34,7 +34,7 @@ export function CoinHeader({
             key={href}
             href={href}
             aria-label={label}
-            className={cn("inline-flex items-center justify-center rounded-full p-2.5 hover:bg-mist sm:px-3.5 sm:py-2 pointer-coarse:min-h-11 pointer-coarse:min-w-11 dark:hover:bg-mist-night", FOCUS)}
+            className={cn("inline-flex items-center justify-center rounded-full p-2.5 transition-transform hover:bg-mist motion-safe:active:scale-[0.96] sm:px-3.5 sm:py-2 pointer-coarse:min-h-11 pointer-coarse:min-w-11 dark:hover:bg-mist-night", FOCUS)}
           >
             <Icon aria-hidden className="size-5 sm:hidden" />
             <span className="hidden sm:inline">{label}</span>
