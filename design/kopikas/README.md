@@ -1,6 +1,6 @@
 # Kopikas, drawn
 
-Kopikas's eight poses are data in `components/kopikas-figure.ts`, drawn in code by `components/kopikas-painted.tsx` and shown together on the character sheet at `/coins/kopikas`. He is off the painted stage (DESIGN.md, "Kopikas and the Speech Bubble"); the goofy look on `/coins/sketch` still shows him.
+Kopikas's eight poses are data in `components/kopikas-figure.ts`, drawn in code by `components/kopikas-painted.tsx` and shown together on the character sheet at `/coins/kopikas`. He is off the painted stage (DESIGN.md, "Kopikas and the Speech Bubble").
 
 `svg/` holds all eight poses as layered SVGs, exported from the character sheet, for importing into an animation tool or anything else. `review/` holds the second round of seven poses as they were reviewed.
 
