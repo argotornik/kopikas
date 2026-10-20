@@ -123,6 +123,10 @@ function Mouth({ kind }: { kind: NonNullable<Shape["mouth"]> }) {
 export function PaintedKopikas({ pose, ex, ey, reduce }: { pose: PaintedPose; ex: MotionValue<number>; ey: MotionValue<number>; reduce: boolean }) {
   const s = SHAPES[pose];
   const t = reduce ? { duration: 0 } : SPRING;
+  // A prop always starts from its hidden state, as the server draws it (it can't know about reduced
+  // motion, so a start that depended on it would differ from the page's first render); with reduced
+  // motion it just arrives at once.
+  const appear = reduce ? { duration: 0 } : undefined;
   const eyes = s.eyes ?? "dots";
   const shadow = s.shadow ?? { rx: SHADOW.rx, opacity: 1 };
   const arms = (
@@ -169,7 +173,7 @@ export function PaintedKopikas({ pose, ex, ey, reduce }: { pose: PaintedPose; ex
         {/* The checklist sits behind the arm, so the hand holds it from the front. */}
         <AnimatePresence>
           {pose === "budgeting" && (
-            <motion.g key="list" data-layer="prop-checklist" initial={reduce ? false : { opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}>
+            <motion.g key="list" data-layer="prop-checklist" initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={appear}>
               <Checklist />
             </motion.g>
           )}
@@ -227,7 +231,7 @@ export function PaintedKopikas({ pose, ex, ey, reduce }: { pose: PaintedPose; ex
         {s.armsFront && arms}
         <AnimatePresence>
           {pose === "saving" && (
-            <motion.g key="coin" data-layer="prop-coin" initial={reduce ? false : { opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} style={{ originX: 0.5, originY: 0.5 }}>
+            <motion.g key="coin" data-layer="prop-coin" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={appear} style={{ originX: 0.5, originY: 0.5 }}>
               <HeldCoin />
             </motion.g>
           )}
@@ -237,14 +241,14 @@ export function PaintedKopikas({ pose, ex, ey, reduce }: { pose: PaintedPose; ex
 
       <AnimatePresence>
         {pose === "hello" && (
-          <motion.g key="marks" data-layer="wave-marks" initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <motion.g key="marks" data-layer="wave-marks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={appear}>
             {WAVE_MARKS.map((d) => (
               <path key={d} d={d} style={{ stroke: LIMB }} strokeWidth={WAVE_MARK.width} fill="none" strokeLinecap="round" opacity={WAVE_MARK.opacity} />
             ))}
           </motion.g>
         )}
         {pose === "excited" && (
-          <motion.g key="sparkles" data-layer="sparkles" initial={reduce ? false : { opacity: 0, scale: 0.4 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} style={{ originX: 0.5, originY: 0.5 }}>
+          <motion.g key="sparkles" data-layer="sparkles" initial={{ opacity: 0, scale: 0.4 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={appear} style={{ originX: 0.5, originY: 0.5 }}>
             {SPARKLES.map((sp) => (
               <path key={sp.x} d={SPARKLE} fill={SPARKLE_FILL} transform={`translate(${sp.x} ${sp.y}) scale(${sp.scale})`} />
             ))}
