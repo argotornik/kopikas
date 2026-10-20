@@ -8,7 +8,7 @@ import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS } from "@/lib/engine";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 // The hand both looks share: the painted faces blink with its keyframes.
-import { GOOFY_CSS, type Mood } from "@/components/goofy";
+import type { Mood } from "@/components/goofy";
 import { PAINTED_CONFETTI, PAINTED_WRAPPERS, PaintedBar, PaintedCoin, PaintedDefs, PaintedMini, PaintedRoll } from "@/components/painted";
 import { RollingNumber } from "@/components/rolling-number";
 import { cn, shareLabel } from "@/lib/utils";
@@ -460,7 +460,6 @@ export function CoinStage({
         @keyframes coins-float { from { transform: translateY(-7px) rotate(-7deg); } to { transform: translateY(7px) rotate(7deg); } }
         .coins-float { animation: coins-float ease-in-out infinite alternate; }
         @media (prefers-reduced-motion: reduce) { .coins-float { animation: none; } }
-        ${GOOFY_CSS}
       `}</style>
       {/* The stage: the month's rolls on one floor, the loose change beside them. */}
       <section

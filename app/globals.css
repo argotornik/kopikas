@@ -179,6 +179,20 @@
 .coins-panel .font-mono { font-family: inherit; font-variant-numeric: tabular-nums; }
 .coins-panel [data-slot="dialog-footer"] { margin: 0 -1.5rem -1.5rem; padding: 0.5rem 1.5rem 1.5rem; background: transparent; border-top: 0; }
 
+/* The painted cast's blink (painted.tsx) and Kopikas's boiling line (kopikas-mascot.tsx), on every
+   page, so the header's coin blinks wherever it is, not only on the board. Reduced motion stills both. */
+@keyframes goofy-boil { 0%, 33.3% { opacity: 1; } 33.4%, 100% { opacity: 0; } }
+.goofy-boil > * { animation: goofy-boil 0.72s steps(1, end) infinite; }
+.goofy-boil > :nth-child(2) { animation-delay: -0.24s; }
+.goofy-boil > :nth-child(3) { animation-delay: -0.48s; }
+@keyframes goofy-blink { 0%, 93%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+.goofy-blink { transform-box: fill-box; transform-origin: center; animation: goofy-blink 5.2s infinite; }
+@media (prefers-reduced-motion: reduce) {
+    .goofy-boil > * { animation: none; opacity: 0; }
+    .goofy-boil > :first-child { opacity: 1; }
+    .goofy-blink { animation: none; }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

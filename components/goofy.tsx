@@ -1,7 +1,7 @@
 // The coin tray's hand: nothing is a perfect circle or a true rectangle, and
 // every character has a face with a personality. Shapes are seeded, so a
 // character keeps its own wobble from render to render; three seeds shown in
-// turn make the line boil like a hand-drawn animation (the .goofy-boil rule).
+// turn make the line boil like a hand-drawn animation (the .goofy-boil rule in globals.css).
 
 export const INK = "#17181D";
 
@@ -91,18 +91,3 @@ export function wobblyRect(x: number, y: number, w: number, h: number, r: number
 
 // The faces' moods; puzzled is a coin still looking for its roll.
 export type Mood = "happy" | "glad" | "wow" | "puzzled";
-
-// The boil and the blink, shared by every character. Reduced motion stills both.
-export const GOOFY_CSS = `
-  @keyframes goofy-boil { 0%, 33.3% { opacity: 1; } 33.4%, 100% { opacity: 0; } }
-  .goofy-boil > * { animation: goofy-boil 0.72s steps(1, end) infinite; }
-  .goofy-boil > :nth-child(2) { animation-delay: -0.24s; }
-  .goofy-boil > :nth-child(3) { animation-delay: -0.48s; }
-  @keyframes goofy-blink { 0%, 93%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
-  .goofy-blink { transform-box: fill-box; transform-origin: center; animation: goofy-blink 5.2s infinite; }
-  @media (prefers-reduced-motion: reduce) {
-    .goofy-boil > * { animation: none; opacity: 0; }
-    .goofy-boil > :first-child { opacity: 1; }
-    .goofy-blink { animation: none; }
-  }
-`;

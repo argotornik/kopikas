@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef } from "react";
 import { motion, useMotionValue, useReducedMotion, useSpring } from "motion/react";
-import { GOOFY_CSS, INK, wobblyCircle } from "@/components/goofy";
+import { INK, wobblyCircle } from "@/components/goofy";
 import { PaintedKopikas, type PaintedPose } from "@/components/kopikas-painted";
 import { cn } from "@/lib/utils";
 
@@ -101,7 +101,6 @@ export function KopikasMascot({
       aria-hidden
       className={cn("block overflow-visible", className)}
     >
-      <style>{GOOFY_CSS}</style>
       <defs>
         <linearGradient id={`${uid}-face`} x1="0.15" y1="0.1" x2="0.85" y2="0.95">
           <stop offset="0" stopColor="#F9C08F" />
