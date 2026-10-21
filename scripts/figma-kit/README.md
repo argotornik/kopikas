@@ -7,6 +7,8 @@ What it builds, on the Stage page:
 - **Stage · 1440 · light / dark** and **Phone · 375 · light**: the board's stage at `/?month=2026-09`, every drawing an editable vector, the text live and on the kit's text styles, colours bound to its variables, each roll grouped with its labels.
 - **To file · 390 · light / dark**: the whole phone screen, with the header, panel, pills, tiles and tab bar as grouped layers.
 
+Every colour variable carries its code syntax: the CSS variable in `app/globals.css` (`light/ink` is `var(--color-ink)`, `dark/ink` is `var(--color-chalk)`), or the name in `components/painted.tsx` for the cast's colours (`PAINTED_WRAPPERS[0]`, `PAINTED_METALS.copper.body`), so Dev Mode shows what the code calls it. The values are copies, not a sync: when a token changes in the code, change its variable too.
+
 Every coin, squiggle and dot in these frames is an instance of its component on the Parts page, so a Part edited there reaches every frame; each keeps its place, turn, size and colour. The header's coin stays drawn, named Logo: the app always draws the brand mark with the same wobble, and the Part's differs. Rolls, bars and the tiles' mini rolls stay drawn too, since each one's height is its amount and the inside of an instance can't be resized.
 
 A frame that is rebuilt keeps its old self, renamed "· replaced <date>" and moved left of everything. Delete those in Figma once they are no longer needed.

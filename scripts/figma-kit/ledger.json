@@ -50,7 +50,13 @@
   "coin/nickel/edge": "VariableID:9:9",
   "coin/nickel/ring": "VariableID:9:10",
   "dark/card-on-stage": "VariableID:100:1079",
-  "dark/mist-on-stage": "VariableID:100:1080"
+  "dark/mist-on-stage": "VariableID:100:1080",
+  "light/mist": "VariableID:154:104",
+  "dark/mist": "VariableID:154:105",
+  "light/stamp-red": "VariableID:154:106",
+  "dark/stamp-red": "VariableID:154:107",
+  "status/sun": "VariableID:154:108",
+  "status/sun-ink": "VariableID:154:109"
  },
  "styles": {
   "Display": "S:c5a27fe38d1508fa171c5c2a5336afc4b680536c,",
