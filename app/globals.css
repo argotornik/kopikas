@@ -39,7 +39,6 @@
     --color-muted-text-night: #A7A9B4;
     --color-received: #0A763F;
     --color-received-night: #4FD18B;
-    --color-copper: #CB793E;
     /* Sun yellow marks what needs dealing with: a late sync, a failed connection. As text
        or an icon on a light ground it is sun-ink. */
     --color-sun: #FFB020;
