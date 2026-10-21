@@ -15,9 +15,9 @@ colors:
   chalk: "#F3F2EE"
   muted: "#63666F"
   muted-night: "#A7A9B4"
-  copper: "#CB793E"
-  copper-edge: "#A45A2B"
-  copper-ring: "#E39C63"
+  copper: "#C9773F"
+  copper-edge: "#9A5A2E"
+  copper-ring: "#E7A06A"
   copper-k: "#7C3F1D"
   brass: "#E3B341"
   nickel: "#BDBDBD"
@@ -195,7 +195,7 @@ The board at `/` is the coin tray: every charge is a coin, every category a roll
 A white page, a warm oat stage, copper as the house colour, Crayon Blue for every painted face, and thirteen matte wrapper colours that each belong to one category.
 
 ### Primary
-- **Kopikas Copper** (copper): the house colour, carried by the coin: Kopikas's body, the wordmark coin, the loose coins in the pile. Its darker **Copper Edge** shows the coin's turned rim, **Copper Ring** the struck ring, and **Copper K** the embossed k. Coins also come in **Brass** and **Nickel**, so a pile reads as loose change rather than one colour repeated.
+- **Kopikas Copper** (copper): the house colour, carried by the coin: the wordmark coin and the loose coins in the pile. Its darker **Copper Edge** shows the coin's turned rim and **Copper Ring** the struck ring. Coins also come in **Brass** and **Nickel**, so a pile reads as loose change rather than one colour repeated. These are the painted coins' metals (`PAINTED_METALS` in `painted.tsx`). Kopikas himself, off the stage, is drawn in a slightly warmer copper of his own (`kopikas-figure.ts`), with **Copper K** for the embossed k.
 
 ### Secondary
 - **Crayon Blue** (crayon-blue): the ink of every painted face, Kopikas's eyes and mouth, and every limit line. On a light wrapper a face is drawn in **Face Navy**, on a dark one in **Face Cream**, so it always reads on its own roll.

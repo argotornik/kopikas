@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-19T20:17:55+00:00",
+  "generatedAt": "2026-10-21T11:54:55+00:00",
   "title": "Design System: Kopikas",
   "extensions": {
     "colorMeta": {
@@ -202,46 +202,46 @@
       "copper": {
         "role": "primary",
         "displayName": "Kopikas Copper",
-        "canonical": "oklch(65.4% 0.126 54.1)",
+        "canonical": "oklch(64.8% 0.125 52.9)",
         "tonalRamp": [
-          "oklch(15% 0.126 54.1)",
-          "oklch(25% 0.126 54.1)",
-          "oklch(35% 0.126 54.1)",
-          "oklch(48% 0.126 54.1)",
-          "oklch(60% 0.126 54.1)",
-          "oklch(72% 0.126 54.1)",
-          "oklch(84% 0.126 54.1)",
-          "oklch(95% 0.126 54.1)"
+          "oklch(15% 0.125 52.9)",
+          "oklch(25% 0.125 52.9)",
+          "oklch(35% 0.125 52.9)",
+          "oklch(48% 0.125 52.9)",
+          "oklch(60% 0.125 52.9)",
+          "oklch(72% 0.125 52.9)",
+          "oklch(84% 0.125 52.9)",
+          "oklch(95% 0.125 52.9)"
         ]
       },
       "copper-edge": {
         "role": "primary",
         "displayName": "Copper Edge",
-        "canonical": "oklch(54.6% 0.114 50.5)",
+        "canonical": "oklch(53.2% 0.103 53.1)",
         "tonalRamp": [
-          "oklch(15% 0.114 50.5)",
-          "oklch(25% 0.114 50.5)",
-          "oklch(35% 0.114 50.5)",
-          "oklch(48% 0.114 50.5)",
-          "oklch(60% 0.114 50.5)",
-          "oklch(72% 0.114 50.5)",
-          "oklch(84% 0.114 50.5)",
-          "oklch(95% 0.114 50.5)"
+          "oklch(15% 0.103 53.1)",
+          "oklch(25% 0.103 53.1)",
+          "oklch(35% 0.103 53.1)",
+          "oklch(48% 0.103 53.1)",
+          "oklch(60% 0.103 53.1)",
+          "oklch(72% 0.103 53.1)",
+          "oklch(84% 0.103 53.1)",
+          "oklch(95% 0.103 53.1)"
         ]
       },
       "copper-ring": {
         "role": "primary",
         "displayName": "Copper Ring",
-        "canonical": "oklch(75.1% 0.112 58.7)",
+        "canonical": "oklch(76.3% 0.110 57.4)",
         "tonalRamp": [
-          "oklch(15% 0.112 58.7)",
-          "oklch(25% 0.112 58.7)",
-          "oklch(35% 0.112 58.7)",
-          "oklch(48% 0.112 58.7)",
-          "oklch(60% 0.112 58.7)",
-          "oklch(72% 0.112 58.7)",
-          "oklch(84% 0.112 58.7)",
-          "oklch(95% 0.112 58.7)"
+          "oklch(15% 0.110 57.4)",
+          "oklch(25% 0.110 57.4)",
+          "oklch(35% 0.110 57.4)",
+          "oklch(48% 0.110 57.4)",
+          "oklch(60% 0.110 57.4)",
+          "oklch(72% 0.110 57.4)",
+          "oklch(84% 0.110 57.4)",
+          "oklch(95% 0.110 57.4)"
         ]
       },
       "copper-k": {
