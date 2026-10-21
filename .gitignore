@@ -8,6 +8,10 @@ brag-output*/
 # TypeScript's incremental build cache.
 *.tsbuildinfo
 
+# Next.js rewrites this on every dev, build and typegen (it points at .next/dev or .next), and its
+# docs say not to track it: next build makes it before type-checking.
+/next-env.d.ts
+
 # Impeccable's local question server: its process, port and heartbeat.
 /.impeccable/questions/
 
