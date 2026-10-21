@@ -7,7 +7,7 @@ What it builds, on the Stage page:
 - **Stage · 1440 · light / dark** and **Phone · 375 · light**: the board's stage at `/?month=2026-09`, every drawing an editable vector, the text live and on the kit's text styles, colours bound to its variables, each roll grouped with its labels.
 - **To file · 390 · light / dark**: the whole phone screen, with the header, panel, pills, tiles and tab bar as grouped layers.
 
-Every colour variable carries its code syntax: the CSS variable in `app/globals.css` (`light/ink` is `var(--color-ink)`, `dark/ink` is `var(--color-chalk)`), or the name in `components/painted.tsx` for the cast's colours (`PAINTED_WRAPPERS[0]`, `PAINTED_METALS.copper.body`), so Dev Mode shows what the code calls it. The values are copies, not a sync: when a token changes in the code, change its variable too.
+Every colour variable carries its code syntax: the CSS variable in `app/globals.css` (`light/ink` is `var(--color-ink)`, `dark/ink` is `var(--color-chalk)`), or the name in `components/painted.tsx` for the cast's colours (`PAINTED_WRAPPERS[0]`, `PAINTED_METALS.copper.body`), so Dev Mode shows what the code calls it. The values are copies, not a sync: when a token changes in the code, change its variable too, and run the drift check (below) to catch one that was missed.
 
 Every coin, squiggle and dot in these frames is an instance of its component on the Parts page, so a Part edited there reaches every frame; each keeps its place, turn, size and colour. The header's coin stays drawn, named Logo: the app always draws the brand mark with the same wobble, and the Part's differs. Rolls, bars and the tiles' mini rolls stay drawn too, since each one's height is its amount and the inside of an instance can't be resized.
 
@@ -37,6 +37,10 @@ node scripts/figma-kit/svgs.mjs s2l s2d p2l t2l t2d
 
 To turn the coins and marks of frames already on the page into instances without rebuilding them, run `node scripts/figma-kit/gen-calls.mjs instances <frame id>...` and pass `out/call-instances.js` to `use_figma`.
 
+## Drift check
+
+Do the variables still hold the code's values? Run `node scripts/figma-kit/gen-calls.mjs drift` and pass `out/call-drift.js` to `use_figma`. It reads the colours from `app/globals.css` and `components/painted.tsx`, matches each variable by its code syntax, and changes nothing. `inStep: true` means every variable matches; `drift` lists any that don't, with both values; `notInFigma` lists code colours with no variable (the hover states are left out on purpose). Run it with each refresh, and whenever a colour changes in the code.
+
 ## Files
 
 - `export-stage.mjs`: the stage as a scene, meaning its SVGs (styles resolved, rotation measured) and its text runs.
@@ -45,6 +49,7 @@ To turn the coins and marks of frames already on the page into instances without
 - `upload.mjs`: posts the waiting SVGs to the upload URLs.
 - `gen-calls.mjs`: writes the `use_figma` scripts into `out/` from the templates and `ledger.json`.
 - `stage.tpl.js`, `screen.tpl.js`: the builds. `parts-2026-10-18.tpl.js` is a one-off, guarded so a second run adds nothing.
+- `drift.tpl.js`: the drift check, read-only.
 - `instances.tpl.js`: appended to both builds; turns their coins and marks into instances of the Parts, reading each coin's variant (metal and mood) off its drawing.
 - `ledger.json`: the file's IDs for pages, variables, text styles, component sets and the current frames.
 - `out/`: generated, not committed.

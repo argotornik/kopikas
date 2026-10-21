@@ -4,6 +4,8 @@
 //   node gen-calls.mjs screens <light> <dark> [--with-parts]   out/call-screens.js: the phone's To file screens
 //   node gen-calls.mjs instances <frame id>...          out/call-instances.js: coins and marks in those frames become
 //                                                       instances of their Parts (the builds above do this to theirs)
+//   node gen-calls.mjs drift                            out/call-drift.js: do the kit's colour variables still hold the
+//                                                       code's values (globals.css, painted.tsx)? Read-only
 import { readFileSync, writeFileSync } from "node:fs";
 const here = (p) => new URL(p, import.meta.url);
 const read = (p) => readFileSync(here(p), "utf8");
@@ -47,7 +49,22 @@ if (mode === "stage") {
   write("call-screens.js", `const SCREENS = ${JSON.stringify(SCREENS)};\nconst WRAP = ${JSON.stringify(WRAP)};\nconst DATE = ${JSON.stringify(DATE)};\n${read("screen.tpl.js")}${parts}${read("instances.tpl.js")}\nreturn result;\n`);
 } else if (mode === "instances" && rest.length) {
   write("call-instances.js", `const FRAME_IDS = ${JSON.stringify(rest)};\nconst result = {};\n${read("instances.tpl.js")}\nreturn result;\n`);
+} else if (mode === "drift") {
+  // The code's colours, keyed as the variables' code syntax names them.
+  const css = readFileSync(here("../../app/globals.css"), "utf8"), painted = readFileSync(here("../../components/painted.tsx"), "utf8");
+  const CODE = {};
+  for (const [, name, hex] of css.matchAll(/--color-([\w-]+):\s*(#[0-9A-Fa-f]{6})\b/g)) CODE[`var(--color-${name})`] ??= hex;
+  CODE["var(--color-white)"] ??= "#FFFFFF"; // Tailwind's own white, which the page and cards use
+  const scope = (sel) => painted.match(new RegExp(`${sel} \\{([^}]*)\\}`))[1];
+  for (const [, name, hex] of scope(":root").matchAll(/--painted-([\w-]+):\s*(#[0-9A-Fa-f]{6})/g)) CODE[`var(--painted-${name})`] = { light: hex };
+  for (const [, name, hex] of scope("\\.dark").matchAll(/--painted-([\w-]+):\s*(#[0-9A-Fa-f]{6})/g)) if (CODE[`var(--painted-${name})`]) CODE[`var(--painted-${name})`].dark = hex;
+  [...painted.match(/PAINTED_WRAPPERS = \[([^\]]*)\]/)[1].matchAll(/"(#[0-9A-Fa-f]{6})"/g)].forEach(([, hex], i) => (CODE[`PAINTED_WRAPPERS[${i}]`] = hex));
+  for (const [, metal, body] of painted.matchAll(/^\s+(\w+): \{ (body: "#[^}]+) \},?$/gm)) for (const [, part, hex] of body.matchAll(/(\w+): "(#[0-9A-Fa-f]{6})"/g)) CODE[`PAINTED_METALS.${metal}.${part}`] = hex;
+  CODE.BLUE = painted.match(/const BLUE = "(#[0-9A-Fa-f]{6})"/)[1];
+  const [, onLight, onDark] = painted.match(/return lum > [\d.]+ \? "(#[0-9A-Fa-f]{6})" : "(#[0-9A-Fa-f]{6})"/);
+  Object.assign(CODE, { "faceInk(light wrapper)": onLight, "faceInk(dark wrapper)": onDark });
+  write("call-drift.js", `const CODE = ${JSON.stringify(CODE)};\n${read("drift.tpl.js")}\nreturn result;\n`);
 } else {
-  console.log("Usage: node gen-calls.mjs stage <light> <dark> <phone> | screens <light> <dark> [--with-parts] | instances <frame id>...");
+  console.log("Usage: node gen-calls.mjs stage <light> <dark> <phone> | screens <light> <dark> [--with-parts] | instances <frame id>... | drift");
   process.exit(1);
 }
