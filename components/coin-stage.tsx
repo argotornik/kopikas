@@ -91,6 +91,26 @@ function Floater({ f }: { f: Mark }) {
 }
 
 // A roll as a place to drop a ledger row dragged onto it, when the page lets rows be dragged.
+// A loose coin's charge, shown while it is picked up, hovered or focused: the pill the mouse carries
+// when a row is dragged (coin-board.tsx), so a coin is never filed blind. Screen readers hear the same
+// from the coin's own name, so this is for the eyes only. Beside the phone's coin row there is no room
+// for the day as well; the name and the amount are what tell two coins apart.
+function CoinLabel({ tx, day = true, className }: { tx: BoardTx; day?: boolean; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "inline-flex max-w-full items-center gap-1.5 rounded-full bg-white py-1 pl-3 pr-3.5 text-[13px] font-medium leading-[22px] ring-1 ring-ink/10 dark:bg-card-night dark:ring-white/10",
+        className
+      )}
+    >
+      <span className="min-w-0 truncate">{tx.name}</span>
+      <span className="shrink-0 tabular-nums">{eur.format(Math.abs(tx.amount))}</span>
+      {day && <span className={cn("shrink-0 font-normal", MUTED)}>· {shortDate.format(new Date(tx.date + "T00:00:00Z"))}</span>}
+    </span>
+  );
+}
+
 function RollTarget({ name, children }: { name: string; children: ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: `roll:${name}` });
   return (
@@ -185,6 +205,8 @@ export function CoinStage({
 }) {
   const reduce = useReducedMotion();
   const [picked, setPicked] = useState<string | null>(null);
+  // The coin under the pointer or the keyboard's focus: its label shows until it is let go.
+  const [peek, setPeek] = useState<string | null>(null);
   const [flight, setFlight] = useState<Flight | null>(null);
   const [gulp, setGulp] = useState<{ category: string; n: number } | null>(null);
   const [jarGulp, setJarGulp] = useState(0);
@@ -266,6 +288,7 @@ export function CoinStage({
   const elsewhereMonth = elsewhere.map((t) => monthOf(t.date)).sort().at(-1);
   const oneMonth = elsewhere.every((t) => monthOf(t.date) === elsewhereMonth);
   const pickedTx = loose.find((t) => t.id === picked) ?? null;
+  const labelled = pickedTx ?? loose.find((t) => t.id === peek) ?? null;
 
   // One shared scale: a euro is the same height on every roll. A sleeper's limit
   // waits for its first coin, so it stretches nothing.
@@ -314,6 +337,10 @@ export function CoinStage({
             aria-pressed={isPicked}
             aria-label={`${t.name}, ${eur.format(Math.abs(t.amount))}, ${shortDate.format(new Date(t.date + "T00:00:00Z"))}${splitNote(t)}. Pick up to file`}
             onClick={() => setPicked(isPicked ? null : t.id)}
+            onMouseEnter={() => setPeek(t.id)}
+            onMouseLeave={() => setPeek((p) => (p === t.id ? null : p))}
+            onFocus={() => setPeek(t.id)}
+            onBlur={() => setPeek((p) => (p === t.id ? null : p))}
             className={cn("absolute rounded-full", FOCUS, flight?.tx.id === t.id && "opacity-0")}
             style={{ left: spot.x * pileScale, bottom: spot.y * pileScale, zIndex: isPicked ? 20 : 10 - i }}
             // The same start on the server, which cannot know the motion setting, and in the
@@ -353,13 +380,39 @@ export function CoinStage({
       </button>
     </div>
   );
+  // The label and the hint each sit in the slot of what they replace, the slot as tall as the taller
+  // of the two, so the pile's block never changes height and the floor never moves under the pointer.
+  // Under the pile, whose column is only 120px, the label may be wider than it: centred while it
+  // fits the column plus the panel's padding either side, else held at the padding's right edge and
+  // grown leftwards into the air, never clipped (right-to-left with "safe" centring does that).
+  const countSlot = (count: string, under: boolean) => (
+    <div className={cn("grid h-[30px] grid-cols-1 items-center", under ? "-mx-7 [direction:rtl] [justify-items:safe_center]" : "justify-items-start")}>
+      <div className={cn("col-start-1 row-start-1 text-[13px] tabular-nums [direction:ltr]", MUTED, labelled && "invisible")}>{count}</div>
+      {labelled && (
+        <CoinLabel
+          tx={labelled}
+          day={under}
+          // Above the floaters around the pile (they are placed, so they would paint over it).
+          className={cn("relative z-10 col-start-1 row-start-1 [direction:ltr]", under && "w-max max-w-[280px]")}
+        />
+      )}
+    </div>
+  );
+  const hintSlot = (hint: string) => (
+    <div className="grid min-h-5">
+      <div className={cn("col-start-1 row-start-1", pickedTx && "invisible")}>{elsewhereNote}</div>
+      {pickedTx && (
+        <div aria-hidden className="col-start-1 row-start-1 text-[13px] text-ink dark:text-chalk">
+          {hint}
+        </div>
+      )}
+    </div>
+  );
   const pileLabel = (
     <div className="mt-3 text-center">
       <div className={cn(DISPLAY, "text-[16px] font-semibold")}>Loose change</div>
-      <div className={cn("text-[13px] tabular-nums", MUTED)}>
-        {loose.length === 0 ? "nothing to file" : `${loose.length} to file${loose.length > PILE.length ? ` · ${PILE.length} shown` : ""}`}
-      </div>
-      {elsewhereNote}
+      {countSlot(loose.length === 0 ? "nothing to file" : `${loose.length} to file${loose.length > PILE.length ? ` · ${PILE.length} shown` : ""}`, true)}
+      {hintSlot("Tap its roll")}
     </div>
   );
 
@@ -571,6 +624,10 @@ export function CoinStage({
                         aria-pressed={isPicked}
                         aria-label={`${t.name}, ${eur.format(Math.abs(t.amount))}, ${shortDate.format(new Date(t.date + "T00:00:00Z"))}${splitNote(t)}. Pick up to file`}
                         onClick={() => setPicked(isPicked ? null : t.id)}
+                        onMouseEnter={() => setPeek(t.id)}
+                        onMouseLeave={() => setPeek((p) => (p === t.id ? null : p))}
+                        onFocus={() => setPeek(t.id)}
+                        onBlur={() => setPeek((p) => (p === t.id ? null : p))}
                         className={cn("relative rounded-full", FOCUS, flight?.tx.id === t.id && "opacity-0")}
                         style={{ zIndex: isPicked ? 20 : 10 - i }}
                         animate={isPicked ? { y: -10, scale: 1.15, rotate: [0, -10, 10, 0] } : { y: 0, scale: 1, rotate: 0 }}
@@ -583,12 +640,10 @@ export function CoinStage({
                   })
                 )}
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className={cn(DISPLAY, "text-[16px] font-semibold leading-tight")}>Loose change</div>
-                <div className={cn("text-[13px] tabular-nums", MUTED)}>
-                  {loose.length === 0 ? "nothing to file" : `${loose.length} to file${loose.length > 6 ? " · 6 shown" : ""}`}
-                </div>
-                {elsewhereNote}
+                {countSlot(loose.length === 0 ? "nothing to file" : `${loose.length} to file${loose.length > 6 ? " · 6 shown" : ""}`, false)}
+                {hintSlot("Tap its roll below")}
               </div>
             </div>
             <div className="h-px bg-ink/10 dark:bg-white/10" aria-hidden />

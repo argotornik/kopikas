@@ -5,8 +5,9 @@ import { Menu } from "@base-ui/react/menu";
 import { CheckIcon } from "lucide-react";
 import type { BoardTx } from "@/lib/board";
 import { eur, wrapperOf } from "@/components/coin-stage";
-import { FOCUS, MUTED } from "@/components/coin-look";
+import { FOCUS, INK, MUTED } from "@/components/coin-look";
 import { MerchantIcon } from "@/components/merchant-icon";
+import { PaintedCoin } from "@/components/painted";
 import { SPLITS } from "@/components/split-picker";
 import { cn, shareLabel } from "@/lib/utils";
 
@@ -114,20 +115,23 @@ function Row({
             payload={t.id}
             // A click files; it must not also start a drag of the row.
             onMouseDown={(e) => e.stopPropagation()}
-            aria-label={`${t.category ?? "To file"}: file ${t.name}, ${eur.format(Math.abs(t.amount))}`}
+            aria-label={`${t.category ? `${t.category}: file` : "File"} ${t.name}, ${eur.format(Math.abs(t.amount))}`}
             className={cn(
               CHIP,
               "cursor-pointer data-popup-open:ring-2 data-popup-open:ring-ink/20 dark:data-popup-open:ring-white/25",
-              t.category
-                ? "bg-white hover:bg-mist dark:bg-card-night dark:hover:bg-card-night-hover"
-                : "border-2 border-dashed border-ink/25 py-0.5 hover:border-ink/45 dark:border-white/25 dark:hover:border-white/45",
+              t.category ? "bg-white hover:bg-mist dark:bg-card-night dark:hover:bg-card-night-hover" : cn(INK, "pl-1"),
               FOCUS
             )}
           >
-            {t.category && (
+            {t.category ? (
               <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: wrapperOf(categories, t.category) }} />
+            ) : (
+              // A loose coin, puzzled like the ones in the pile; it fits the chip's line.
+              <span aria-hidden className="-my-0.5 shrink-0">
+                <PaintedCoin size={20} mood="puzzled" seed={(t.id.charCodeAt(t.id.length - 1) % 5) + 2} />
+              </span>
             )}
-            <span className="truncate">{t.category ?? "To file"}</span>
+            <span className="truncate">{t.category ?? "File…"}</span>
           </Menu.Trigger>
         )}
       </div>

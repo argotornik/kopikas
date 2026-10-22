@@ -4,7 +4,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { ChevronDownIcon, SearchIcon, XIcon } from "lucide-react";
 import { DndContext, DragOverlay, MouseSensor, pointerWithin, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import type { Board, BoardTx } from "@/lib/board";
-import { SAVINGS, SUBSCRIPTIONS } from "@/lib/engine";
+import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
 import { act } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";
 import { PaintedCoin } from "@/components/painted";
@@ -27,6 +27,8 @@ import { cn, shareLabel } from "@/lib/utils";
 
 // The list's view of money that came in, beside the categories a roll can pick.
 const MONEY_IN = "money-in";
+// The list's view of every charge still waiting to be filed, from every month.
+const TO_FILE = "to-file";
 // Notices sit above the phone's tab bar. The editors' new look is `.coins-panel`, in globals.css.
 const PANEL_CSS = `@media (max-width: 639px) { :root { --bottom-bar: 4.5rem; } }`;
 // A row starts to drag only once the mouse has moved, so a click stays a click.
@@ -164,20 +166,32 @@ export function CoinBoard({
 
   // A coin files at once, as just this one: it is in its roll before the server
   // answers, and the notice offers Always beside Undo. The Subscriptions roll
-  // tracks the charge as a subscription, which always means always.
-  const onFile = (tx: BoardTx, category: string) => {
+  // tracks the charge as a subscription, which always means always. With Always set
+  // before the tap (the phone queue's toggle), the shop's other loose charges go in too
+  // and the rule is taught in the same request, so one Undo takes back all of it.
+  const onFile = (tx: BoardTx, category: string, always = false) => {
+    const subscription = category === SUBSCRIPTIONS;
+    const wide = always && !subscription;
+    const alike = new Set(wide ? looseCoins(board.txs, null).filter((t) => t.id !== tx.id && matches(t, tx.rulePattern)).map((t) => t.id) : []);
     setBoard((b) => ({
       ...b,
-      txs: b.txs.map((t) => (t.id === tx.id ? { ...t, category, categorySource: "override" as const } : t)),
-      uncategorizedCount: b.uncategorizedCount - (tx.category ? 0 : 1),
+      txs: b.txs.map((t) =>
+        t.id === tx.id ? { ...t, category, categorySource: "override" as const } : alike.has(t.id) ? { ...t, category, categorySource: "rule" as const } : t
+      ),
+      uncategorizedCount: b.uncategorizedCount - (tx.category ? 0 : 1) - alike.size,
     }));
-    const subscription = category === SUBSCRIPTIONS;
-    void run(subscription ? { type: "subscribe", txId: tx.id } : { type: "override", txId: tx.id, category }).then((r) => {
+    void run(subscription ? { type: "subscribe", txId: tx.id } : { type: "override", txId: tx.id, category, ...(wide && { always: true }) }).then((r) => {
       if (!r.ok) {
         announceError(r.error);
         return refetch();
       }
       if (subscription) return announceUndoable(`Now tracking ${tx.name} as a subscription.`, r.undo, refetch);
+      if (wide)
+        return announceUndoable(
+          alike.size ? `Filed ${alike.size + 1} from ${tx.name} under ${category}, and every one to come.` : `Filed ${tx.name} under ${category}, and every one to come.`,
+          r.undo,
+          refetch
+        );
       announceUndoable(`Filed ${tx.name} under ${category}.`, r.undo, refetch, {
         label: "Always",
         onClick: () => void teachAlways(tx, category),
@@ -303,14 +317,14 @@ export function CoinBoard({
   const [query, setQuery] = useState(view?.q ?? "");
   const [only, setOnly] = useState<string | null>(() => {
     const cat = view?.cat;
-    return cat === "Incoming" ? MONEY_IN : cat && initial.categories.some((c) => c.name === cat) ? cat : null;
+    return cat === "Incoming" ? MONEY_IN : cat === "To file" ? TO_FILE : cat && initial.categories.some((c) => c.name === cat) ? cat : null;
   });
   // The view goes into the address without a round trip; a moment late, so typing in
   // the search does not hit the browser's limit on address changes.
   useEffect(() => {
     const t = setTimeout(() => {
       const p = new URLSearchParams();
-      if (only) p.set("cat", only === MONEY_IN ? "Incoming" : only);
+      if (only) p.set("cat", only === MONEY_IN ? "Incoming" : only === TO_FILE ? "To file" : only);
       if (month !== initial.month) p.set("month", month);
       if (query.trim()) p.set("q", query.trim());
       const qs = p.toString();
@@ -322,8 +336,8 @@ export function CoinBoard({
   const rows = board.txs
     .filter(
       (t) =>
-        (q ? true : monthOf(t.date) === month) &&
-        (only === MONEY_IN ? t.amount > 0 : only ? t.category === only : true) &&
+        (q || only === TO_FILE ? true : monthOf(t.date) === month) &&
+        (only === MONEY_IN ? t.amount > 0 : only === TO_FILE ? t.amount < 0 && !t.category && !t.micro : only ? t.category === only : true) &&
         (!q || [t.name, t.counterparty, t.description, t.note, t.category].join(" ").toLowerCase().includes(q))
     )
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -331,7 +345,15 @@ export function CoinBoard({
   const spent = out.reduce((s, t) => s - t.amount, 0);
   const received = rows.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const toggle = (v: string) => setOnly((o) => (o === v ? null : v));
-  const showing = only === MONEY_IN ? "Money in" : only;
+  const showing = only === MONEY_IN ? "Money in" : only === TO_FILE ? "To file" : only;
+  // The roll the list is showing, if it is one: money in and the backlog are not rolls.
+  const picked = only === MONEY_IN || only === TO_FILE ? null : only;
+  const pill = (on: boolean) =>
+    cn(
+      "h-10 rounded-full px-4 text-[15px] font-medium pointer-coarse:h-11",
+      on ? "bg-ink text-white dark:bg-chalk dark:text-ink" : "bg-white hover:bg-mist dark:bg-card-night dark:hover:bg-card-night-hover",
+      FOCUS
+    );
 
   // A ledger row dragged onto a roll files there, the same as a coin. Mouse only:
   // the keyboard and a finger file through the row's File menu.
@@ -439,15 +461,15 @@ export function CoinBoard({
             currentMonth={initial.month}
             onMonthChange={setMonth}
             onFile={onFile}
-            selected={only === MONEY_IN ? null : only}
+            selected={picked}
             onSelect={toggle}
             // A chosen roll's year takes the figures' place; they come back when it is let go.
             figures={
-              only && only !== MONEY_IN ? (
+              picked ? (
                 <CoinYear
                   txs={board.txs}
                   categories={categories}
-                  category={only}
+                  category={picked}
                   month={month}
                   currentMonth={initial.month}
                   earliest={months[0]}
@@ -604,18 +626,13 @@ export function CoinBoard({
                 <h2 id="ledger-heading" className={cn(DISPLAY, "mr-auto text-[20px] font-semibold")}>
                   Every charge
                 </h2>
-                <button
-                  type="button"
-                  aria-pressed={only === MONEY_IN}
-                  onClick={() => toggle(MONEY_IN)}
-                  className={cn(
-                    "h-10 rounded-full px-4 text-[15px] font-medium pointer-coarse:h-11",
-                    only === MONEY_IN
-                      ? "bg-ink text-white dark:bg-chalk dark:text-ink"
-                      : "bg-white hover:bg-mist dark:bg-card-night dark:hover:bg-card-night-hover",
-                    FOCUS
-                  )}
-                >
+                {/* The phone has its To file tab for the backlog, so the pill shows there only when a link turned it on. */}
+                {(toFile > 0 || only === TO_FILE) && (
+                  <button type="button" aria-pressed={only === TO_FILE} onClick={() => toggle(TO_FILE)} className={cn(pill(only === TO_FILE), only !== TO_FILE && "max-sm:hidden")}>
+                    To file <span className="tabular-nums">· {toFile}</span>
+                  </button>
+                )}
+                <button type="button" aria-pressed={only === MONEY_IN} onClick={() => toggle(MONEY_IN)} className={pill(only === MONEY_IN)}>
                   Money in
                 </button>
                 <div className="relative w-full sm:w-64">
@@ -646,7 +663,11 @@ export function CoinBoard({
               </div>
               {(q || showing) && (
                 <p className={cn("pt-3 text-[13px]", MUTED)} aria-live="polite">
-                  {q ? `${rows.length} ${rows.length === 1 ? "match" : "matches"}${showing ? ` in ${showing}` : ""}, every month` : `${showing}, ${label(month)}`}
+                  {q
+                    ? `${rows.length} ${rows.length === 1 ? "match" : "matches"}${showing ? ` in ${showing}` : ""}, every month`
+                    : only === TO_FILE
+                      ? `${rows.length} to file, every month`
+                      : `${showing}, ${label(month)}`}
                   {" · "}
                   <span className="tabular-nums">{only === MONEY_IN ? `+${eur.format(received)}` : `${eur.format(spent)} spent`}</span>
                   {" · "}
@@ -676,9 +697,11 @@ export function CoinBoard({
                     ? `No charges match “${query.trim()}”.`
                     : only === MONEY_IN
                       ? `No money came in during ${label(month)}.`
-                      : only
-                        ? `Nothing in ${only} in ${label(month)} yet.`
-                        : "No charges in this month yet."}
+                      : only === TO_FILE
+                        ? "Every charge is filed."
+                        : only
+                          ? `Nothing in ${only} in ${label(month)} yet.`
+                          : "No charges in this month yet."}
                 </p>
               )}
             </section>

@@ -260,7 +260,7 @@ On a wide screen (1900px and up) the board shows the month at once: the column g
 
 On an ultrawide (2700px wide and 1104px tall or more) the stage is drawn a third larger, 1536px wide and about 990px tall: the whole picture magnified at once, rolls, coins, the total and its words alike, so the type scale and every proportion hold. The charges keep their 1048px and the column grows to 2664px, about three quarters of a 3440px screen. A coin filed from the stage flies at the stage's size. A wide screen too short for that keeps the 1152px stage.
 
-The stage shows one month at a time: its pile holds that month's loose change, and a line under it leads to other months with coins waiting. A month, a chosen roll and a search live in the address (`?month=`, `?cat=`, `?q=`; `cat=Incoming` for money in), so a view can be linked.
+The stage shows one month at a time: its pile holds that month's loose change, and a line under it leads to other months with coins waiting. A month, a chosen roll and a search live in the address (`?month=`, `?cat=`, `?q=`; `cat=Incoming` for money in, `cat=To file` for the backlog), so a view can be linked. From 640px, beside Money in over the charges, "To file · N" lists every loose charge from every month in one go, the backlog without stepping month by month; it hides while nothing waits, and on a phone, which has its To file tab for that.
 
 On a phone (639px and below) the board is two tabs in a bar at the bottom, in thumb reach: **To file**, the backlog from every month one coin at a time, and **Month**, the stage with the charges and cards below it. It opens on To file while anything waits, unless the address asks for a view of the month. On Month the stage reflows instead of shrinking. The rolls lie down as horizontal bars in one list, each with its name and amount above it, and the categories with nothing filed yet gather in one "Nothing yet" line after the list; the loose change sits in one row between the total and the list.
 
@@ -315,6 +315,7 @@ A category as a character, at one of four stages. It grows as coins go in.
 A charge as a coin.
 - **Shape:** a painted disc in copper, brass or nickel with a face, 40px on the stage and in the pile (38px on a phone).
 - **Face:** a coin still to file is lost: puzzled, one eye raised and its curve tilted, the raised eye alternating so a pile isn't one face repeated. It has not found its roll yet; the words beside the pile say how many wait. Every other coin smiles: the wordmark's, the empty pile's, one in the air.
+- **Label:** a coin is anonymous until it is pointed at. Hovered, focused or picked, it shows its merchant, amount and day as a white pill in the count's place under the pile (the phone's row leaves out the day); picked, "Tap its roll" takes the line under it in Ink. Both lines keep their height, so nothing on the stage moves.
 - **Behaviour:** pick a coin and tap a roll; it hops along an arc into the roll. A picked coin turns and smiles, as if it has found its way. After filing on the stage, focus moves to the next loose coin, or to the month's name once the pile is empty.
 
 ### The Year Strip
@@ -325,8 +326,8 @@ A chosen roll's last twelve months, in the stage head where the figures line sit
 
 ### To File, One Coin at a Time (phone)
 The phone's To file tab: the backlog as a queue.
-- **Shape:** an Oat Paper panel: "N to file" (and "N skipped") in Muted at 13px, one big painted coin with the merchant in Fredoka 20, the amount and day under it, then Skip and "Split with {partner}" as outlined pills (no fill, a 1.5px ring of Ink at 15%, white at 15% in dark) that shrink a little under the thumb like the tiles, then "Where do I go?", the lost coin asking, over a two-column grid of white tiles (card-oat-night in dark), the only solid things to tap, one per category, each with its roll in miniature (awake while it holds money in the coin's month, asleep with shut eyes and a z when it holds nothing, as in the Month tab's "Nothing yet" line), its name (two lines at most, never cut) and what it holds in the coin's month.
-- **Behaviour:** a tile files the coin with the usual notice (Always, Undo) and the next coin drops in; Skip sends a coin to the back; an empty queue says "All filed" and leads to the month. Skip and Split stay put from coin to coin, above the fold.
+- **Shape:** an Oat Paper panel: progress first, "N filed" in Ink at 500 then "N to go" (and "N skipped") in Muted at 13px; one big painted coin with the merchant in Fredoka 20, the amount and day under it; with more loose charges from the same shop, the coin tops a little stack (a brass coin tucked behind it) and "and N more from here" sits under the amount; then Skip and "Split with {partner}" as outlined pills (no fill, a 1.5px ring of Ink at 15%, white at 15% in dark) that shrink a little under the thumb like the tiles, then "Where do I go?", the lost coin asking, with "All N, always" beside it (just "Always" for a shop with one charge waiting), a small pill switch that is Ink with a tick when on, over a two-column grid of white tiles (card-oat-night in dark), the only solid things to tap, one per category, each with its roll in miniature (awake while it holds money in the coin's month, asleep with shut eyes and a z when it holds nothing, as in the Month tab's "Nothing yet" line), its name (two lines at most, never cut) and what it holds in the coin's month.
+- **Behaviour:** a tile files the coin with the usual notice (Always, Undo) and the next coin drops in; with the switch on, it files the whole shop and teaches the rule in one go, and one Undo takes it all back. The switch starts off for every coin, and Subscriptions ignores it. Skip sends a coin to the back; an empty queue says "All filed" and leads to the month. Skip and Split stay put from coin to coin, above the fold.
 
 ### Pooleks
 The shared statement: one page for both, the labels flipped by who reads it.
@@ -367,7 +368,7 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 - **Navigation links** (Pooleks, Settings): Body type, 8px by 14px pill that fills with Mist on hover and gives a little on press (to 96%, like the To file buttons; still with reduced motion). The theme toggle beside them presses the same way.
 
 ### Category Chips
-- **Style:** a white pill (card-night in dark, card-oat-night on a panel) with the wrapper colour as a dot and the name in Label type, 4px by 10px. An unfiled charge shows a dashed outline pill instead.
+- **Style:** a white pill (card-night in dark, card-oat-night on a panel) with the wrapper colour as a dot and the name in Label type, 4px by 10px. An unfiled charge shows an Ink pill instead (Chalk in dark) with a tiny puzzled coin, 20px, in place of the dot and "File…" as its name: the one solid chip in the list, so what waits stands out, and the same menu opens.
 
 ### Cards
 - **Style:** Page White on Oat Paper (card-oat-night on Oat Paper Night), 16px corners, 12px padding, no border, no shadow.

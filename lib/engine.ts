@@ -25,7 +25,7 @@ export const DEFAULT_CATEGORIES = [
 
 const norm = (s: string) => s.toLowerCase();
 
-export function matches(tx: Tx, pattern: string): boolean {
+export function matches(tx: Pick<Tx, "counterparty" | "description">, pattern: string): boolean {
   const hay = norm(tx.counterparty + " " + tx.description);
   return hay.includes(norm(pattern));
 }
