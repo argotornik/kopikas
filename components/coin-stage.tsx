@@ -165,7 +165,7 @@ function CoinLabel({ pile, day = true, className }: { pile: BoardTx[]; day?: boo
       <span className="min-w-0 truncate">{tx.name}</span>
       {pile.length > 1 ? (
         <span className="shrink-0 tabular-nums">
-          {pile.length} · {eur.format(pile.reduce((sum, t) => sum - t.amount, 0))}
+          {pile.length} charges · {eur.format(pile.reduce((sum, t) => sum - t.amount, 0))}
         </span>
       ) : (
         <>
@@ -230,6 +230,17 @@ export const lastTimeOf = (txs: BoardTx[], tx: BoardTx) => {
   for (const t of txs)
     if (t.category && t.amount < 0 && !t.micro && t.id !== tx.id && t.rulePattern === tx.rulePattern && (!latest || t.date > latest.date)) latest = t;
   return latest?.category ?? null;
+};
+
+// What Always takes, said under its switch while it is on, the same on the stage, in the queue
+// and in the menus: the charges in hand, the shop's other loose ones and where they wait, and
+// the ones to come.
+export const alwaysTakes = (here: number, others: BoardTx[]) => {
+  const these = here > 1 ? `These ${here}` : "This one";
+  if (others.length === 0) return `${these} and every one to come`;
+  const months = [...new Set(others.map((t) => monthOf(t.date)))].sort().map(label);
+  const where = months.length > 2 ? `from ${months[0]} to ${months.at(-1)}` : `in ${months.join(" and ")}`;
+  return `${these}, ${others.length} more ${where}, and every one to come`;
 };
 
 // A category's wrapper colour, by its place in the list.
@@ -398,8 +409,8 @@ export function CoinStage({
   const pickedTx = pickedPile?.[0] ?? null;
   const labelledPile = pickedPile ?? pileOf(peek);
   const labelled = labelledPile?.[0] ?? null;
-  // The picked coin's shop across every month, which the switch would file, and the switch.
-  const shopCount = pickedTx ? looseCoins(txs, null).filter((t) => matches(t, pickedTx.rulePattern)).length : 0;
+  // What the switch would take: the picked coins, the shop's other loose ones in every month, and the ones to come.
+  const takes = pickedPile ? alwaysTakes(pickedPile.length, looseCoins(txs, null).filter((t) => matches(t, pickedPile[0].rulePattern) && !pickedPile.includes(t))) : "";
   // Where the picked coin's shop went last time: that roll leans in, tagged, and a coin picked
   // from the keyboard hands focus to it, so a second Enter files it there.
   const suggestion = pickedTx ? lastTimeOf(txs, pickedTx) : null;
@@ -419,11 +430,13 @@ export function CoinStage({
         last time
       </span>
     );
+  // The switch, set afresh for each pick: on for a stack, a shop's charges together, as on a
+  // shop's row in the list; off for one coin on its own.
   const [always, setAlways] = useState(false);
   const [alwaysFor, setAlwaysFor] = useState(picked);
   if (alwaysFor !== picked) {
     setAlwaysFor(picked);
-    setAlways(false);
+    setAlways((pickedPile?.length ?? 0) > 1);
   }
   // A month with charges and none loose says so; one with nothing in it has nothing to file.
   const sorted = loose.length === 0 && txs.some((t) => t.amount < 0 && !t.micro && monthOf(t.date) === month);
@@ -595,13 +608,14 @@ export function CoinStage({
     <div className={cn("grid min-h-[30px] grid-cols-1", under ? "-mx-7 [direction:rtl] [justify-items:safe_center]" : "justify-items-start")}>
       <div className={cn("col-start-1 row-start-1 [direction:ltr]", pickedTx && "invisible")}>{elsewhereNote}</div>
       {pickedTx && (
-        <div className={cn("col-start-1 row-start-1 flex items-center gap-x-3 gap-y-1 text-[13px] text-ink [direction:ltr] dark:text-chalk", under ? "w-max" : "flex-wrap")}>
+        <div className={cn("relative col-start-1 row-start-1 flex items-center gap-x-3 gap-y-1 text-[13px] text-ink [direction:ltr] dark:text-chalk", under ? "w-max" : "flex-wrap")}>
           <span aria-hidden>{hint}</span>
           {/* The queue's switch: set before the roll is tapped, it files the shop's every coin and teaches the rule. */}
           <button
             type="button"
             aria-pressed={always}
             onClick={() => setAlways((a) => !a)}
+            aria-label={`Always: ${takes}`}
             className={cn(
               "relative inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-full pl-2 pr-3 font-medium transition-transform motion-safe:active:scale-[0.96] pointer-coarse:after:absolute pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-2 pointer-coarse:after:content-['']",
               always ? "bg-ink text-white dark:bg-chalk dark:text-ink" : "bg-white inset-ring-[1.5px] inset-ring-ink/15 dark:bg-card-night dark:inset-ring-white/15",
@@ -611,8 +625,15 @@ export function CoinStage({
             <span aria-hidden className={cn("flex size-3.5 items-center justify-center rounded-full", always ? "bg-white text-ink dark:bg-ink dark:text-chalk" : "inset-ring-[1.5px] inset-ring-ink/40 dark:inset-ring-white/40")}>
               {always && <CheckIcon className="size-2.5" strokeWidth={3.5} />}
             </span>
-            {shopCount > 1 ? `All ${shopCount}, always` : "Always"}
+            Always
           </button>
+          {/* What it takes, while it's on. Under the pile it hangs below the switch, clear of the
+              slot, so the floor never moves; beside the phone's row it takes a line of its own. */}
+          {always && (
+            <span aria-hidden className={cn("text-[12px]", MUTED, under ? "absolute right-0 top-full mt-1 whitespace-nowrap" : "basis-full")}>
+              {takes}
+            </span>
+          )}
         </div>
       )}
     </div>

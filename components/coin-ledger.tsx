@@ -1,12 +1,12 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useState, type Ref } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Menu } from "@base-ui/react/menu";
 import { CheckIcon, ChevronRightIcon } from "lucide-react";
 import type { BoardTx } from "@/lib/board";
 import { SUBSCRIPTIONS, matches } from "@/lib/engine";
-import { eur, wrapperOf } from "@/components/coin-stage";
+import { alwaysTakes, eur, wrapperOf } from "@/components/coin-stage";
 import { FOCUS, INK, MUTED } from "@/components/coin-look";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { PaintedCoin } from "@/components/painted";
@@ -21,8 +21,8 @@ const dayName = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeri
 const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 const weekdayMonth = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const day = (d: string) => dayMonth.format(new Date(d + "T00:00:00Z"));
-// One File menu serves the whole list; the row that opened it is its payload, or for a
-// shop "shop:" and the pattern its charges share.
+// One File menu serves the whole list and the To file card; the row that opened it is its
+// payload ("card:" before a card's), or for a shop "shop:" and the pattern its charges share.
 const fileMenu = Menu.createHandle<string>();
 const CHIP = "relative inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-2 pointer-coarse:after:absolute pointer-coarse:after:content-['']";
 // The board's menus: a white card of rows, as here and on Subscriptions. As tall as the window
@@ -154,13 +154,46 @@ function ShopRow({ shop, open, onToggle }: { shop: Shop; open: boolean; onToggle
   );
 }
 
-// The queue's switch, as the first thing in a menu: set before the pick, it stays open.
-function AlwaysItem({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+// A charge's category chip, or for a loose one the Ink "File…" with a puzzled coin: it opens the
+// File menu. The To file card's rows wear it too (`card`), so the coin hops from the card's row.
+export function FileChip({ t, categories, card = false, ref }: { t: BoardTx; categories: Category[]; card?: boolean; ref?: Ref<HTMLButtonElement> }) {
+  return (
+    <Menu.Trigger
+      ref={ref}
+      handle={fileMenu}
+      payload={card ? `card:${t.id}` : t.id}
+      // A click files; it must not also start a drag of the row.
+      onMouseDown={(e) => e.stopPropagation()}
+      aria-label={`${t.category ? `${t.category}: file` : "File"} ${t.name}, ${eur.format(Math.abs(t.amount))}`}
+      className={cn(
+        CHIP,
+        "cursor-pointer data-popup-open:ring-2 data-popup-open:ring-ink/20 dark:data-popup-open:ring-white/25",
+        t.category ? "bg-white hover:bg-mist dark:bg-card-night dark:hover:bg-card-night-hover" : cn(INK, "pl-1"),
+        FOCUS
+      )}
+    >
+      {t.category ? (
+        <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: wrapperOf(categories, t.category) }} />
+      ) : (
+        // A loose coin, puzzled like the ones in the pile; it fits the chip's line.
+        <span aria-hidden className="-my-0.5 shrink-0">
+          <PaintedCoin size={20} mood="puzzled" seed={(t.id.charCodeAt(t.id.length - 1) % 5) + 2} />
+        </span>
+      )}
+      <span className="truncate">{t.category ?? "File…"}</span>
+    </Menu.Trigger>
+  );
+}
+
+// The queue's switch, as the first thing in a menu: set before the pick, it stays open. While
+// it's on, a line under it says what it takes.
+function AlwaysItem({ checked, onChange, takes }: { checked: boolean; onChange: (v: boolean) => void; takes: string }) {
   return (
     <Menu.CheckboxItem
       checked={checked}
       onCheckedChange={onChange}
-      className="flex cursor-default items-center rounded-xl px-1.5 py-1 outline-none select-none data-highlighted:bg-mist dark:data-highlighted:bg-card-night-hover"
+      aria-label={`Always: ${takes}`}
+      className="flex cursor-default flex-col items-start rounded-xl px-1.5 py-1 outline-none select-none data-highlighted:bg-mist dark:data-highlighted:bg-card-night-hover"
     >
       <span
         className={cn(
@@ -171,8 +204,13 @@ function AlwaysItem({ checked, onChange, label }: { checked: boolean; onChange: 
         <span aria-hidden className={cn("flex size-3.5 items-center justify-center rounded-full", checked ? "bg-white text-ink dark:bg-ink dark:text-chalk" : "inset-ring-[1.5px] inset-ring-ink/40 dark:inset-ring-white/40")}>
           {checked && <CheckIcon className="size-2.5" strokeWidth={3.5} />}
         </span>
-        {label}
+        Always
       </span>
+      {checked && (
+        <span aria-hidden className={cn("max-w-72 px-1 pb-0.5 pt-1 text-[12px]", MUTED)}>
+          {takes}
+        </span>
+      )}
     </Menu.CheckboxItem>
   );
 }
@@ -231,29 +269,7 @@ function Row({
         {t.amount >= 0 ? (
           <span className={cn("text-[13px]", MUTED)}>Received</span>
         ) : (
-          <Menu.Trigger
-            handle={fileMenu}
-            payload={t.id}
-            // A click files; it must not also start a drag of the row.
-            onMouseDown={(e) => e.stopPropagation()}
-            aria-label={`${t.category ? `${t.category}: file` : "File"} ${t.name}, ${eur.format(Math.abs(t.amount))}`}
-            className={cn(
-              CHIP,
-              "cursor-pointer data-popup-open:ring-2 data-popup-open:ring-ink/20 dark:data-popup-open:ring-white/25",
-              t.category ? "bg-white hover:bg-mist dark:bg-card-night dark:hover:bg-card-night-hover" : cn(INK, "pl-1"),
-              FOCUS
-            )}
-          >
-            {t.category ? (
-              <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: wrapperOf(categories, t.category) }} />
-            ) : (
-              // A loose coin, puzzled like the ones in the pile; it fits the chip's line.
-              <span aria-hidden className="-my-0.5 shrink-0">
-                <PaintedCoin size={20} mood="puzzled" seed={(t.id.charCodeAt(t.id.length - 1) % 5) + 2} />
-              </span>
-            )}
-            <span className="truncate">{t.category ?? "File…"}</span>
-          </Menu.Trigger>
+          <FileChip t={t} categories={categories} />
         )}
       </div>
       <div
@@ -334,10 +350,15 @@ function FileMenu({
     <Menu.Root handle={fileMenu} onOpenChange={(o) => o && setAlways(null)}>
       {({ payload }) => {
         const shop = payload?.startsWith("shop:") ? shops.find((s) => `shop:${s.key}` === payload) : undefined;
-        const tx = shop ? undefined : txs.find((t) => t.id === payload);
+        // A card's row may be filtered out of the list; it is loose, so it is in the backlog.
+        const card = !!payload?.startsWith("card:");
+        const id = card ? payload!.slice(5) : payload;
+        const tx = shop ? undefined : (txs.find((t) => t.id === id) ?? backlog.find((t) => t.id === id));
         const on = always ?? !!shop;
         // An unfiled charge's shop: its other loose charges, which Always takes too.
-        const alike = tx && !tx.category ? backlog.filter((t) => t.id !== tx.id && matches(t, tx.rulePattern)).length : 0;
+        const alike = tx && !tx.category ? backlog.filter((t) => t.id !== tx.id && matches(t, tx.rulePattern)) : [];
+        // The row the coin hops from: the card's, or the list's.
+        const rowOf = (t: BoardTx) => document.querySelector(card ? `[data-queue="${t.id}"]` : `[data-row="${t.id}"]`);
         const pickShop = (v: string) => {
           if (!shop) return;
           fileMenu.close();
@@ -345,7 +366,7 @@ function FileMenu({
         };
         const pickTx = (v: string) => {
           if (!tx || v === tx.category) return;
-          const row = document.querySelector(`[data-row="${tx.id}"]`);
+          const row = rowOf(tx);
           // Close first, so the menu has handed focus back before the coin hops.
           fileMenu.close();
           setTimeout(() => onFile(tx, v, row, on && !tx.category), 0);
@@ -362,7 +383,11 @@ function FileMenu({
                       </span>
                       <span className="ml-auto shrink-0 tabular-nums">{eur.format(shop.total)}</span>
                     </Menu.GroupLabel>
-                    <AlwaysItem checked={on} onChange={setAlways} label="Always, every one to come" />
+                    <AlwaysItem
+                      checked={on}
+                      onChange={setAlways}
+                      takes={alwaysTakes(shop.txs.length, backlog.filter((t) => matches(t, shop.key) && !shop.txs.includes(t)))}
+                    />
                     <Menu.Separator className={MENU_SEPARATOR} />
                     {lastFirst(lastTime(shop.txs[0]), null, pickShop)}
                     <Menu.RadioGroup value="" onValueChange={(v) => pickShop(String(v))}>
@@ -378,7 +403,7 @@ function FileMenu({
                     </Menu.GroupLabel>
                     {!tx.category && (
                       <>
-                        <AlwaysItem checked={on} onChange={setAlways} label={alike ? `All ${alike + 1}, always` : "Always"} />
+                        <AlwaysItem checked={on} onChange={setAlways} takes={alwaysTakes(1, alike)} />
                         <Menu.Separator className={MENU_SEPARATOR} />
                       </>
                     )}
@@ -405,7 +430,7 @@ function FileMenu({
                             <Menu.RadioGroup
                               value={tx.shared ? String(SPLITS.find((f) => Math.abs(f - (tx.partnerShare ?? 0.5)) < 0.01) ?? "") : ""}
                               onValueChange={(v) => {
-                                const row = document.querySelector(`[data-row="${tx.id}"]`);
+                                const row = rowOf(tx);
                                 fileMenu.close();
                                 setTimeout(() => onSplit(tx, Number(v), row), 0);
                               }}

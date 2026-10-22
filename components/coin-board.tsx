@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDownIcon, SearchIcon, XIcon } from "lucide-react";
+import { SearchIcon, XIcon } from "lucide-react";
 import { DndContext, DragOverlay, MouseSensor, pointerWithin, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
@@ -10,7 +10,7 @@ import { announceError, announceUndoable } from "@/components/toaster";
 import { PaintedCoin } from "@/components/painted";
 import { CoinStage, eur, label, lastTimeOf, looseCoins, monthOf, shortDate, type CoinStageHandle } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, OAT, PAGE, PANEL } from "@/components/coin-look";
-import { CoinLedger } from "@/components/coin-ledger";
+import { CoinLedger, FileChip } from "@/components/coin-ledger";
 import { CoinQueue, type Said } from "@/components/coin-queue";
 import { CoinSubscriptions } from "@/components/coin-subscriptions";
 import { CoinYear } from "@/components/coin-year";
@@ -178,8 +178,8 @@ export function CoinBoard({
   );
 
   // In the phone's queue a notice would sit over the next coin's tiles, so the queue says what
-  // happened in its own line (`say`) with the same Undo, and no Always: its switch is set before
-  // the tap. The undo reports whether it landed, so the line can say so.
+  // happened in its own line (`say`) with the same Undo and Always. The undo reports whether it
+  // landed, so the line can say so.
   const takeBack = (undo: Undo | undefined) =>
     undo &&
     (async () => {
@@ -218,7 +218,7 @@ export function CoinBoard({
           ? say({ lead: `Tracking ${tx.name}`, tail: " as a subscription", undo: takeBack(r.undo) })
           : announceUndoable(`Now tracking ${tx.name} as a subscription.`, r.undo, refetch);
       if (wide && say) return say({ lead: alike.size ? `Filed ${alike.size + 1} from ${tx.name}` : `Filed ${tx.name}`, tail: ` under ${category}, always`, undo: takeBack(r.undo) });
-      if (say) return say({ lead: `Filed ${tx.name}`, tail: ` under ${category}`, undo: takeBack(r.undo) });
+      if (say) return say({ lead: `Filed ${tx.name}`, tail: ` under ${category}`, undo: takeBack(r.undo), also: { label: "Always", onClick: () => void teachAlways(tx, category, say) } });
       if (wide)
         return announceUndoable(
           alike.size ? `Filed ${alike.size + 1} from ${tx.name} under ${category}, and every one to come.` : `Filed ${tx.name} under ${category}, and every one to come.`,
@@ -233,7 +233,8 @@ export function CoinBoard({
   };
   // A shop's charges or a stack of coins, filed at once. With Always it is the first one's
   // Always filing, which takes the rest by its rule; without, they are pinned together, no
-  // rule, and one Undo takes them all back. Subscriptions tracks the shop, always.
+  // rule, one Undo takes them all back, and the notice offers Always as a single charge's does.
+  // Subscriptions tracks the shop, always.
   const onFileMany = (txs: BoardTx[], category: string, always = false) => {
     if (txs.length === 1 || always || category === SUBSCRIPTIONS) return onFile(txs[0], category, always);
     const ids = new Set(txs.map((t) => t.id));
@@ -247,12 +248,16 @@ export function CoinBoard({
         announceError(r.error);
         return refetch();
       }
-      announceUndoable(`Filed ${txs.length} from ${txs[0].name} under ${category}.`, r.undo, refetch);
+      announceUndoable(`Filed ${txs.length} from ${txs[0].name} under ${category}.`, r.undo, refetch, {
+        label: "Always",
+        onClick: () => void teachAlways(txs[0], category),
+      });
     });
   };
-  const teachAlways = async (tx: BoardTx, category: string) => {
+  const teachAlways = async (tx: BoardTx, category: string, say?: (s: Said) => void) => {
     const r = await run({ type: "rule", txId: tx.id, category });
     if (!r.ok) return announceError(r.error);
+    if (say) return say({ lead: `Every ${tx.name} charge`, tail: ` now goes under ${category}`, undo: takeBack(r.undo) });
     announceUndoable(`Every ${tx.name} charge now goes under ${category}.`, r.undo, refetch);
   };
 
@@ -475,15 +480,15 @@ export function CoinBoard({
     if (!stage.current?.file(tx, category, roll)) onFile(tx, category);
   };
 
-  // The next loose coin is already waiting: filing one moves focus to the
-  // queue row that took its place.
-  const selects = useRef<(HTMLSelectElement | null)[]>([]);
+  // The next loose coin is already waiting: filing one from the To file card moves focus to
+  // the card row that took its place.
+  const chips = useRef<(HTMLButtonElement | null)[]>([]);
   const refocus = useRef<number | null>(null);
   useEffect(() => {
     if (refocus.current == null) return;
-    const i = Math.min(refocus.current, selects.current.length - 1);
+    const i = Math.min(refocus.current, chips.current.length - 1);
     refocus.current = null;
-    selects.current[i]?.focus();
+    chips.current[i]?.focus();
   });
 
   // A late sync says so under the name, and leads to the connection in Settings.
@@ -634,31 +639,16 @@ export function CoinBoard({
                           </div>
                           <div className="text-[15px] tabular-nums">{eur.format(t.amount)}</div>
                         </div>
-                        <div className="relative mt-2.5">
-                          <select
+                        {/* The list's File… chip and menu: Last time first, the switch, every category, the split. */}
+                        <div className="mt-2.5">
+                          <FileChip
+                            t={t}
+                            categories={categories}
+                            card
                             ref={(el) => {
-                              selects.current[i] = el;
+                              chips.current[i] = el;
                             }}
-                            defaultValue=""
-                            aria-label={`File ${t.name}, ${eur.format(Math.abs(t.amount))}, under`}
-                            onChange={(e) => {
-                              if (stage.current?.file(t, e.target.value, e.currentTarget.closest("li"))) refocus.current = i;
-                            }}
-                            className={cn(
-                              "h-10 w-full cursor-pointer appearance-none rounded-full border-2 border-ink/10 bg-mist pl-4 pr-9 text-[15px] font-medium hover:border-ink/25 dark:border-white/10 dark:bg-mist-night dark:hover:border-white/25",
-                              FOCUS
-                            )}
-                          >
-                            <option value="" disabled>
-                              File under…
-                            </option>
-                            {categories.map((c) => (
-                              <option key={c.name} value={c.name}>
-                                {c.name}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDownIcon aria-hidden className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 opacity-60" />
+                          />
                         </div>
                       </li>
                     ))}
@@ -814,6 +804,7 @@ export function CoinBoard({
                 onFile={(tx, category, from, always) =>
                   inItsMonth(monthOf(tx.date), () => {
                     if (!stage.current?.file(tx, category, from, always)) onFile(tx, category, always);
+                    else if (from?.hasAttribute("data-queue")) refocus.current = loose.findIndex((t) => t.id === tx.id);
                   })
                 }
                 onFileShop={(group, category, always) => inItsMonth(monthOf(group[0].date), () => onFileMany(group, category, always))}
