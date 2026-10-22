@@ -67,9 +67,12 @@ export function CoinBoard({
   partner: string | null;
 }) {
   const [board, setBoard] = useState(initial);
-  const [month, setMonth] = useState(() =>
-    view?.month && /^\d{4}-(0[1-9]|1[0-2])$/.test(view.month) && view.month <= initial.month ? view.month : initial.month
-  );
+  const [month, setMonth] = useState(() => {
+    if (view?.month && /^\d{4}-(0[1-9]|1[0-2])$/.test(view.month) && view.month <= initial.month) return view.month;
+    // The backlog opens on the newest month that still has loose coins.
+    const newest = view?.cat === "To file" ? looseCoins(initial.txs, null)[0] : undefined;
+    return newest ? monthOf(newest.date) : initial.month;
+  });
   // The phone has two tabs: To file, the backlog one coin at a time, and Month, the tray
   // with the charges below it. It opens on To file while anything waits, unless the
   // address asks for a view of the month. Wider screens show the month only, with the
@@ -394,6 +397,42 @@ export function CoinBoard({
   const spent = out.reduce((s, t) => s - t.amount, 0);
   const received = rows.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const toggle = (v: string) => setOnly((o) => (o === v ? null : v));
+  // In the backlog the stage follows the charges, so every coin lands in a roll you can see grow:
+  // it opens on the newest month that still has loose coins, steps to a row's month as the row is
+  // filed, and once the month on show is sorted and its celebration has played, moves on to the
+  // next. Browsing months by hand is left alone.
+  const newestLoose = () => {
+    const t = looseCoins(board.txs, null)[0];
+    return t ? monthOf(t.date) : null;
+  };
+  const openBacklog = () => {
+    const m = newestLoose();
+    if (only !== TO_FILE && loose.length === 0 && m) setMonth(m);
+    toggle(TO_FILE);
+  };
+  // A filing waiting for the stage to show its month; it runs a frame later, with the month's rolls on the page.
+  const afterStep = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    const run = afterStep.current;
+    if (!run) return;
+    afterStep.current = null;
+    requestAnimationFrame(run);
+  }, [month]);
+  const inItsMonth = (m: string, run: () => void) => {
+    if (only !== TO_FILE || m === month) return run();
+    afterStep.current = run;
+    setMonth(m);
+  };
+  const looseHere = useRef({ month, n: loose.length });
+  useEffect(() => {
+    const was = looseHere.current;
+    looseHere.current = { month, n: loose.length };
+    if (only !== TO_FILE || was.month !== month || was.n === 0 || loose.length > 0) return;
+    const next = newestLoose();
+    if (!next) return;
+    const t = setTimeout(() => setMonth(next), 2800);
+    return () => clearTimeout(t);
+  }, [only, month, loose.length]);
   // The way from the stage down to the charges, and its links: a 44px tap area on a touch screen.
   const toCharges = () => {
     const list = document.getElementById("charges");
@@ -707,7 +746,7 @@ export function CoinBoard({
                 </h2>
                 {/* The phone has its To file tab for the backlog, so the pill shows there only when a link turned it on. */}
                 {(toFile > 0 || only === TO_FILE) && (
-                  <button type="button" aria-pressed={only === TO_FILE} onClick={() => toggle(TO_FILE)} className={cn(pill(only === TO_FILE), only !== TO_FILE && "max-sm:hidden")}>
+                  <button type="button" aria-pressed={only === TO_FILE} onClick={openBacklog} className={cn(pill(only === TO_FILE), only !== TO_FILE && "max-sm:hidden")}>
                     To file <span className="tabular-nums">· {toFile}</span>
                   </button>
                 )}
@@ -772,10 +811,12 @@ export function CoinBoard({
                 backlog={backlog}
                 byShop={only === TO_FILE}
                 lastTime={(tx) => lastTimeOf(board.txs, tx)}
-                onFile={(tx, category, from, always) => {
-                  if (!stage.current?.file(tx, category, from, always)) onFile(tx, category, always);
-                }}
-                onFileShop={onFileMany}
+                onFile={(tx, category, from, always) =>
+                  inItsMonth(monthOf(tx.date), () => {
+                    if (!stage.current?.file(tx, category, from, always)) onFile(tx, category, always);
+                  })
+                }
+                onFileShop={(group, category, always) => inItsMonth(monthOf(group[0].date), () => onFileMany(group, category, always))}
                 partner={partner}
                 onSplit={(tx, share) => onSplit(tx, share)}
                 onUnshare={onUnshare}
