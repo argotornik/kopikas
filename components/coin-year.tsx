@@ -11,14 +11,15 @@ import { cn } from "@/lib/utils";
 // A chosen roll's year, in the tray's head where the month's figures sit otherwise: a
 // bar for each of the last twelve months, drawn like the rolls (a darker top past the
 // limit, the limit dashed), the month on show at full strength. A bar takes the tray to
-// its month; pointed at or focused, it shows its month and amount in the note's place. The average leaves out the unfinished month and those before the charges
+// its month; pointed at or focused, it shows its month and amount in the note's place.
+// Its bars are short and unlettered, so the strip fits the figures' room and choosing a
+// roll moves nothing below it. The average leaves out the unfinished month and those before the charges
 // start, as on the old board.
 
 // One month's column in the drawing, which scales with the space it gets.
 const COL = 440 / 12;
 const GAP = 6;
-const H = 48;
-const narrowMonth = new Intl.DateTimeFormat("en-GB", { month: "narrow", timeZone: "UTC" });
+const H = 24;
 const limitText = (b: number) => (Number.isInteger(b) ? eurWhole : eur).format(b);
 
 export function CoinYear({
@@ -89,7 +90,10 @@ export function CoinYear({
                 onBlur={() => leave(i)}
                 aria-pressed={shown}
                 aria-label={before ? `${label(m)}: before your charges start` : `${label(m)}: ${eur.format(v)}`}
-                className={cn("group flex flex-col items-center rounded-lg disabled:cursor-default", FOCUS)}
+                className={cn(
+                  "group relative flex flex-col items-center rounded-lg disabled:cursor-default pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-4 pointer-coarse:after:content-['']",
+                  FOCUS
+                )}
               >
                 <svg viewBox={`0 0 ${COL} ${H}`} aria-hidden className="block w-full overflow-visible">
                   {!before && (
@@ -101,9 +105,6 @@ export function CoinYear({
                     </g>
                   )}
                 </svg>
-                <span className={cn("mt-1 text-[12px] leading-none", shown ? "font-medium text-ink dark:text-chalk" : MUTED, before && "opacity-40")}>
-                  {narrowMonth.format(new Date(m + "-01T00:00:00Z"))}
-                </span>
               </button>
             );
           })}

@@ -301,6 +301,15 @@ export function CoinStage({
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
   }, []);
+  // A short window (a laptop's) gets the shorter floor, so the charges' head shows under the stage.
+  const [short, setShort] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-height: 999px)");
+    const on = () => setShort(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
   // The phone list's width sets the shared scale for the lying rolls.
   const listRef = useRef<HTMLDivElement>(null);
   const [listW, setListW] = useState(300);
@@ -395,8 +404,9 @@ export function CoinStage({
   // waits for its first coin, so it stretches nothing.
   const tallest = Math.max(1, ...rolls.map((r) => Math.max(r.total, r.total > 0 ? (r.budget ?? 0) : 0)));
   // The floor has the stage's full width, and in one row the height to match: the floor is the
-  // picture. A floor that wraps keeps the shorter stage, so its second shelf isn't mostly air.
-  const tall = !narrow && floorFits;
+  // picture. A floor that wraps keeps the shorter stage, so its second shelf isn't mostly air,
+  // and so does a window under 1000px tall, so the charges start on the first screen.
+  const tall = !narrow && floorFits && !short;
   const MAX = narrow ? 112 : tall ? 280 : 200;
   // A month with nothing filed yet stands its sleepers on a short floor, under a line that says so:
   // the tall one would be empty air. It grows back with the first coin.
@@ -975,7 +985,7 @@ export function CoinStage({
         </div>
         </>
         )}
-        {actions && <div className="relative mt-4 flex justify-end">{actions}</div>}
+        {actions && <div className="relative mt-4 flex flex-wrap items-center justify-end gap-x-4 gap-y-2">{actions}</div>}
       </section>
 
       {flight && (

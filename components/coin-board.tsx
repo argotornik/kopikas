@@ -99,6 +99,16 @@ export function CoinBoard({
   // Only the two tops change while scrolling.
   const trayBox = useRef<HTMLDivElement>(null);
   const cardsBox = useRef<HTMLElement>(null);
+  // Below 1900px nothing travels, so a row dragged up scrolls the page to the rolls; beside the
+  // travelling stage the rolls are in view already, and scrolling would only fight the aim.
+  const [travels, setTravels] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1900px)");
+    const on = () => setTravels(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
   useEffect(() => {
     const tray = trayBox.current, cards = cardsBox.current, grid = tray?.parentElement;
     if (!tray || !cards || !grid) return;
@@ -384,6 +394,16 @@ export function CoinBoard({
   const spent = out.reduce((s, t) => s - t.amount, 0);
   const received = rows.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const toggle = (v: string) => setOnly((o) => (o === v ? null : v));
+  // The way from the stage down to the charges, and its links: a 44px tap area on a touch screen.
+  const toCharges = () => {
+    const list = document.getElementById("charges");
+    list?.focus({ preventScroll: true });
+    list?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  };
+  const LINK = cn(
+    "relative underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:absolute pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3.5 pointer-coarse:after:content-['']",
+    FOCUS
+  );
   // Every loose charge, for the menus' "All N, always", and what's filed so far.
   const backlog = looseCoins(board.txs, null);
   const filed = board.txs.filter((t) => t.amount < 0 && !t.micro && t.category).length;
@@ -467,7 +487,7 @@ export function CoinBoard({
           id="coin-board"
           sensors={sensors}
           collisionDetection={pointerWithin}
-          autoScroll={false}
+          autoScroll={!travels}
           onDragStart={({ active }) => setDragged(board.txs.find((t) => t.id === active.id) ?? null)}
           onDragEnd={onDragEnd}
           onDragCancel={() => setDragged(null)}
@@ -523,13 +543,29 @@ export function CoinBoard({
               )
             }
             actions={
-              <button
-                type="button"
-                onClick={() => setCatsOpen(true)}
-                className={cn("rounded-full px-3.5 py-2 text-[15px] font-medium hover:bg-white dark:hover:bg-card-night", FOCUS)}
-              >
-                Edit categories
-              </button>
+              <>
+                {/* With a roll chosen, the stage says what the charges below are showing, the way down
+                    to them, and the way to let it go: on a laptop the list starts under the fold. */}
+                {picked && (
+                  <p className={cn("mr-auto text-[13px]", MUTED)} aria-live="polite">
+                    <span className="font-medium text-ink dark:text-chalk">Showing {picked}</span> ·{" "}
+                    <button type="button" onClick={toCharges} className={cn(LINK, "no-underline hover:underline")}>
+                      {rows.length} {rows.length === 1 ? "charge" : "charges"} in {q ? "every month" : label(month)} <span aria-hidden>↓</span>
+                    </button>{" "}
+                    ·{" "}
+                    <button type="button" onClick={() => (setQuery(""), setOnly(null))} className={LINK}>
+                      Show all
+                    </button>
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setCatsOpen(true)}
+                  className={cn("rounded-full px-3.5 py-2 text-[15px] font-medium hover:bg-white dark:hover:bg-card-night", FOCUS)}
+                >
+                  Edit categories
+                </button>
+              </>
             }
           />
           </div>
