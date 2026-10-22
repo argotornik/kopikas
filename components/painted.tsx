@@ -30,7 +30,7 @@ const BROWN = "#3A2A20";
 // Limbs and dark marks: dark brown on the light ground, a warm light tone on
 // the dark one, so feet and confetti never vanish.
 export const LIMB = "var(--painted-limb)";
-const BLUE = "#4C6FE0";
+export const BLUE = "#4C6FE0";
 
 // A face painted on: the colour that reads on its ground.
 export function faceInk(ground: string): string {

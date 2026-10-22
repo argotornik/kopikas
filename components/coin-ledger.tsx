@@ -16,7 +16,7 @@ import { cn, shareLabel } from "@/lib/utils";
 const dayName = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 // One File menu serves the whole list; the row that opened it is its payload.
 const fileMenu = Menu.createHandle<string>();
-const CHIP = "inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium";
+const CHIP = "relative inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-2 pointer-coarse:after:absolute pointer-coarse:after:content-['']";
 // The board's menus: a white card of rows, as here and on Subscriptions.
 export const MENU_ITEM =
   "flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2 text-[15px] outline-none select-none data-highlighted:bg-mist dark:data-highlighted:bg-card-night-hover";
@@ -96,13 +96,13 @@ function Row({
         tabIndex={t.amount < 0 ? -1 : undefined}
         aria-label={`Change the name or icon of ${t.name}`}
         title="Change name or icon"
-        className={cn("rounded-full hover:ring-2 hover:ring-ink/20 dark:hover:ring-white/25", FOCUS)}
+        className={cn("relative rounded-full hover:ring-2 hover:ring-ink/20 dark:hover:ring-white/25 pointer-coarse:after:-inset-2 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
       >
         <MerchantIcon name={t.name} domain={t.domain} emoji={t.emoji} />
       </button>
       <div className="min-w-0">
         <div className="truncate text-[15px] font-medium">{t.name}</div>
-        {sub && <div className={cn("truncate text-[13px]", MUTED)}>{sub}</div>}
+        {sub && <div className={cn("line-clamp-2 text-[13px] sm:line-clamp-1", MUTED)}>{sub}</div>}
       </div>
       {/* Under the name on a phone, in its own column from 640px. */}
       <div className="col-start-2 row-start-2 min-w-0 sm:col-start-3 sm:row-start-1">

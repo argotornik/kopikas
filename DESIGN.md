@@ -239,7 +239,7 @@ Eight steps, and every size in the app is one of them.
 - **Display** (600, 52px, 44px on a phone, line-height 1.25, tabular figures): the month's total, the biggest thing on the board, and the amount owed in Pooleks.
 - **Headline** (600, 40px, 34px on a phone, line-height 1): the month's name on the stage, and the title of a page of its own (Settings, the first run, the setup screens, not found, couldn't open); "Kopikas" over the sign-in card at 34px.
 - **Wordmark** (600, 26px, line-height 1, -0.01em): "Kopikas" in the header, beside the coin, and who owes whom in Pooleks.
-- **Title** (600, 20px): section heads such as "Every charge" and "To file", the phone queue's "N to file", an empty section's head, and Clerk's card title.
+- **Title** (600, 20px): section heads such as "Every charge" and "To file", an empty section's head, and Clerk's card title.
 - **Small head** (Fredoka 600, 16px): a head that sits inside a section, such as "Loose change" by the pile and the months in Pooleks.
 - **Body** (400, 15px, line-height 1.375): merchant names, amounts in lists, rows on the phone, navigation.
 - **Label** (500, 13px): category chips and rule chips, roll names and the phone queue's category tiles, "Nothing yet" and captions.
@@ -319,13 +319,13 @@ A charge as a coin.
 
 ### The Year Strip
 A chosen roll's last twelve months, in the stage head where the figures line sits otherwise.
-- **Shape:** a bar per month, up to 440px wide in all, drawn like the rolls: the wrapper colour, wobbled edges, the part past the limit deepened, the limit one dashed line across all twelve. The month on show is at full strength, the others at 55%; the month letters run under the bars, the one on show in Ink.
+- **Shape:** a bar per month, up to 440px wide in all, drawn like the rolls: the wrapper colour, wobbled edges, the part past the limit deepened, the limit one dashed Crayon Blue line across all twelve, the dashes of a roll's outline. The month on show is at full strength, the others at 55%; the month letters run under the bars, the one on show in Ink.
 - **Words:** "{Category}, the last 12 months" in Ink at 500, then the average and the limit in Muted: the average leaves out the unfinished month and those before the charges start.
 - **Behaviour:** a bar takes the stage to its month; bars before the first charge are off. Each bar is a button at least 24px wide.
 
 ### To File, One Coin at a Time (phone)
 The phone's To file tab: the backlog as a queue.
-- **Shape:** an Oat Paper panel: "N to file" (and "N skipped"), one big painted coin with the merchant in Fredoka 20, the amount and day under it, then Skip and "Split with {partner}" as outlined pills (no fill, a 1.5px ring of Ink at 15%, white at 15% in dark) that shrink a little under the thumb like the tiles, then "Where do I go?", the lost coin asking, over a two-column grid of white tiles (card-oat-night in dark), the only solid things to tap, one per category, each with its roll in miniature (awake while it holds money in the coin's month, asleep with shut eyes and a z when it holds nothing, as in the Month tab's "Nothing yet" line), its name (two lines at most, never cut) and what it holds in the coin's month.
+- **Shape:** an Oat Paper panel: "N to file" (and "N skipped") in Muted at 13px, one big painted coin with the merchant in Fredoka 20, the amount and day under it, then Skip and "Split with {partner}" as outlined pills (no fill, a 1.5px ring of Ink at 15%, white at 15% in dark) that shrink a little under the thumb like the tiles, then "Where do I go?", the lost coin asking, over a two-column grid of white tiles (card-oat-night in dark), the only solid things to tap, one per category, each with its roll in miniature (awake while it holds money in the coin's month, asleep with shut eyes and a z when it holds nothing, as in the Month tab's "Nothing yet" line), its name (two lines at most, never cut) and what it holds in the coin's month.
 - **Behaviour:** a tile files the coin with the usual notice (Always, Undo) and the next coin drops in; Skip sends a coin to the back; an empty queue says "All filed" and leads to the month. Skip and Split stay put from coin to coin, above the fold.
 
 ### Pooleks

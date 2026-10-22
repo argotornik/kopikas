@@ -75,7 +75,7 @@ export function CoinSubscriptions({
             type="button"
             onClick={() => (s.priceChanged ? onAcceptPrice(s) : onStop(s))}
             className={cn(
-              "mt-2 h-9 rounded-full bg-mist px-3.5 text-[13px] font-medium hover:bg-mist-hover dark:bg-mist-night dark:hover:bg-card-night-hover",
+              "relative mt-2 h-9 rounded-full bg-mist px-3.5 text-[13px] font-medium hover:bg-mist-hover dark:bg-mist-night dark:hover:bg-card-night-hover pointer-coarse:after:-inset-1 pointer-coarse:after:absolute pointer-coarse:after:content-['']",
               FOCUS
             )}
           >
@@ -89,7 +89,7 @@ export function CoinSubscriptions({
           <Menu.Trigger
             aria-label={`${s.label}: rename, make ${other(s)} or stop tracking`}
             className={cn(
-              "-mr-1 flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-mist data-popup-open:bg-mist dark:hover:bg-card-night-hover dark:data-popup-open:bg-card-night-hover",
+              "relative -mr-1 flex size-9 shrink-0 items-center justify-center rounded-full hover:bg-mist data-popup-open:bg-mist dark:hover:bg-card-night-hover dark:data-popup-open:bg-card-night-hover pointer-coarse:after:-inset-1 pointer-coarse:after:absolute pointer-coarse:after:content-['']",
               MUTED,
               FOCUS
             )}
@@ -141,7 +141,7 @@ export function CoinSubscriptions({
             aria-expanded={open}
             aria-controls="subs-all"
             onClick={() => setOpen((o) => !o)}
-            className={cn("mt-3 text-[13px] underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", MUTED, FOCUS)}
+            className={cn("relative mt-3 text-[13px] underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3 pointer-coarse:after:absolute pointer-coarse:after:content-['']", MUTED, FOCUS)}
           >
             {open ? "Hide the list" : `Show all ${active.length}`}
           </button>

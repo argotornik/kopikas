@@ -2,7 +2,7 @@
 
 import type { Board, BoardTx } from "@/lib/board";
 import { wobblyRect } from "@/components/goofy";
-import { deepened } from "@/components/painted";
+import { BLUE, deepened } from "@/components/painted";
 import { eur, eurWhole, label, monthOf, shiftMonth, wrapperOf } from "@/components/coin-stage";
 import { FOCUS, MUTED } from "@/components/coin-look";
 import { cn } from "@/lib/utils";
@@ -96,7 +96,7 @@ export function CoinYear({
         {/* The limit across all twelve, over the bars: the same dashes as a roll's outline. */}
         {limit != null && (
           <svg viewBox={`0 0 440 ${H}`} aria-hidden className="pointer-events-none absolute inset-x-0 top-0 block w-full overflow-visible">
-            <line x1="0" x2="440" y1={H - limit * scale} y2={H - limit * scale} stroke={colour} strokeOpacity="0.85" strokeWidth="2" strokeDasharray="6 5" strokeLinecap="round" />
+            <line x1="0" x2="440" y1={H - limit * scale} y2={H - limit * scale} stroke={BLUE} strokeWidth="2" strokeDasharray="3 7" strokeLinecap="round" />
           </svg>
         )}
       </div>

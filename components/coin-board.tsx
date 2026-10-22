@@ -264,7 +264,7 @@ export function CoinBoard({
     <button
       type="button"
       onClick={() => setSnapOpen(true)}
-      className={cn("underline decoration-dotted decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", FOCUS)}
+      className={cn("relative underline decoration-dotted decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
     >
       {board.investments.total != null ? "Investments" : "Add investments"}
     </button>
@@ -276,7 +276,7 @@ export function CoinBoard({
     </span>
   );
   const figureParts: React.ReactNode[] = [
-    <>Received {amount(cameIn, "text-received dark:text-received-night", "+")}</>,
+    <>Received {cameIn > 0 ? amount(cameIn, "text-received dark:text-received-night", "+") : amount(cameIn)}</>,
     ...(yourShare != null ? [<>Your share {amount(yourShare)}</>] : []),
     ...standing.map((x, i) => (
       <>
@@ -609,7 +609,7 @@ export function CoinBoard({
                   aria-pressed={only === MONEY_IN}
                   onClick={() => toggle(MONEY_IN)}
                   className={cn(
-                    "h-10 rounded-full px-4 text-[15px] font-medium",
+                    "h-10 rounded-full px-4 text-[15px] font-medium pointer-coarse:h-11",
                     only === MONEY_IN
                       ? "bg-ink text-white dark:bg-chalk dark:text-ink"
                       : "bg-white hover:bg-mist dark:bg-card-night dark:hover:bg-card-night-hover",
@@ -628,7 +628,7 @@ export function CoinBoard({
                     placeholder="Search every month"
                     aria-label="Search charges in every month"
                     className={cn(
-                      "h-10 w-full rounded-full border-2 border-transparent bg-white pl-10 pr-10 text-[16px] placeholder:text-muted-text focus:border-ink/20 dark:bg-card-night dark:placeholder:text-muted-text-night dark:focus:border-white/25 [&::-webkit-search-cancel-button]:hidden",
+                      "h-10 w-full rounded-full border-2 border-transparent bg-white pl-10 pr-10 text-[16px] pointer-coarse:h-11 placeholder:text-muted-text focus:border-ink/20 dark:bg-card-night dark:placeholder:text-muted-text-night dark:focus:border-white/25 [&::-webkit-search-cancel-button]:hidden",
                       FOCUS
                     )}
                   />
@@ -637,7 +637,7 @@ export function CoinBoard({
                       type="button"
                       onClick={() => setQuery("")}
                       aria-label="Clear the search"
-                      className={cn("absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full hover:bg-mist dark:hover:bg-card-night-hover", FOCUS)}
+                      className={cn("absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full hover:bg-mist dark:hover:bg-card-night-hover pointer-coarse:after:-inset-1.5 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
                     >
                       <XIcon aria-hidden className="size-4" />
                     </button>

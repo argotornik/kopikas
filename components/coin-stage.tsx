@@ -347,7 +347,7 @@ export function CoinStage({
       <button
         type="button"
         onClick={() => onMonthChange(elsewhereMonth)}
-        className={cn("underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", FOCUS)}
+        className={cn("relative underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
       >
         {oneMonth ? "Go there" : `Go to ${label(elsewhereMonth)}`}
       </button>
@@ -479,7 +479,7 @@ export function CoinStage({
                 aria-label="Previous month"
                 disabled={month <= months[0]}
                 onClick={() => onMonthChange(shiftMonth(month, -1))}
-                className={cn("-ml-2 rounded-full p-1.5 hover:bg-white disabled:opacity-30 dark:hover:bg-white/10", FOCUS)}
+                className={cn("relative -ml-2 rounded-full p-1.5 hover:bg-white disabled:opacity-30 dark:hover:bg-white/10 pointer-coarse:after:-inset-1.5 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
               >
                 <ChevronLeftIcon className="size-5" aria-hidden />
               </button>
@@ -491,7 +491,7 @@ export function CoinStage({
                 aria-label="Next month"
                 disabled={month >= (months.at(-1) ?? month)}
                 onClick={() => onMonthChange(shiftMonth(month, 1))}
-                className={cn("rounded-full p-1.5 hover:bg-white disabled:opacity-30 dark:hover:bg-white/10", FOCUS)}
+                className={cn("relative rounded-full p-1.5 hover:bg-white disabled:opacity-30 dark:hover:bg-white/10 pointer-coarse:after:-inset-1.5 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
               >
                 <ChevronRightIcon className="size-5" aria-hidden />
               </button>
