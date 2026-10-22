@@ -15,5 +15,8 @@ brag-output*/
 # Impeccable's local question server: its process, port and heartbeat.
 /.impeccable/questions/
 
+# Impeccable's live server: its port, sessions and annotations from a detector run.
+/.impeccable/live/
+
 # The Figma kit's generated scenes, SVGs and scripts (scripts/figma-kit/README.md).
 /scripts/figma-kit/out/

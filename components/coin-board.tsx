@@ -5,13 +5,13 @@ import { ChevronDownIcon, SearchIcon, XIcon } from "lucide-react";
 import { DndContext, DragOverlay, MouseSensor, pointerWithin, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
-import { act } from "@/lib/act";
+import { act, type Undo } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";
 import { PaintedCoin } from "@/components/painted";
 import { CoinStage, eur, label, looseCoins, monthOf, shortDate, type CoinStageHandle } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, OAT, PAGE, PANEL } from "@/components/coin-look";
 import { CoinLedger } from "@/components/coin-ledger";
-import { CoinQueue } from "@/components/coin-queue";
+import { CoinQueue, type Said } from "@/components/coin-queue";
 import { CoinSubscriptions } from "@/components/coin-subscriptions";
 import { CoinYear } from "@/components/coin-year";
 import { CategoriesEditor, type CategoryAction } from "@/components/categories-editor";
@@ -164,12 +164,27 @@ export function CoinBoard({
     [refetch]
   );
 
+  // In the phone's queue a notice would sit over the next coin's tiles, so the queue says what
+  // happened in its own line (`say`) with the same Undo, and no Always: its switch is set before
+  // the tap. The undo reports whether it landed, so the line can say so.
+  const takeBack = (undo: Undo | undefined) =>
+    undo &&
+    (async () => {
+      const r = await act(undo);
+      if (!r.ok) {
+        announceError(`Couldn't undo that. ${r.error}`);
+        return false;
+      }
+      await refetch();
+      return true;
+    });
+
   // A coin files at once, as just this one: it is in its roll before the server
   // answers, and the notice offers Always beside Undo. The Subscriptions roll
   // tracks the charge as a subscription, which always means always. With Always set
   // before the tap (the phone queue's toggle), the shop's other loose charges go in too
   // and the rule is taught in the same request, so one Undo takes back all of it.
-  const onFile = (tx: BoardTx, category: string, always = false) => {
+  const onFile = (tx: BoardTx, category: string, always = false, say?: (s: Said) => void) => {
     const subscription = category === SUBSCRIPTIONS;
     const wide = always && !subscription;
     const alike = new Set(wide ? looseCoins(board.txs, null).filter((t) => t.id !== tx.id && matches(t, tx.rulePattern)).map((t) => t.id) : []);
@@ -185,7 +200,12 @@ export function CoinBoard({
         announceError(r.error);
         return refetch();
       }
-      if (subscription) return announceUndoable(`Now tracking ${tx.name} as a subscription.`, r.undo, refetch);
+      if (subscription)
+        return say
+          ? say({ lead: `Tracking ${tx.name}`, tail: " as a subscription", undo: takeBack(r.undo) })
+          : announceUndoable(`Now tracking ${tx.name} as a subscription.`, r.undo, refetch);
+      if (wide && say) return say({ lead: alike.size ? `Filed ${alike.size + 1} from ${tx.name}` : `Filed ${tx.name}`, tail: ` under ${category}, always`, undo: takeBack(r.undo) });
+      if (say) return say({ lead: `Filed ${tx.name}`, tail: ` under ${category}`, undo: takeBack(r.undo) });
       if (wide)
         return announceUndoable(
           alike.size ? `Filed ${alike.size + 1} from ${tx.name} under ${category}, and every one to come.` : `Filed ${tx.name} under ${category}, and every one to come.`,
@@ -207,7 +227,7 @@ export function CoinBoard({
   // A split picked in a row's menu: shared at once, the notice offering Always (every
   // charge from this merchant) beside Undo. Splitting does not file: an unfiled charge
   // still needs a roll, and its coin wears its part in the pile.
-  const onSplit = (tx: BoardTx, share: number) => {
+  const onSplit = (tx: BoardTx, share: number, say?: (s: Said) => void) => {
     if (!partner) return;
     setBoard((b) => ({ ...b, txs: b.txs.map((t) => (t.id === tx.id ? { ...t, shared: true, partnerShare: share } : t)) }));
     void run({ type: "share", txId: tx.id, partnerShare: share }).then((r) => {
@@ -215,15 +235,15 @@ export function CoinBoard({
         announceError(r.error);
         return refetch();
       }
-      announceUndoable(`Split ${tx.name} with ${partner}, who pays ${shareLabel(share)}.`, r.undo, refetch, {
-        label: "Always",
-        onClick: () => void splitAlways(tx, share),
-      });
+      const always = { label: "Always", onClick: () => void splitAlways(tx, share, say) };
+      if (say) return say({ lead: `Split with ${partner}`, tail: `, who pays ${shareLabel(share)}`, undo: takeBack(r.undo), also: always });
+      announceUndoable(`Split ${tx.name} with ${partner}, who pays ${shareLabel(share)}.`, r.undo, refetch, always);
     });
   };
-  const splitAlways = async (tx: BoardTx, share: number) => {
+  const splitAlways = async (tx: BoardTx, share: number, say?: (s: Said) => void) => {
     const r = await run({ type: "share", txId: tx.id, partnerShare: share, always: true });
     if (!r.ok) return announceError(r.error);
+    if (say) return say({ lead: `Every ${tx.name} charge`, tail: ` split with ${partner}`, undo: takeBack(r.undo) });
     announceUndoable(`Every ${tx.name} charge is now split with ${partner}.`, r.undo, refetch);
   };
   const onUnshare = (tx: BoardTx) => {

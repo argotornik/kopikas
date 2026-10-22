@@ -16,6 +16,10 @@ import { cn, shareLabel } from "@/lib/utils";
 // When the coin's shop has more loose charges, the coin shows as a little stack and "All N,
 // always" beside the question files them all with one tap and teaches the rule for the future.
 
+// What the queue's own line says after a filing or a split, in place of a notice that would sit
+// over the tiles: the start may be cut short, the rest always shows, then Always (a split's) and Undo.
+export type Said = { lead: string; tail: string; undo?: () => Promise<boolean>; also?: { label: string; onClick: () => void } };
+
 const day = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const count = new Intl.NumberFormat("et-EE");
 const SPRING = { type: "spring" as const, stiffness: 320, damping: 26 };
@@ -47,8 +51,9 @@ export function CoinQueue({
   categories: Board["categories"];
   partner: string | null;
   // `always` files the charge's whole shop and teaches the rule, as the notice's Always does.
-  onFile: (tx: BoardTx, category: string, always?: boolean) => void;
-  onSplit: (tx: BoardTx, share: number) => void;
+  // `say` gets what happened, for the queue's own line.
+  onFile: (tx: BoardTx, category: string, always?: boolean, say?: (s: Said) => void) => void;
+  onSplit: (tx: BoardTx, share: number, say?: (s: Said) => void) => void;
   // With nothing left to file, the way to the month.
   onDone: () => void;
 }) {
@@ -56,6 +61,46 @@ export function CoinQueue({
   const [skipped, setSkipped] = useState<string[]>([]);
   // Always is set for one coin at a time: the next coin starts with it off.
   const [alwaysFor, setAlwaysFor] = useState<string | null>(null);
+  // What the last filing or split did, said for 6 s in the progress line's place ("Undone" for 2.5 s).
+  const [said, setSaid] = useState<Said | null>(null);
+  useEffect(() => {
+    if (!said) return;
+    const t = setTimeout(() => setSaid(null), said.undo || said.also ? 6000 : 2500);
+    return () => clearTimeout(t);
+  }, [said]);
+  const undo = (run: () => Promise<boolean>) => {
+    setSaid(null);
+    void run().then((ok) => ok && setSaid({ lead: "Undone", tail: "" }));
+  };
+  // Its words in Ink; the start gives way when the line is short of room, never Undo. The links'
+  // tap areas reach 44px on a touch screen.
+  const LINK = cn(
+    "relative shrink-0 underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:absolute pointer-coarse:after:-inset-x-2 pointer-coarse:after:-inset-y-3.5 pointer-coarse:after:content-['']",
+    FOCUS
+  );
+  const saidLine = (s: Said) => (
+    <span className="flex min-w-0 items-baseline whitespace-pre">
+      <span className="truncate text-ink dark:text-chalk">{s.lead}</span>
+      <span className="shrink-0 text-ink dark:text-chalk">{s.tail}</span>
+      {s.also && (
+        <>
+          <span className="shrink-0"> · </span>
+          <button type="button" onClick={() => (setSaid(null), s.also!.onClick())} className={LINK}>
+            {s.also.label}
+          </button>
+        </>
+      )}
+      {s.undo && (
+        <>
+          <span className="shrink-0"> · </span>
+          <button type="button" onClick={() => undo(s.undo!)} className={LINK}>
+            Undo
+          </button>
+        </>
+      )}
+    </span>
+  );
+
   // The tap that empties the queue gets a burst of confetti around "All filed", once.
   const [party, setParty] = useState(false);
   useEffect(() => {
@@ -80,7 +125,11 @@ export function CoinQueue({
 
   if (!tx)
     return (
-      <section aria-labelledby="queue-heading" className={cn(PANEL, "flex flex-col items-center bg-oat px-6 py-12 text-center dark:bg-oat-night")}>
+      <section aria-labelledby="queue-heading" className={cn(PANEL, "relative flex flex-col items-center bg-oat px-6 py-12 text-center dark:bg-oat-night")}>
+        {/* Under the button, where no confetti flies, so the last filing can still be undone. */}
+        <div role="status" className={cn("absolute inset-x-4 bottom-4 flex justify-center text-[13px]", MUTED)}>
+          {said && saidLine(said)}
+        </div>
         <span className="relative">
           <motion.span className="block" initial={party && !reduce ? { scale: 0.5, opacity: 0 } : false} animate={{ scale: 1, opacity: 1 }} transition={SPRING}>
             <PaintedCoin size={72} mood="glad" seed={5} />
@@ -103,12 +152,18 @@ export function CoinQueue({
 
   return (
     <section aria-labelledby="queue-heading" className={cn(PANEL, "bg-oat px-3 pb-4 pt-5 dark:bg-oat-night")}>
-      <div className={cn("flex justify-between px-1 text-[13px] tabular-nums", MUTED)}>
-        {/* Progress first: what's done, then what's left. */}
-        <span>
-          <span className="font-medium text-ink dark:text-chalk">{count.format(filed)} filed</span> · {count.format(queue.length)} to go
+      <div className={cn("flex justify-between gap-3 px-1 text-[13px] tabular-nums", MUTED)}>
+        {/* Progress first: what's done, then what's left; after a filing, what it did. */}
+        <span role="status" className="flex min-w-0">
+          {said ? (
+            saidLine(said)
+          ) : (
+            <span>
+              <span className="font-medium text-ink dark:text-chalk">{count.format(filed)} filed</span> · {count.format(queue.length)} to go
+            </span>
+          )}
         </span>
-        {waiting > 0 && <span>{waiting} skipped</span>}
+        {!said && waiting > 0 && <span className="shrink-0">{waiting} skipped</span>}
       </div>
       {/* The coin on top: it hops out as it is filed, and the next one drops in. Room for a
           two-line name and the "more from here" line, so Skip and Split stay put from coin to coin. */}
@@ -157,7 +212,7 @@ export function CoinQueue({
         {partner && (
           <button
             type="button"
-            onClick={() => onSplit(tx, 0.5)}
+            onClick={() => onSplit(tx, 0.5, setSaid)}
             disabled={tx.shared}
             aria-label={tx.shared ? `Split with ${partner} already` : `Split with ${partner}, who pays 1/2`}
             className={cn("h-11 flex-[2] rounded-full inset-ring-[1.5px] inset-ring-ink/15 text-[15px] font-medium transition-transform disabled:opacity-40 motion-safe:active:scale-[0.96] dark:inset-ring-white/15", FOCUS)}
@@ -196,7 +251,7 @@ export function CoinQueue({
               onClick={() => {
                 const wide = always && c.name !== SUBSCRIPTIONS;
                 if ((wide ? alike + 1 : 1) === queue.length) setParty(true);
-                onFile(tx, c.name, wide);
+                onFile(tx, c.name, wide, setSaid);
               }}
               aria-label={`File under ${c.name}${c.name === SAVINGS ? "" : `, ${eur.format(total)} in ${label(monthOf(tx.date))}`}`}
               className={cn(
