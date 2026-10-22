@@ -1,9 +1,11 @@
 "use client";
 
+import { Fragment, useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Menu } from "@base-ui/react/menu";
 import { CheckIcon } from "lucide-react";
 import type { BoardTx } from "@/lib/board";
+import { SUBSCRIPTIONS, matches } from "@/lib/engine";
 import { eur, wrapperOf } from "@/components/coin-stage";
 import { FOCUS, INK, MUTED } from "@/components/coin-look";
 import { MerchantIcon } from "@/components/merchant-icon";
@@ -12,10 +14,15 @@ import { SPLITS } from "@/components/split-picker";
 import { cn, shareLabel } from "@/lib/utils";
 
 // The new board's charges, by day: every row's category opens the File menu,
-// and a day's micro-investing round-ups fold into one line.
+// and a day's micro-investing round-ups fold into one line. The backlog (To file) goes
+// by shop instead: one row per shop, the most to clear first, whose chip files it all.
 
 const dayName = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
-// One File menu serves the whole list; the row that opened it is its payload.
+const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+const weekdayMonth = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+const day = (d: string) => dayMonth.format(new Date(d + "T00:00:00Z"));
+// One File menu serves the whole list; the row that opened it is its payload, or for a
+// shop "shop:" and the pattern its charges share.
 const fileMenu = Menu.createHandle<string>();
 const CHIP = "relative inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-2 pointer-coarse:after:absolute pointer-coarse:after:content-['']";
 // The board's menus: a white card of rows, as here and on Subscriptions.
@@ -28,7 +35,10 @@ export const MENU_SEPARATOR = "mx-2.5 my-1 h-px bg-ink/10 dark:bg-white/10";
 type Category = { name: string };
 // What filing and splitting from a row hand to the page, with the row the coin hops from.
 type Actions = {
-  onFile: (tx: BoardTx, category: string, from: Element | null) => void;
+  // `always` files every loose charge from the shop and teaches the rule, as the queue's switch does.
+  onFile: (tx: BoardTx, category: string, from: Element | null, always?: boolean) => void;
+  // A shop's charges at once; with `always`, every one to come too.
+  onFileShop: (txs: BoardTx[], category: string, always: boolean) => void;
   // Split with the partner, the household has one; null when it has none.
   partner: string | null;
   onSplit: (tx: BoardTx, share: number, from: Element | null) => void;
@@ -36,7 +46,48 @@ type Actions = {
   onEditMerchant: (tx: BoardTx) => void;
 };
 
-export function CoinLedger({ txs, categories, ...actions }: { txs: BoardTx[]; categories: Category[] } & Actions) {
+type Shop = { key: string; txs: BoardTx[]; total: number };
+
+export function CoinLedger({
+  txs,
+  categories,
+  backlog,
+  byShop = false,
+  ...actions
+}: { txs: BoardTx[]; categories: Category[]; backlog: BoardTx[]; byShop?: boolean } & Actions) {
+  // The shops whose charges are showing under their row.
+  const [open, setOpen] = useState<string[]>([]);
+  if (byShop) {
+    const shops = new Map<string, BoardTx[]>();
+    for (const t of txs) shops.set(t.rulePattern, [...(shops.get(t.rulePattern) ?? []), t]);
+    const list: Shop[] = [...shops]
+      .map(([key, group]) => ({ key, txs: group, total: group.reduce((sum, t) => sum - t.amount, 0) }))
+      .sort((a, b) => b.txs.length - a.txs.length || b.total - a.total);
+    const row = (t: BoardTx, inset = false) => (
+      <Row key={t.id} t={t} categories={categories} partner={actions.partner} onEditMerchant={actions.onEditMerchant} inset={inset} />
+    );
+    return (
+      <>
+        <ul className="flex flex-col pt-3">
+          {list.map((shop) =>
+            shop.txs.length === 1 ? (
+              row(shop.txs[0])
+            ) : (
+              <Fragment key={shop.key}>
+                <ShopRow
+                  shop={shop}
+                  open={open.includes(shop.key)}
+                  onToggle={() => setOpen((o) => (o.includes(shop.key) ? o.filter((k) => k !== shop.key) : [...o, shop.key]))}
+                />
+                {open.includes(shop.key) && shop.txs.map((t) => row(t, true))}
+              </Fragment>
+            )
+          )}
+        </ul>
+        <FileMenu txs={txs} shops={list} backlog={backlog} categories={categories} {...actions} />
+      </>
+    );
+  }
   const days: { day: string; rows: BoardTx[]; micro: BoardTx[] }[] = [];
   for (const t of txs) {
     let d = days.at(-1);
@@ -56,8 +107,70 @@ export function CoinLedger({ txs, categories, ...actions }: { txs: BoardTx[]; ca
           </ul>
         </div>
       ))}
-      <FileMenu txs={txs} categories={categories} {...actions} />
+      <FileMenu txs={txs} shops={[]} backlog={backlog} categories={categories} {...actions} />
     </>
+  );
+}
+
+// A shop with several charges waiting: how many, from when and how much. Its name opens
+// its charges under it; its chip, a little stack of coins, opens the File menu for them all.
+function ShopRow({ shop, open, onToggle }: { shop: Shop; open: boolean; onToggle: () => void }) {
+  const first = shop.txs[0];
+  const dates = shop.txs.map((t) => t.date).sort();
+  const n = shop.txs.length;
+  return (
+    <li className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-2xl px-2 py-2.5 hover:bg-white sm:grid-cols-[28px_minmax(0,1fr)_150px_100px] dark:hover:bg-card-night">
+      <MerchantIcon name={first.name} domain={first.domain} emoji={first.emoji} />
+      <button type="button" aria-expanded={open} onClick={onToggle} className={cn("min-w-0 rounded-lg text-left", FOCUS)}>
+        <span className="block truncate text-[15px] font-medium">{first.name}</span>
+        <span className={cn("block text-[13px]", MUTED)}>
+          {n} charges · {day(dates[0])} – {day(dates[n - 1])}
+        </span>
+      </button>
+      <div className="col-start-2 row-start-2 min-w-0 sm:col-start-3 sm:row-start-1">
+        <Menu.Trigger
+          handle={fileMenu}
+          payload={`shop:${shop.key}`}
+          aria-label={`File all ${n} from ${first.name}, ${eur.format(shop.total)}`}
+          className={cn(CHIP, INK, "cursor-pointer pl-1 data-popup-open:ring-2 data-popup-open:ring-ink/20 dark:data-popup-open:ring-white/25", FOCUS)}
+        >
+          {/* A little stack: the shop's coins, still looking for their roll. */}
+          <span aria-hidden className="relative -my-0.5 block h-5 w-[27px] shrink-0">
+            <span className="absolute left-[7px] top-0">
+              <PaintedCoin size={20} metal="brass" mood="puzzled" seed={4} />
+            </span>
+            <span className="absolute left-0 top-0">
+              <PaintedCoin size={20} mood="puzzled" seed={3} />
+            </span>
+          </span>
+          <span className="truncate">File all {n}…</span>
+        </Menu.Trigger>
+      </div>
+      <div className="col-start-3 row-start-1 text-right text-[15px] font-medium tabular-nums sm:col-start-4">{eur.format(-shop.total)}</div>
+    </li>
+  );
+}
+
+// The queue's switch, as the first thing in a menu: set before the pick, it stays open.
+function AlwaysItem({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <Menu.CheckboxItem
+      checked={checked}
+      onCheckedChange={onChange}
+      className="flex cursor-default items-center rounded-xl px-1.5 py-1 outline-none select-none data-highlighted:bg-mist dark:data-highlighted:bg-card-night-hover"
+    >
+      <span
+        className={cn(
+          "inline-flex h-[30px] items-center gap-1.5 rounded-full pl-2 pr-3 text-[13px] font-medium",
+          checked ? "bg-ink text-white dark:bg-chalk dark:text-ink" : "bg-white inset-ring-[1.5px] inset-ring-ink/15 dark:bg-card-night dark:inset-ring-white/15"
+        )}
+      >
+        <span aria-hidden className={cn("flex size-3.5 items-center justify-center rounded-full", checked ? "bg-white text-ink dark:bg-ink dark:text-chalk" : "inset-ring-[1.5px] inset-ring-ink/40 dark:inset-ring-white/40")}>
+          {checked && <CheckIcon className="size-2.5" strokeWidth={3.5} />}
+        </span>
+        {label}
+      </span>
+    </Menu.CheckboxItem>
   );
 }
 
@@ -68,11 +181,14 @@ function Row({
   categories,
   partner,
   onEditMerchant,
+  inset = false,
 }: {
   t: BoardTx;
   categories: Category[];
   partner: string | null;
   onEditMerchant: (tx: BoardTx) => void;
+  // Shown under its shop's row, set in a step.
+  inset?: boolean;
 }) {
   const split = t.shared && partner ? `${partner} pays ${shareLabel(t.partnerShare)}` : null;
   const sub = [split, t.note].filter(Boolean).join(" · ");
@@ -85,6 +201,7 @@ function Row({
       className={cn(
         "grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-2xl px-2 py-2.5 [contain-intrinsic-size:auto_56px] [content-visibility:auto] hover:bg-white sm:grid-cols-[28px_minmax(0,1fr)_150px_100px] dark:hover:bg-card-night",
         t.amount < 0 && "cursor-grab select-none",
+        inset && "pl-10",
         isDragging && "opacity-40"
       )}
     >
@@ -102,7 +219,8 @@ function Row({
         <MerchantIcon name={t.name} domain={t.domain} emoji={t.emoji} />
       </button>
       <div className="min-w-0">
-        <div className="truncate text-[15px] font-medium">{t.name}</div>
+        {/* Under its shop's row the name is said already; its day tells the charges apart. */}
+        <div className="truncate text-[15px] font-medium">{inset ? weekdayMonth.format(new Date(t.date + "T00:00:00Z")) : t.name}</div>
         {sub && <div className={cn("line-clamp-2 text-[13px] sm:line-clamp-1", MUTED)}>{sub}</div>}
       </div>
       {/* Under the name on a phone, in its own column from 640px. */}
@@ -166,21 +284,75 @@ function RoundUps({ micro }: { micro: BoardTx[] }) {
 // The categories a charge can go under, the one it has ticked. Picking one files
 // it there at once, the way a coin goes into a roll; below them, its split with the
 // partner, which works the same way.
-function FileMenu({ txs, categories, onFile, partner, onSplit, onUnshare, onEditMerchant }: { txs: BoardTx[]; categories: Category[] } & Actions) {
+function FileMenu({
+  txs,
+  shops,
+  backlog,
+  categories,
+  onFile,
+  onFileShop,
+  partner,
+  onSplit,
+  onUnshare,
+  onEditMerchant,
+}: { txs: BoardTx[]; shops: Shop[]; backlog: BoardTx[]; categories: Category[] } & Actions) {
+  // The switch for this opening of the menu; null is how it starts: on for a shop's charges,
+  // off for one charge, as in the queue.
+  const [always, setAlways] = useState<boolean | null>(null);
+  const items = categories.map((c) => (
+    <Menu.RadioItem key={c.name} value={c.name} closeOnClick className={MENU_ITEM}>
+      <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: wrapperOf(categories, c.name) }} />
+      <span className="min-w-0 flex-1 truncate">{c.name}</span>
+      <Menu.RadioItemIndicator>
+        <CheckIcon aria-hidden className="size-4" />
+      </Menu.RadioItemIndicator>
+    </Menu.RadioItem>
+  ));
   return (
-    <Menu.Root handle={fileMenu}>
+    <Menu.Root handle={fileMenu} onOpenChange={(o) => o && setAlways(null)}>
       {({ payload }) => {
-        const tx = txs.find((t) => t.id === payload);
+        const shop = payload?.startsWith("shop:") ? shops.find((s) => `shop:${s.key}` === payload) : undefined;
+        const tx = shop ? undefined : txs.find((t) => t.id === payload);
+        const on = always ?? !!shop;
+        // An unfiled charge's shop: its other loose charges, which Always takes too.
+        const alike = tx && !tx.category ? backlog.filter((t) => t.id !== tx.id && matches(t, tx.rulePattern)).length : 0;
         return (
           <Menu.Portal>
             <Menu.Positioner sideOffset={6} align="start" className="z-50 outline-none">
               <Menu.Popup className={MENU_POPUP}>
+                {shop && (
+                  <Menu.Group>
+                    <Menu.GroupLabel className={cn("flex items-baseline gap-2 px-2.5 pb-1.5 pt-1 text-[13px]", MUTED)}>
+                      <span className="truncate">
+                        File all {shop.txs.length} from {shop.txs[0].name}
+                      </span>
+                      <span className="ml-auto shrink-0 tabular-nums">{eur.format(shop.total)}</span>
+                    </Menu.GroupLabel>
+                    <AlwaysItem checked={on} onChange={setAlways} label="Always, every one to come" />
+                    <Menu.Separator className={MENU_SEPARATOR} />
+                    <Menu.RadioGroup
+                      value=""
+                      onValueChange={(v) => {
+                        fileMenu.close();
+                        setTimeout(() => onFileShop(shop.txs, String(v), on && v !== SUBSCRIPTIONS), 0);
+                      }}
+                    >
+                      {items}
+                    </Menu.RadioGroup>
+                  </Menu.Group>
+                )}
                 {tx && (
                   <Menu.Group>
                     <Menu.GroupLabel className={cn("flex items-baseline gap-2 px-2.5 pb-1.5 pt-1 text-[13px]", MUTED)}>
                       <span className="truncate">File {tx.name}</span>
                       <span className="ml-auto shrink-0 tabular-nums">{eur.format(Math.abs(tx.amount))}</span>
                     </Menu.GroupLabel>
+                    {!tx.category && (
+                      <>
+                        <AlwaysItem checked={on} onChange={setAlways} label={alike ? `All ${alike + 1}, always` : "Always"} />
+                        <Menu.Separator className={MENU_SEPARATOR} />
+                      </>
+                    )}
                     <Menu.RadioGroup
                       value={tx.category ?? ""}
                       onValueChange={(v) => {
@@ -188,18 +360,10 @@ function FileMenu({ txs, categories, onFile, partner, onSplit, onUnshare, onEdit
                         const row = document.querySelector(`[data-row="${tx.id}"]`);
                         // Close first, so the menu has handed focus back before the coin hops.
                         fileMenu.close();
-                        setTimeout(() => onFile(tx, String(v), row), 0);
+                        setTimeout(() => onFile(tx, String(v), row, on && !tx.category), 0);
                       }}
                     >
-                      {categories.map((c) => (
-                        <Menu.RadioItem key={c.name} value={c.name} closeOnClick className={MENU_ITEM}>
-                          <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: wrapperOf(categories, c.name) }} />
-                          <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                          <Menu.RadioItemIndicator>
-                            <CheckIcon aria-hidden className="size-4" />
-                          </Menu.RadioItemIndicator>
-                        </Menu.RadioItem>
-                      ))}
+                      {items}
                     </Menu.RadioGroup>
                   </Menu.Group>
                 )}

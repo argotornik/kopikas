@@ -3,9 +3,9 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { motion, useReducedMotion } from "motion/react";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { Board, BoardTx } from "@/lib/board";
-import { SAVINGS } from "@/lib/engine";
+import { SAVINGS, matches } from "@/lib/engine";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 // The hand both looks share: the painted faces blink with its keyframes.
 import type { Mood } from "@/components/goofy";
@@ -152,7 +152,8 @@ const PHONE_BURST: BurstMark[] = [
 // when a row is dragged (coin-board.tsx), so a coin is never filed blind. Screen readers hear the same
 // from the coin's own name, so this is for the eyes only. Beside the phone's coin row there is no room
 // for the day as well; the name and the amount are what tell two coins apart.
-function CoinLabel({ tx, day = true, className }: { tx: BoardTx; day?: boolean; className?: string }) {
+function CoinLabel({ pile, day = true, className }: { pile: BoardTx[]; day?: boolean; className?: string }) {
+  const tx = pile[0];
   return (
     <span
       aria-hidden
@@ -162,8 +163,16 @@ function CoinLabel({ tx, day = true, className }: { tx: BoardTx; day?: boolean; 
       )}
     >
       <span className="min-w-0 truncate">{tx.name}</span>
-      <span className="shrink-0 tabular-nums">{eur.format(Math.abs(tx.amount))}</span>
-      {day && <span className={cn("shrink-0 font-normal", MUTED)}>· {shortDate.format(new Date(tx.date + "T00:00:00Z"))}</span>}
+      {pile.length > 1 ? (
+        <span className="shrink-0 tabular-nums">
+          {pile.length} · {eur.format(pile.reduce((sum, t) => sum - t.amount, 0))}
+        </span>
+      ) : (
+        <>
+          <span className="shrink-0 tabular-nums">{eur.format(Math.abs(tx.amount))}</span>
+          {day && <span className={cn("shrink-0 font-normal", MUTED)}>· {shortDate.format(new Date(tx.date + "T00:00:00Z"))}</span>}
+        </>
+      )}
     </span>
   );
 }
@@ -203,7 +212,8 @@ const coinCount = (n: number) => `${n} ${n === 1 ? "coin" : "coins"}`;
 
 // Where a coin in the air is going: a roll by its category, or the Pooleks jar (null).
 // `size` is the coin's, so it leaves a magnified stage (the board on an ultrawide) at its size there.
-type Flight = { tx: BoardTx; to: string | null; from: { x: number; y: number }; dx: number; dy: number; size: number };
+// A stack (`many`) flies as its top coin and lands as all of them; `always` is the switch.
+type Flight = { tx: BoardTx; to: string | null; from: { x: number; y: number }; dx: number; dy: number; size: number; always: boolean; many?: BoardTx[] };
 
 // Unfiled money, newest first: the coins in the pile, and the queue's rows. One
 // month's, or every month's when `month` is null. Round-ups are never loose.
@@ -220,7 +230,8 @@ export const wrapperOf = (categories: { name: string }[], name: string) =>
 // ledger row, with the coin hopping from that row to its roll. False when a coin is
 // already in the air.
 export type CoinStageHandle = {
-  file: (tx: BoardTx, category: string, from?: Element | null) => boolean;
+  // `always` files every loose charge from the shop and teaches the rule.
+  file: (tx: BoardTx, category: string, from?: Element | null, always?: boolean) => boolean;
   split: (tx: BoardTx, from?: Element | null) => boolean;
 };
 
@@ -232,6 +243,7 @@ export function CoinStage({
   currentMonth,
   onMonthChange,
   onFile,
+  onFileMany,
   selected = null,
   onSelect,
   figures,
@@ -245,7 +257,9 @@ export function CoinStage({
   months: string[];
   currentMonth: string;
   onMonthChange: (month: string) => void;
-  onFile: (tx: BoardTx, category: string) => void;
+  onFile: (tx: BoardTx, category: string, always?: boolean) => void;
+  // A shop's stack of coins at once; with `always`, every one to come too.
+  onFileMany: (txs: BoardTx[], category: string, always: boolean) => void;
   // The category the page is showing on its own, marked on its roll.
   selected?: string | null;
   // With no coin in hand, a roll picks its category for the page to show.
@@ -354,8 +368,26 @@ export function CoinStage({
   const elsewhere = looseCoins(txs, null).filter((t) => monthOf(t.date) !== month);
   const elsewhereMonth = elsewhere.map((t) => monthOf(t.date)).sort().at(-1);
   const oneMonth = elsewhere.every((t) => monthOf(t.date) === elsewhereMonth);
-  const pickedTx = loose.find((t) => t.id === picked) ?? null;
-  const labelled = pickedTx ?? loose.find((t) => t.id === peek) ?? null;
+  // This month's coins by shop: one shop's charges stand as one stack, picked by its top coin.
+  const piles: BoardTx[][] = [];
+  for (const t of loose) {
+    const pile = piles.find((g) => g[0].rulePattern === t.rulePattern);
+    if (pile) pile.push(t);
+    else piles.push([t]);
+  }
+  const pileOf = (id: string | null) => (id ? (piles.find((g) => g[0].id === id) ?? null) : null);
+  const pickedPile = pileOf(picked);
+  const pickedTx = pickedPile?.[0] ?? null;
+  const labelledPile = pickedPile ?? pileOf(peek);
+  const labelled = labelledPile?.[0] ?? null;
+  // The picked coin's shop across every month, which the switch would file, and the switch.
+  const shopCount = pickedTx ? looseCoins(txs, null).filter((t) => matches(t, pickedTx.rulePattern)).length : 0;
+  const [always, setAlways] = useState(false);
+  const [alwaysFor, setAlwaysFor] = useState(picked);
+  if (alwaysFor !== picked) {
+    setAlwaysFor(picked);
+    setAlways(false);
+  }
   // A month with charges and none loose says so; one with nothing in it has nothing to file.
   const sorted = loose.length === 0 && txs.some((t) => t.amount < 0 && !t.micro && monthOf(t.date) === month);
 
@@ -393,9 +425,40 @@ export function CoinStage({
     );
   const pileScale = 0.8;
   const pileCoin = 40;
+  const coinFace = (g: BoardTx[], i: number, isPicked: boolean) => (
+    <>
+      {g
+        .slice(1, 3)
+        .map((t, k) => (
+          <span key={t.id} aria-hidden className="absolute left-0" style={{ top: -6 * (k + 1) }}>
+            <PaintedCoin size={pileCoin} metal={PILE_METALS[(i + k + 1) % PILE_METALS.length]} mood="puzzled" seed={i + k + 5} />
+          </span>
+        ))
+        .reverse()}
+      <span className="relative block">
+        <PaintedCoin size={pileCoin} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "puzzled"} seed={i + 2} />
+      </span>
+      {g.length > 1 ? (
+        <span
+          aria-hidden
+          className="absolute -right-1.5 rounded-full bg-white px-1 text-[12px] font-semibold leading-4 tabular-nums text-ink ring-1 ring-ink/10 dark:bg-card-night dark:text-chalk dark:ring-white/10"
+          style={{ top: -6 * Math.min(2, g.length - 1) - 4 }}
+        >
+          {g.length}
+        </span>
+      ) : (
+        splitMark(g[0])
+      )}
+    </>
+  );
+  const coinName = (g: BoardTx[]) =>
+    g.length > 1
+      ? `${g[0].name}, ${g.length} charges, ${eur.format(g.reduce((sum, t) => sum - t.amount, 0))}. Pick up to file them all`
+      : `${g[0].name}, ${eur.format(Math.abs(g[0].amount))}, ${shortDate.format(new Date(g[0].date + "T00:00:00Z"))}${splitNote(g[0])}. Pick up to file`;
   const pileBox = (
     <div className="relative size-[120px]" role="group" aria-label={`Loose change: ${loose.length} to file`}>
-      {loose.slice(0, PILE.length).map((t, i) => {
+      {piles.slice(0, PILE.length).map((g, i) => {
+        const t = g[0];
         const spot = PILE[i];
         const isPicked = picked === t.id;
         return (
@@ -404,7 +467,7 @@ export function CoinStage({
             type="button"
             data-coin={t.id}
             aria-pressed={isPicked}
-            aria-label={`${t.name}, ${eur.format(Math.abs(t.amount))}, ${shortDate.format(new Date(t.date + "T00:00:00Z"))}${splitNote(t)}. Pick up to file`}
+            aria-label={coinName(g)}
             onClick={() => setPicked(isPicked ? null : t.id)}
             onMouseEnter={() => setPeek(t.id)}
             onMouseLeave={() => setPeek((p) => (p === t.id ? null : p))}
@@ -423,8 +486,7 @@ export function CoinStage({
             transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : reduce ? { duration: 0 } : { ...SPRING, delay: 0.2 + i * 0.05 }}
             whileHover={{ y: isPicked ? -18 : -4 }}
           >
-            <PaintedCoin size={pileCoin} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "puzzled"} seed={i + 2} />
-            {splitMark(t)}
+            {coinFace(g, i, isPicked)}
           </motion.button>
         );
       })}
@@ -462,7 +524,7 @@ export function CoinStage({
       <div className={cn("col-start-1 row-start-1 text-[13px] tabular-nums [direction:ltr]", MUTED, labelled && "invisible")}>{count}</div>
       {labelled && (
         <CoinLabel
-          tx={labelled}
+          pile={labelledPile ?? [labelled]}
           day={under}
           // Above the floaters around the pile (they are placed, so they would paint over it).
           className={cn("relative z-10 col-start-1 row-start-1 [direction:ltr]", under && "w-max max-w-[280px]")}
@@ -471,20 +533,41 @@ export function CoinStage({
     </div>
   );
   // What the count says: how many wait, or, the month sorted, that it is, in Ink.
-  const countText = (shown: number) =>
-    loose.length > 0 ? (
-      `${loose.length} to file${loose.length > shown ? ` · ${shown} shown` : ""}`
+  const countText = (shown: number) => {
+    // Coins on show, a stack counting all its charges.
+    const onShow = piles.slice(0, shown).reduce((n, g) => n + g.length, 0);
+    return loose.length > 0 ? (
+      `${loose.length} to file${loose.length > onShow ? ` · ${onShow} shown` : ""}`
     ) : sorted ? (
       <span className="font-medium text-ink dark:text-chalk">All sorted for {label(month)}</span>
     ) : (
       "nothing to file"
     );
-  const hintSlot = (hint: string) => (
-    <div className="grid min-h-5">
-      <div className={cn("col-start-1 row-start-1", pickedTx && "invisible")}>{elsewhereNote}</div>
+  };
+  // Under the pile it grows leftwards like the count's slot, so the switch never leaves the panel;
+  // beside the phone's row it wraps instead.
+  const hintSlot = (hint: string, under: boolean) => (
+    <div className={cn("grid min-h-[30px] grid-cols-1", under ? "-mx-7 [direction:rtl] [justify-items:safe_center]" : "justify-items-start")}>
+      <div className={cn("col-start-1 row-start-1 [direction:ltr]", pickedTx && "invisible")}>{elsewhereNote}</div>
       {pickedTx && (
-        <div aria-hidden className="col-start-1 row-start-1 text-[13px] text-ink dark:text-chalk">
-          {hint}
+        <div className={cn("col-start-1 row-start-1 flex items-center gap-x-3 gap-y-1 text-[13px] text-ink [direction:ltr] dark:text-chalk", under ? "w-max" : "flex-wrap")}>
+          <span aria-hidden>{hint}</span>
+          {/* The queue's switch: set before the roll is tapped, it files the shop's every coin and teaches the rule. */}
+          <button
+            type="button"
+            aria-pressed={always}
+            onClick={() => setAlways((a) => !a)}
+            className={cn(
+              "relative inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-full pl-2 pr-3 font-medium transition-transform motion-safe:active:scale-[0.96] pointer-coarse:after:absolute pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-2 pointer-coarse:after:content-['']",
+              always ? "bg-ink text-white dark:bg-chalk dark:text-ink" : "bg-white inset-ring-[1.5px] inset-ring-ink/15 dark:bg-card-night dark:inset-ring-white/15",
+              FOCUS
+            )}
+          >
+            <span aria-hidden className={cn("flex size-3.5 items-center justify-center rounded-full", always ? "bg-white text-ink dark:bg-ink dark:text-chalk" : "inset-ring-[1.5px] inset-ring-ink/40 dark:inset-ring-white/40")}>
+              {always && <CheckIcon className="size-2.5" strokeWidth={3.5} />}
+            </span>
+            {shopCount > 1 ? `All ${shopCount}, always` : "Always"}
+          </button>
         </div>
       )}
     </div>
@@ -493,7 +576,7 @@ export function CoinStage({
     <div className="mt-3 text-center">
       <div className={cn(DISPLAY, "text-[16px] font-semibold")}>Loose change</div>
       {countSlot(countText(PILE.length), true)}
-      {hintSlot("Tap its roll")}
+      {hintSlot("Tap its roll", true)}
     </div>
   );
 
@@ -525,9 +608,13 @@ export function CoinStage({
     return () => window.removeEventListener("keydown", onKey);
   }, [picked]);
 
-  const commit = (tx: BoardTx, category: string) => {
-    const last = loose.length === 1 && loose[0].id === tx.id;
-    onFile(tx, category);
+  const commit = (tx: BoardTx, category: string, always = false, many?: BoardTx[]) => {
+    // What leaves the pile: the coin or its stack, and with the switch, the shop's every coin.
+    const gone = new Set((many ?? [tx]).map((t) => t.id));
+    if (always) for (const t of loose) if (matches(t, tx.rulePattern)) gone.add(t.id);
+    const last = loose.length > 0 && loose.every((t) => gone.has(t.id));
+    if (many && many.length > 1) onFileMany(many, category, always);
+    else onFile(tx, category, always);
     setGulp((g) => ({ category, n: (g?.n ?? 0) + 1 }));
     setLastFiled((f) => ({ category, n: (f?.n ?? 0) + 1 }));
     if (last) {
@@ -540,13 +627,13 @@ export function CoinStage({
     jar?.onSplit(tx);
     setJarGulp((n) => n + 1);
   };
-  const land = (tx: BoardTx, to: string | null) => (to === null ? commitSplit(tx) : commit(tx, to));
+  const land = (tx: BoardTx, to: string | null, always = false, many?: BoardTx[]) => (to === null ? commitSplit(tx) : commit(tx, to, always, many));
 
   // A coin hops from where it lies to where it goes: the top of its roll, or the jar.
   // The change lands when the coin does. With reduced motion, or nothing on screen to
   // aim at, it lands at once. A row outside the stage keeps its page's focus, and the
   // coin hops from it.
-  const fly = (tx: BoardTx, to: string | null, target: Element | null, from?: Element | null) => {
+  const fly = (tx: BoardTx, to: string | null, target: Element | null, from?: Element | null, always = false, many?: BoardTx[]) => {
     if (flight) return false;
     setPicked(null);
     if (!from) {
@@ -557,7 +644,7 @@ export function CoinStage({
     }
     const src = from ?? document.querySelector(`[data-coin="${tx.id}"]`);
     if (reduce || !src || !target) {
-      land(tx, to);
+      land(tx, to, always, many);
       return true;
     }
     const a = src.getBoundingClientRect();
@@ -571,17 +658,19 @@ export function CoinStage({
       dx: b.left + b.width / 2 - (a.left + a.width / 2),
       dy: b.top - 6 - (a.top + a.height / 2),
       size,
+      always,
+      many,
     });
     return true;
   };
   // A charge from another month has no roll on this floor to land in.
-  const file = (tx: BoardTx, category: string, from?: Element | null) =>
-    !!category && fly(tx, category, monthOf(tx.date) === month ? document.querySelector(`[data-roll="${CSS.escape(category)}"]`) : null, from);
+  const file = (tx: BoardTx, category: string, from?: Element | null, always = false, many?: BoardTx[]) =>
+    !!category && fly(tx, category, monthOf(tx.date) === month ? document.querySelector(`[data-roll="${CSS.escape(category)}"]`) : null, from, always, many);
   const split = (tx: BoardTx, from?: Element | null) => !!jar && fly(tx, null, document.querySelector("[data-jar]"), from);
   useImperativeHandle(ref, () => ({ file, split }));
   // A roll takes the coin in hand; with none held, it picks its category for the page.
   const pressRoll = (name: string) => {
-    if (pickedTx) file(pickedTx, name);
+    if (pickedTx) file(pickedTx, name, undefined, always, pickedPile ?? undefined);
     else onSelect?.(name);
   };
   const rollAction = (name: string) =>
@@ -703,7 +792,8 @@ export function CoinStage({
                     {celebrating && !reduce && <ConfettiBurst marks={PHONE_BURST} origin={[20, 20]} colours={partyColours} />}
                   </span>
                 ) : (
-                  loose.slice(0, 6).map((t, i) => {
+                  piles.slice(0, 6).map((g, i) => {
+                    const t = g[0];
                     const isPicked = picked === t.id;
                     return (
                       <motion.button
@@ -711,7 +801,7 @@ export function CoinStage({
                         type="button"
                         data-coin={t.id}
                         aria-pressed={isPicked}
-                        aria-label={`${t.name}, ${eur.format(Math.abs(t.amount))}, ${shortDate.format(new Date(t.date + "T00:00:00Z"))}${splitNote(t)}. Pick up to file`}
+                        aria-label={coinName(g)}
                         onClick={() => setPicked(isPicked ? null : t.id)}
                         onMouseEnter={() => setPeek(t.id)}
                         onMouseLeave={() => setPeek((p) => (p === t.id ? null : p))}
@@ -722,8 +812,7 @@ export function CoinStage({
                         animate={isPicked ? { y: -10, scale: 1.15, rotate: [0, -10, 10, 0] } : { y: 0, scale: 1, rotate: 0 }}
                         transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : SPRING}
                       >
-                        <PaintedCoin size={40} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "puzzled"} seed={i + 2} />
-                        {splitMark(t)}
+                        {coinFace(g, i, isPicked)}
                       </motion.button>
                     );
                   })
@@ -732,7 +821,7 @@ export function CoinStage({
               <div className="min-w-0">
                 <div className={cn(DISPLAY, "text-[16px] font-semibold leading-tight")}>Loose change</div>
                 {countSlot(countText(6), false)}
-                {hintSlot("Tap its roll below")}
+                {hintSlot("Tap its roll below", false)}
               </div>
             </div>
             <div className="h-px bg-ink/10 dark:bg-white/10" aria-hidden />
@@ -903,7 +992,7 @@ export function CoinStage({
           }}
           transition={{ duration: 0.7, times: [0, 0.45, 1], ease: ["easeOut", "easeIn"] }}
           onAnimationComplete={() => {
-            land(flight.tx, flight.to);
+            land(flight.tx, flight.to, flight.always, flight.many);
             setFlight(null);
           }}
         >

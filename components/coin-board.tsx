@@ -218,6 +218,25 @@ export function CoinBoard({
       });
     });
   };
+  // A shop's charges or a stack of coins, filed at once. With Always it is the first one's
+  // Always filing, which takes the rest by its rule; without, they are pinned together, no
+  // rule, and one Undo takes them all back. Subscriptions tracks the shop, always.
+  const onFileMany = (txs: BoardTx[], category: string, always = false) => {
+    if (txs.length === 1 || always || category === SUBSCRIPTIONS) return onFile(txs[0], category, always);
+    const ids = new Set(txs.map((t) => t.id));
+    setBoard((b) => ({
+      ...b,
+      txs: b.txs.map((t) => (ids.has(t.id) ? { ...t, category, categorySource: "override" as const } : t)),
+      uncategorizedCount: b.uncategorizedCount - txs.filter((t) => !t.category).length,
+    }));
+    void run({ type: "override-many", txIds: [...ids], category }).then((r) => {
+      if (!r.ok) {
+        announceError(r.error);
+        return refetch();
+      }
+      announceUndoable(`Filed ${txs.length} from ${txs[0].name} under ${category}.`, r.undo, refetch);
+    });
+  };
   const teachAlways = async (tx: BoardTx, category: string) => {
     const r = await run({ type: "rule", txId: tx.id, category });
     if (!r.ok) return announceError(r.error);
@@ -365,6 +384,9 @@ export function CoinBoard({
   const spent = out.reduce((s, t) => s - t.amount, 0);
   const received = rows.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const toggle = (v: string) => setOnly((o) => (o === v ? null : v));
+  // Every loose charge, for the menus' "All N, always", and what's filed so far.
+  const backlog = looseCoins(board.txs, null);
+  const filed = board.txs.filter((t) => t.amount < 0 && !t.micro && t.category).length;
   const showing = only === MONEY_IN ? "Money in" : only === TO_FILE ? "To file" : only;
   // The roll the list is showing, if it is one: money in and the backlog are not rolls.
   const picked = only === MONEY_IN || only === TO_FILE ? null : only;
@@ -481,6 +503,7 @@ export function CoinBoard({
             currentMonth={initial.month}
             onMonthChange={setMonth}
             onFile={onFile}
+            onFileMany={onFileMany}
             selected={picked}
             onSelect={toggle}
             // A chosen roll's year takes the figures' place; they come back when it is let go.
@@ -686,10 +709,17 @@ export function CoinBoard({
                   {q
                     ? `${rows.length} ${rows.length === 1 ? "match" : "matches"}${showing ? ` in ${showing}` : ""}, every month`
                     : only === TO_FILE
-                      ? `${rows.length} to file, every month`
+                      ? (
+                          // Progress first, as on the phone: what's done, then what's left.
+                          <>
+                            <span className="font-medium text-ink dark:text-chalk">{filed} filed</span> · {rows.length} to go, every month
+                          </>
+                        )
                       : `${showing}, ${label(month)}`}
                   {" · "}
-                  <span className="tabular-nums">{only === MONEY_IN ? `+${eur.format(received)}` : `${eur.format(spent)} spent`}</span>
+                  <span className="tabular-nums">
+                    {only === MONEY_IN ? `+${eur.format(received)}` : only === TO_FILE && !q ? eur.format(spent) : `${eur.format(spent)} spent`}
+                  </span>
                   {" · "}
                   <button
                     type="button"
@@ -703,9 +733,12 @@ export function CoinBoard({
               <CoinLedger
                 txs={rows}
                 categories={categories}
-                onFile={(tx, category, from) => {
-                  if (!stage.current?.file(tx, category, from)) onFile(tx, category);
+                backlog={backlog}
+                byShop={only === TO_FILE}
+                onFile={(tx, category, from, always) => {
+                  if (!stage.current?.file(tx, category, from, always)) onFile(tx, category, always);
                 }}
+                onFileShop={onFileMany}
                 partner={partner}
                 onSplit={(tx, share) => onSplit(tx, share)}
                 onUnshare={onUnshare}

@@ -25,6 +25,8 @@ type Action =
   | { type: "rule"; txId: string; category: string }
   | { type: "override"; txId: string; category: string; always?: boolean }
   | { type: "unoverride"; txId: string; previous: string | null; ruleId?: string }
+  | { type: "override-many"; txIds: string[]; category: string }
+  | { type: "unoverride-many"; items: { txId: string; previous: string | null }[] }
   | { type: "unrule"; ruleId: string }
   | { type: "share"; txId: string; partnerShare?: number; always?: boolean }
   | { type: "unshare"; shareId: string; ruleId?: string }
@@ -119,6 +121,27 @@ export async function POST(req: Request) {
         db.rules = db.rules.filter((r) => r.id !== action.ruleId);
         await writeCollection("rules", db.rules);
       }
+      break;
+    }
+    case "override-many": {
+      // A shop's charges or a stack of coins, pinned at once without a rule, so one Undo
+      // takes them all back to what they were.
+      if (!Array.isArray(action.txIds) || action.txIds.length === 0 || !action.category) return bad("txIds and category required");
+      const ids = new Set(action.txIds);
+      const items = [...ids].map((txId) => ({ txId, previous: db.overrides.find((o) => o.txId === txId)?.category ?? null }));
+      db.overrides = [...db.overrides.filter((o) => !ids.has(o.txId)), ...[...ids].map((txId) => ({ txId, category: action.category }))];
+      await writeCollection("overrides", db.overrides);
+      undo = { type: "unoverride-many", items };
+      break;
+    }
+    case "unoverride-many": {
+      // Each charge gets back the hand-filing it had, or goes back to its rules or the loose change.
+      const ids = new Set(action.items.map((i) => i.txId));
+      db.overrides = db.overrides.filter((o) => !ids.has(o.txId));
+      for (const i of action.items) {
+        if (typeof i.previous === "string" && db.categories.some((c) => c.name === i.previous)) db.overrides.push({ txId: i.txId, category: i.previous });
+      }
+      await writeCollection("overrides", db.overrides);
       break;
     }
     case "share": {
