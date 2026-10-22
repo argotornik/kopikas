@@ -29,6 +29,8 @@ import { cn, shareLabel } from "@/lib/utils";
 const MONEY_IN = "money-in";
 // The list's view of every charge still waiting to be filed, from every month.
 const TO_FILE = "to-file";
+// A skip link: hidden until Tab reaches it, then an Ink pill top left.
+const SKIP = "sr-only rounded-full bg-ink text-[15px] font-medium text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:px-4 focus:py-3 dark:bg-chalk dark:text-ink";
 // Notices sit above the phone's tab bar. The editors' new look is `.coins-panel`, in globals.css.
 const PANEL_CSS = `@media (max-width: 639px) { :root { --bottom-bar: 4.5rem; } }`;
 // A row starts to drag only once the mouse has moved, so a click stays a click.
@@ -112,6 +114,18 @@ export function CoinBoard({
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
   }, []);
+  // From 1024px the charges sit left of the cards, so they come first in the page's order and Tab
+  // reaches them before the cards; below, the cards sit above the list and come first. The grid
+  // places both either way, so only the order changes.
+  const [listFirst, setListFirst] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const on = () => setListFirst(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  const pageOrder = (cards: React.ReactNode, charges: React.ReactNode) => (listFirst ? [charges, cards] : [cards, charges]);
   useEffect(() => {
     const tray = trayBox.current, cards = cardsBox.current, grid = tray?.parentElement;
     if (!tray || !cards || !grid) return;
@@ -512,10 +526,24 @@ export function CoinBoard({
             setTab("month");
             requestAnimationFrame(() => document.getElementById("charges")?.focus());
           }}
-          className="sr-only rounded-full bg-ink text-[15px] font-medium text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:px-4 focus:py-3 dark:bg-chalk dark:text-ink"
+          className={SKIP}
         >
           Skip to the charges
         </a>
+        {/* Straight to the month's first loose coin on the stage, ready to pick up; the phone's
+            To file tab holds its coins already. */}
+        {loose.length > 0 && (
+          <a
+            href="#month-heading"
+            onClick={(e) => {
+              e.preventDefault();
+              [...document.querySelectorAll<HTMLElement>("[data-coin]")].find((c) => c.getBoundingClientRect().width > 0)?.focus();
+            }}
+            className={cn(SKIP, "max-sm:hidden")}
+          >
+            Skip to the loose change
+          </a>
+        )}
         <CoinHeader
           heading
           links={[
@@ -615,7 +643,9 @@ export function CoinBoard({
           </div>
 
           <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px] wide:contents">
+            {pageOrder(
             <aside
+              key="cards"
               ref={cardsBox}
               className="flex flex-col gap-8 lg:col-start-2 lg:row-start-1 wide:col-start-1 wide:row-start-2 wide:grid wide:grid-cols-2 wide:items-start wide:sticky"
             >
@@ -722,9 +752,10 @@ export function CoinBoard({
                   subAction({ type: "cadence", subId: sub.sub.id, cadence }, `${sub.label} moved to ${cadence}.`);
                 }}
               />
-            </aside>
+            </aside>,
 
             <section
+              key="charges"
               id="charges"
               tabIndex={-1}
               aria-labelledby="ledger-heading"
@@ -827,6 +858,7 @@ export function CoinBoard({
                 </p>
               )}
             </section>
+            )}
           </div>
           </div>
         </main>
