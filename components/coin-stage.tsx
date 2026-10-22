@@ -311,14 +311,13 @@ export function CoinStage({
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
   }, []);
-  // A short window (a laptop's) gets the shorter floor, so the charges' head shows under the stage.
-  const [short, setShort] = useState(false);
+  // The window's height sets the floor's, so in a short window (a laptop's) the charges' head shows under the stage.
+  const [vh, setVh] = useState(1000);
   useEffect(() => {
-    const mq = window.matchMedia("(max-height: 999px)");
-    const on = () => setShort(mq.matches);
+    const on = () => setVh(window.innerHeight);
     on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
   }, []);
   // The phone list's width sets the shared scale for the lying rolls.
   const listRef = useRef<HTMLDivElement>(null);
@@ -433,14 +432,21 @@ export function CoinStage({
   // waits for its first coin, so it stretches nothing.
   const tallest = Math.max(1, ...rolls.map((r) => Math.max(r.total, r.total > 0 ? (r.budget ?? 0) : 0)));
   // The floor has the stage's full width, and in one row the height to match: the floor is the
-  // picture. A floor that wraps keeps the shorter stage, so its second shelf isn't mostly air,
-  // and so does a window under 1000px tall, so the charges start on the first screen.
-  const tall = !narrow && floorFits && !short;
-  const MAX = narrow ? 112 : tall ? 280 : 200;
+  // picture. Its tallest roll stands 280px, less in a short window, down to 120px, so the charges
+  // start on the first screen. A floor that wraps keeps the shorter 200px scale.
+  const MAX = narrow ? 112 : floorFits ? Math.max(120, Math.min(280, vh - 660)) : 200;
   // A month with nothing filed yet stands its sleepers on a short floor, under a line that says so:
   // the tall one would be empty air. It grows back with the first coin.
   const empty = !narrow && rolls.every((r) => r.total <= 0);
   const px = (v: number) => (v / tallest) * MAX;
+  // Each shelf of a wrapped floor is as tall as its tallest roll, limit included, with room above
+  // for the "last time" tag, so a second shelf of small rolls isn't mostly air.
+  const perShelf = Math.max(1, Math.floor((floorW + floorGap) / (colW + floorGap)));
+  const shelfOf = (i: number) => {
+    const from = Math.floor(i / perShelf) * perShelf;
+    const reach = rolls.slice(from, from + perShelf).map((r) => px(Math.max(r.total, r.total > 0 ? (r.budget ?? 0) : 0)));
+    return Math.min(MAX + 30, Math.max(70, ...reach.map((v) => v + 44)));
+  };
 
   // What the tray says to a screen reader after every step: progress first, never shaming.
   let said: string;
@@ -950,7 +956,7 @@ export function CoinStage({
         ) : (
         <>
         {empty && <p className={cn("relative mt-6 text-[15px]", MUTED)}>Nothing filed in {label(month)} yet.</p>}
-        <div className="relative mt-6 flex items-end gap-6 overflow-x-auto pb-1 sm:gap-8 lg:overflow-visible">
+        <div className="relative mt-6 flex items-end gap-6 pb-1 sm:gap-8">
           <div
             ref={floorRef}
             role="group"
@@ -964,7 +970,7 @@ export function CoinStage({
               // A narrower column gives up its side padding before its body: the body stays 44px or wider.
               const RW = Math.max(44, Math.min(60, colW - 24));
               const pad = (colW - RW) / 2;
-              const H = narrow ? 150 : empty ? 56 : tall ? 310 : 230;
+              const H = narrow ? 150 : empty ? 56 : floorFits ? MAX + 30 : shelfOf(i);
               return (
                 <div key={r.name} className="flex shrink-0 flex-col items-center" style={{ width: RW + pad * 2 }}>
                   <RollTarget name={r.name}>
@@ -996,8 +1002,10 @@ export function CoinStage({
                         </span>
                       )}
                       <div className={faded(r.name)}>
+                        {/* Keyed by width only: a floor or shelf that changes height keeps its rolls,
+                            which spring to the new scale instead of rising again. */}
                         <PaintedRoll
-                          key={`p-${RW}-${H}`}
+                          key={`p-${RW}`}
                           index={index.get(r.name) ?? i}
                           colour={colour}
                           body={px(over ? (r.budget as number) : r.total)}
