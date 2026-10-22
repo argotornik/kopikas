@@ -9,7 +9,7 @@ import { SAVINGS, matches } from "@/lib/engine";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 // The hand both looks share: the painted faces blink with its keyframes.
 import type { Mood } from "@/components/goofy";
-import { PAINTED_CONFETTI, PAINTED_WRAPPERS, PaintedBar, PaintedCoin, PaintedDefs, PaintedMini, PaintedRoll } from "@/components/painted";
+import { FACE_FROM, PAINTED_CONFETTI, PAINTED_WRAPPERS, PaintedBar, PaintedCoin, PaintedDefs, PaintedMini, PaintedRoll } from "@/components/painted";
 import { RollingNumber } from "@/components/rolling-number";
 import { cn, shareLabel } from "@/lib/utils";
 
@@ -222,6 +222,16 @@ export const looseCoins = (txs: BoardTx[], month: string | null) =>
     .filter((t) => t.amount < 0 && !t.category && !t.micro && (month === null || monthOf(t.date) === month))
     .sort((a, b) => b.date.localeCompare(a.date));
 
+// Where a shop's charges went last time: the category of its latest filed charge, or null
+// for a shop never filed, which gets no guess. The suggestion the queue, the menus and the
+// stage offer first.
+export const lastTimeOf = (txs: BoardTx[], tx: BoardTx) => {
+  let latest: BoardTx | null = null;
+  for (const t of txs)
+    if (t.category && t.amount < 0 && !t.micro && t.id !== tx.id && t.rulePattern === tx.rulePattern && (!latest || t.date > latest.date)) latest = t;
+  return latest?.category ?? null;
+};
+
 // A category's wrapper colour, by its place in the list.
 export const wrapperOf = (categories: { name: string }[], name: string) =>
   PAINTED_WRAPPERS[Math.max(0, categories.findIndex((c) => c.name === name)) % PAINTED_WRAPPERS.length];
@@ -391,6 +401,25 @@ export function CoinStage({
   const labelled = labelledPile?.[0] ?? null;
   // The picked coin's shop across every month, which the switch would file, and the switch.
   const shopCount = pickedTx ? looseCoins(txs, null).filter((t) => matches(t, pickedTx.rulePattern)).length : 0;
+  // Where the picked coin's shop went last time: that roll leans in, tagged, and a coin picked
+  // from the keyboard hands focus to it, so a second Enter files it there.
+  const suggestion = pickedTx ? lastTimeOf(txs, pickedTx) : null;
+  const focusLast = useRef(false);
+  const pick = (id: string, isPicked: boolean, byKey: boolean) => {
+    setPicked(isPicked ? null : id);
+    focusLast.current = !isPicked && byKey;
+  };
+  useEffect(() => {
+    if (!focusLast.current) return;
+    focusLast.current = false;
+    if (suggestion) [...document.querySelectorAll<HTMLElement>(`[data-roll="${CSS.escape(suggestion)}"]`)].find((el) => el.getBoundingClientRect().width > 0)?.focus();
+  }, [picked, suggestion]);
+  const lastTag = (name: string) =>
+    suggestion === name && (
+      <span aria-hidden className="ml-1.5 inline-block rounded-full bg-ink px-1.5 align-[1px] text-[12px] font-medium leading-[18px] text-white dark:bg-chalk dark:text-ink">
+        last time
+      </span>
+    );
   const [always, setAlways] = useState(false);
   const [alwaysFor, setAlwaysFor] = useState(picked);
   if (alwaysFor !== picked) {
@@ -478,7 +507,7 @@ export function CoinStage({
             data-coin={t.id}
             aria-pressed={isPicked}
             aria-label={coinName(g)}
-            onClick={() => setPicked(isPicked ? null : t.id)}
+            onClick={(e) => pick(t.id, isPicked, e.detail === 0)}
             onMouseEnter={() => setPeek(t.id)}
             onMouseLeave={() => setPeek((p) => (p === t.id ? null : p))}
             onFocus={() => setPeek(t.id)}
@@ -684,7 +713,7 @@ export function CoinStage({
     else onSelect?.(name);
   };
   const rollAction = (name: string) =>
-    pickedTx ? `. File ${pickedTx.name} here` : onSelect ? (selected === name ? ". Show every category" : `. Show only ${name}`) : "";
+    pickedTx ? `. File ${pickedTx.name} here${name === suggestion ? ", where it went last time" : ""}` : onSelect ? (selected === name ? ". Show every category" : `. Show only ${name}`) : "";
   // With a category chosen, the other rolls step back, unless a coin is in hand and every roll can take it.
   // Only the painting fades: names and amounts stay readable, and so does a focus outline.
   const faded = (name: string) => cn("transition-opacity duration-200", !!selected && !pickedTx && selected !== name && "opacity-40");
@@ -812,7 +841,7 @@ export function CoinStage({
                         data-coin={t.id}
                         aria-pressed={isPicked}
                         aria-label={coinName(g)}
-                        onClick={() => setPicked(isPicked ? null : t.id)}
+                        onClick={(e) => pick(t.id, isPicked, e.detail === 0)}
                         onMouseEnter={() => setPeek(t.id)}
                         onMouseLeave={() => setPeek((p) => (p === t.id ? null : p))}
                         onFocus={() => setPeek(t.id)}
@@ -859,7 +888,10 @@ export function CoinStage({
                     whileTap={pickedTx || onSelect ? { scale: reduce ? 1 : 0.98, transition: PRESS } : undefined}
                   >
                     <div className="flex items-baseline justify-between gap-3 text-[15px]">
-                      <span className="truncate font-medium">{r.name}</span>
+                      <span className="truncate font-medium">
+                        {r.name}
+                        {lastTag(r.name)}
+                      </span>
                       <span className="shrink-0 tabular-nums">
                         <span className={over ? "font-medium" : MUTED}>{eur.format(r.total)}</span>
                         {r.budget != null && <span className={MUTED}> of {limitText(r.budget)}</span>}
@@ -905,7 +937,10 @@ export function CoinStage({
                       <span className={faded(r.name)}>
                         <PaintedMini index={index.get(r.name) ?? 0} colour={wrapper(r.name)} />
                       </span>
-                      <span>{r.name}</span>
+                      <span>
+                        {r.name}
+                        {lastTag(r.name)}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -943,13 +978,23 @@ export function CoinStage({
                       className={cn("relative flex w-full items-end justify-center rounded-[22px] disabled:cursor-default", FOCUS)}
                       // Hover and press grow and squash from the floor, so the roll keeps standing on it.
                       style={{ height: H, originY: 1 }}
-                      animate={pickedTx && !reduce ? { y: [0, -5, 0] } : { y: 0 }}
+                      animate={pickedTx && !reduce ? { y: suggestion === r.name ? [0, -14, 0] : [0, -5, 0] } : { y: 0 }}
                       // Only the bob repeats; hover and press settle once.
                       transition={pickedTx ? { y: { duration: 0.9, repeat: Infinity, delay: i * 0.08 }, default: SPRING } : SPRING}
                       whileHover={pickedTx ? { scale: 1.06, rotate: -2 } : undefined}
                       // As on the bars: the press is there either way, a no-op when motion is reduced.
                       whileTap={pickedTx || onSelect ? { scale: reduce ? 1 : 0.96, transition: PRESS } : undefined}
                     >
+                      {/* Clear of the face: higher over a sleeper or a hatchling, whose eyes sit above it. */}
+                      {suggestion === r.name && (
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-ink px-2 py-0.5 text-[12px] font-medium text-white dark:bg-chalk dark:text-ink"
+                          style={{ bottom: px(r.total) + (px(r.total) < FACE_FROM ? 36 : 22) }}
+                        >
+                          last time
+                        </span>
+                      )}
                       <div className={faded(r.name)}>
                         <PaintedRoll
                           key={`p-${RW}-${H}`}

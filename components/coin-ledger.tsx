@@ -3,7 +3,7 @@
 import { Fragment, useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Menu } from "@base-ui/react/menu";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, ChevronRightIcon } from "lucide-react";
 import type { BoardTx } from "@/lib/board";
 import { SUBSCRIPTIONS, matches } from "@/lib/engine";
 import { eur, wrapperOf } from "@/components/coin-stage";
@@ -25,11 +25,12 @@ const day = (d: string) => dayMonth.format(new Date(d + "T00:00:00Z"));
 // shop "shop:" and the pattern its charges share.
 const fileMenu = Menu.createHandle<string>();
 const CHIP = "relative inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-2 pointer-coarse:after:absolute pointer-coarse:after:content-['']";
-// The board's menus: a white card of rows, as here and on Subscriptions.
+// The board's menus: a white card of rows, as here and on Subscriptions. As tall as the window
+// allows, so the File menu's thirteen categories only scroll on a short screen.
 export const MENU_ITEM =
   "flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2 text-[15px] outline-none select-none data-highlighted:bg-mist dark:data-highlighted:bg-card-night-hover";
 export const MENU_POPUP =
-  "max-h-[min(30rem,var(--available-height))] min-w-60 origin-[var(--transform-origin)] overflow-y-auto rounded-2xl bg-white p-1.5 text-ink ring-1 ring-ink/10 outline-none transition-[scale,opacity] duration-100 ease-out data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none dark:bg-card-night dark:text-chalk dark:ring-white/10";
+  "max-h-[var(--available-height)] min-w-60 origin-[var(--transform-origin)] overflow-y-auto rounded-2xl bg-white p-1.5 text-ink ring-1 ring-ink/10 outline-none transition-[scale,opacity] duration-100 ease-out data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none dark:bg-card-night dark:text-chalk dark:ring-white/10";
 export const MENU_SEPARATOR = "mx-2.5 my-1 h-px bg-ink/10 dark:bg-white/10";
 
 type Category = { name: string };
@@ -39,6 +40,8 @@ type Actions = {
   onFile: (tx: BoardTx, category: string, from: Element | null, always?: boolean) => void;
   // A shop's charges at once; with `always`, every one to come too.
   onFileShop: (txs: BoardTx[], category: string, always: boolean) => void;
+  // Where the charge's shop went last time, offered first; null for a shop never filed.
+  lastTime: (tx: BoardTx) => string | null;
   // Split with the partner, the household has one; null when it has none.
   partner: string | null;
   onSplit: (tx: BoardTx, share: number, from: Element | null) => void;
@@ -282,13 +285,14 @@ function RoundUps({ micro }: { micro: BoardTx[] }) {
 }
 
 // The categories a charge can go under, the one it has ticked. Picking one files
-// it there at once, the way a coin goes into a roll; below them, its split with the
-// partner, which works the same way.
+// it there at once, the way a coin goes into a roll. Where the shop went last time comes
+// first; its split with the partner and its name sit below, the split in a submenu.
 function FileMenu({
   txs,
   shops,
   backlog,
   categories,
+  lastTime,
   onFile,
   onFileShop,
   partner,
@@ -299,15 +303,33 @@ function FileMenu({
   // The switch for this opening of the menu; null is how it starts: on for a shop's charges,
   // off for one charge, as in the queue.
   const [always, setAlways] = useState<boolean | null>(null);
-  const items = categories.map((c) => (
-    <Menu.RadioItem key={c.name} value={c.name} closeOnClick className={MENU_ITEM}>
-      <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: wrapperOf(categories, c.name) }} />
-      <span className="min-w-0 flex-1 truncate">{c.name}</span>
+  const item = (name: string) => (
+    <Menu.RadioItem key={name} value={name} closeOnClick className={MENU_ITEM}>
+      <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: wrapperOf(categories, name) }} />
+      <span className="min-w-0 flex-1 truncate">{name}</span>
       <Menu.RadioItemIndicator>
         <CheckIcon aria-hidden className="size-4" />
       </Menu.RadioItemIndicator>
     </Menu.RadioItem>
-  ));
+  );
+  const LABEL = cn("px-2.5 pb-1 pt-1 text-[13px]", MUTED);
+  // Last time's category in a group of its own, then the rest under "Every category". A shop
+  // never filed gets neither: no guess, just the categories.
+  const lastFirst = (last: string | null, current: string | null, pick: (v: string) => void) =>
+    last && last !== current && categories.some((c) => c.name === last) ? (
+      <>
+        <Menu.RadioGroup value={current ?? ""} onValueChange={(v) => pick(String(v))} aria-label="Last time">
+          <div aria-hidden className={LABEL}>
+            Last time
+          </div>
+          {item(last)}
+        </Menu.RadioGroup>
+        <Menu.Separator className={MENU_SEPARATOR} />
+        <div aria-hidden className={LABEL}>
+          Every category
+        </div>
+      </>
+    ) : null;
   return (
     <Menu.Root handle={fileMenu} onOpenChange={(o) => o && setAlways(null)}>
       {({ payload }) => {
@@ -316,6 +338,18 @@ function FileMenu({
         const on = always ?? !!shop;
         // An unfiled charge's shop: its other loose charges, which Always takes too.
         const alike = tx && !tx.category ? backlog.filter((t) => t.id !== tx.id && matches(t, tx.rulePattern)).length : 0;
+        const pickShop = (v: string) => {
+          if (!shop) return;
+          fileMenu.close();
+          setTimeout(() => onFileShop(shop.txs, v, on && v !== SUBSCRIPTIONS), 0);
+        };
+        const pickTx = (v: string) => {
+          if (!tx || v === tx.category) return;
+          const row = document.querySelector(`[data-row="${tx.id}"]`);
+          // Close first, so the menu has handed focus back before the coin hops.
+          fileMenu.close();
+          setTimeout(() => onFile(tx, v, row, on && !tx.category), 0);
+        };
         return (
           <Menu.Portal>
             <Menu.Positioner sideOffset={6} align="start" className="z-50 outline-none">
@@ -330,14 +364,9 @@ function FileMenu({
                     </Menu.GroupLabel>
                     <AlwaysItem checked={on} onChange={setAlways} label="Always, every one to come" />
                     <Menu.Separator className={MENU_SEPARATOR} />
-                    <Menu.RadioGroup
-                      value=""
-                      onValueChange={(v) => {
-                        fileMenu.close();
-                        setTimeout(() => onFileShop(shop.txs, String(v), on && v !== SUBSCRIPTIONS), 0);
-                      }}
-                    >
-                      {items}
+                    {lastFirst(lastTime(shop.txs[0]), null, pickShop)}
+                    <Menu.RadioGroup value="" onValueChange={(v) => pickShop(String(v))}>
+                      {categories.map((c) => item(c.name))}
                     </Menu.RadioGroup>
                   </Menu.Group>
                 )}
@@ -353,52 +382,56 @@ function FileMenu({
                         <Menu.Separator className={MENU_SEPARATOR} />
                       </>
                     )}
-                    <Menu.RadioGroup
-                      value={tx.category ?? ""}
-                      onValueChange={(v) => {
-                        if (v === tx.category) return;
-                        const row = document.querySelector(`[data-row="${tx.id}"]`);
-                        // Close first, so the menu has handed focus back before the coin hops.
-                        fileMenu.close();
-                        setTimeout(() => onFile(tx, String(v), row, on && !tx.category), 0);
-                      }}
-                    >
-                      {items}
+                    {lastFirst(lastTime(tx), tx.category ?? null, pickTx)}
+                    <Menu.RadioGroup value={tx.category ?? ""} onValueChange={(v) => pickTx(String(v))}>
+                      {categories.map((c) => item(c.name))}
                     </Menu.RadioGroup>
                   </Menu.Group>
                 )}
                 {tx && partner && (
                   <>
                     <Menu.Separator className={MENU_SEPARATOR} />
-                    <Menu.Group>
-                      <Menu.GroupLabel className={cn("px-2.5 pb-1.5 pt-1 text-[13px]", MUTED)}>Split with {partner}</Menu.GroupLabel>
-                      <Menu.RadioGroup
-                        value={tx.shared ? String(SPLITS.find((f) => Math.abs(f - (tx.partnerShare ?? 0.5)) < 0.01) ?? "") : ""}
-                        onValueChange={(v) => {
-                          const row = document.querySelector(`[data-row="${tx.id}"]`);
-                          fileMenu.close();
-                          setTimeout(() => onSplit(tx, Number(v), row), 0);
-                        }}
-                      >
-                        {SPLITS.map((f) => (
-                          <Menu.RadioItem key={f} value={String(f)} closeOnClick className={MENU_ITEM}>
-                            <span aria-hidden className="w-3 shrink-0" />
-                            <span className="min-w-0 flex-1 truncate">
-                              {partner} pays {shareLabel(f)}
-                            </span>
-                            <Menu.RadioItemIndicator>
-                              <CheckIcon aria-hidden className="size-4" />
-                            </Menu.RadioItemIndicator>
-                          </Menu.RadioItem>
-                        ))}
-                      </Menu.RadioGroup>
-                      {tx.shared && (
-                        <Menu.Item className={MENU_ITEM} onClick={() => onUnshare(tx)}>
-                          <span aria-hidden className="w-3 shrink-0" />
-                          Take off Pooleks
-                        </Menu.Item>
-                      )}
-                    </Menu.Group>
+                    {/* The split folds into one row, so the menu needn't scroll; its row says the split it has. */}
+                    <Menu.SubmenuRoot>
+                      <Menu.SubmenuTrigger className={cn(MENU_ITEM, "data-popup-open:bg-mist dark:data-popup-open:bg-card-night-hover")}>
+                        <span aria-hidden className="w-3 shrink-0" />
+                        <span className="min-w-0 flex-1 truncate">Split with {partner}</span>
+                        {tx.shared && <span className={cn("shrink-0 text-[13px] tabular-nums", MUTED)}>pays {shareLabel(tx.partnerShare)}</span>}
+                        <ChevronRightIcon aria-hidden className="size-4 shrink-0" />
+                      </Menu.SubmenuTrigger>
+                      <Menu.Portal>
+                        <Menu.Positioner sideOffset={4} alignOffset={-6} className="z-50 outline-none">
+                          <Menu.Popup className={MENU_POPUP}>
+                            <Menu.RadioGroup
+                              value={tx.shared ? String(SPLITS.find((f) => Math.abs(f - (tx.partnerShare ?? 0.5)) < 0.01) ?? "") : ""}
+                              onValueChange={(v) => {
+                                const row = document.querySelector(`[data-row="${tx.id}"]`);
+                                fileMenu.close();
+                                setTimeout(() => onSplit(tx, Number(v), row), 0);
+                              }}
+                            >
+                              {SPLITS.map((f) => (
+                                <Menu.RadioItem key={f} value={String(f)} closeOnClick className={MENU_ITEM}>
+                                  <span aria-hidden className="w-3 shrink-0" />
+                                  <span className="min-w-0 flex-1 truncate">
+                                    {partner} pays {shareLabel(f)}
+                                  </span>
+                                  <Menu.RadioItemIndicator>
+                                    <CheckIcon aria-hidden className="size-4" />
+                                  </Menu.RadioItemIndicator>
+                                </Menu.RadioItem>
+                              ))}
+                            </Menu.RadioGroup>
+                            {tx.shared && (
+                              <Menu.Item className={MENU_ITEM} onClick={() => onUnshare(tx)}>
+                                <span aria-hidden className="w-3 shrink-0" />
+                                Take off Pooleks
+                              </Menu.Item>
+                            )}
+                          </Menu.Popup>
+                        </Menu.Positioner>
+                      </Menu.Portal>
+                    </Menu.SubmenuRoot>
                   </>
                 )}
                 {tx && (

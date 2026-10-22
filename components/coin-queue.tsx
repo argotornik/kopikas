@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
 import { PaintedCoin, PaintedMini } from "@/components/painted";
-import { ConfettiBurst, eur, label, looseCoins, monthOf, wrapperOf, type BurstMark } from "@/components/coin-stage";
+import { ConfettiBurst, eur, label, lastTimeOf, looseCoins, monthOf, wrapperOf, type BurstMark } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 import { cn, shareLabel } from "@/lib/utils";
 
@@ -115,6 +115,17 @@ export function CoinQueue({
   // The shop's other loose charges, which the coin's rule would file too; and what's done so far.
   const alike = tx ? all.filter((t) => t.id !== tx.id && matches(t, tx.rulePattern)).length : 0;
   const always = !!tx && alwaysFor === tx.id;
+  // Where the shop went last time, offered first; a shop never filed gets no guess.
+  const last = tx ? lastTimeOf(txs, tx) : null;
+  const lastIndex = categories.findIndex((c) => c.name === last);
+  // A tile files the coin, and with the switch the shop's every coin; the tap that empties the
+  // queue gets the burst.
+  const fileTo = (category: string) => {
+    if (!tx) return;
+    const wide = always && category !== SUBSCRIPTIONS;
+    if ((wide ? alike + 1 : 1) === queue.length) setParty(true);
+    onFile(tx, category, wide, setSaid);
+  };
   const filed = txs.filter((t) => t.amount < 0 && !t.micro && t.category).length;
   // Each tile carries what its category holds in the coin's month, for a sense of scale.
   const totals = new Map<string, number>();
@@ -241,6 +252,25 @@ export function CoinQueue({
           {alike > 0 ? `All ${count.format(alike + 1)}, always` : "Always"}
         </button>
       </div>
+      {last && lastIndex >= 0 && (
+        // Last time's category first, across the grid; the grid keeps its places under it.
+        <button
+          type="button"
+          onClick={() => fileTo(last)}
+          aria-label={`File under ${last}, where ${tx.name} went last time`}
+          className={cn(
+            "mt-2 flex min-h-14 w-full items-center gap-2.5 rounded-2xl bg-white py-2 pl-2.5 pr-3 text-left ring-[1.5px] ring-ink/25 transition-transform hover:bg-mist motion-safe:active:scale-[0.98] dark:bg-card-night dark:ring-white/25 dark:hover:bg-card-night-hover",
+            FOCUS
+          )}
+        >
+          <PaintedMini index={lastIndex} colour={wrapperOf(categories, last)} awake />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13px] font-medium leading-tight">{last}</span>
+            <span className={cn("block text-[12px]", MUTED)}>where {tx.name} went last time</span>
+          </span>
+          <span className="shrink-0 rounded-full bg-ink px-2 py-0.5 text-[12px] font-medium text-white dark:bg-chalk dark:text-ink">Last time</span>
+        </button>
+      )}
       <div role="group" aria-label={`Categories for ${tx.name}`} className="mt-2 grid grid-cols-2 gap-2">
         {categories.map((c, i) => {
           const total = totals.get(c.name) ?? 0;
@@ -248,11 +278,7 @@ export function CoinQueue({
             <button
               key={c.name}
               type="button"
-              onClick={() => {
-                const wide = always && c.name !== SUBSCRIPTIONS;
-                if ((wide ? alike + 1 : 1) === queue.length) setParty(true);
-                onFile(tx, c.name, wide, setSaid);
-              }}
+              onClick={() => fileTo(c.name)}
               aria-label={`File under ${c.name}${c.name === SAVINGS ? "" : `, ${eur.format(total)} in ${label(monthOf(tx.date))}`}`}
               className={cn(
                 "flex min-h-14 items-center gap-2.5 rounded-2xl bg-white py-2 pl-2.5 pr-3 text-left transition-transform hover:bg-mist motion-safe:active:scale-[0.96] dark:bg-card-night dark:hover:bg-card-night-hover",

@@ -8,7 +8,7 @@ import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
 import { act, type Undo } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";
 import { PaintedCoin } from "@/components/painted";
-import { CoinStage, eur, label, looseCoins, monthOf, shortDate, type CoinStageHandle } from "@/components/coin-stage";
+import { CoinStage, eur, label, lastTimeOf, looseCoins, monthOf, shortDate, type CoinStageHandle } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, OAT, PAGE, PANEL } from "@/components/coin-look";
 import { CoinLedger } from "@/components/coin-ledger";
 import { CoinQueue, type Said } from "@/components/coin-queue";
@@ -771,6 +771,7 @@ export function CoinBoard({
                 categories={categories}
                 backlog={backlog}
                 byShop={only === TO_FILE}
+                lastTime={(tx) => lastTimeOf(board.txs, tx)}
                 onFile={(tx, category, from, always) => {
                   if (!stage.current?.file(tx, category, from, always)) onFile(tx, category, always);
                 }}
