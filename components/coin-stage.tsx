@@ -90,6 +90,63 @@ function Floater({ f }: { f: Mark }) {
   );
 }
 
+// The month sorted: confetti bursts out of the empty pile's glad coin in the rolls' own colours,
+// then drifts down and fades by 2 s. Each list keeps its marks in the clear air around its coin,
+// never over a word or a number: x and y place a mark's top left in px from the coin's box, s is
+// its size and f how far it falls.
+export type BurstMark = { kind: MarkKind; x: number; y: number; s: number; r?: number; f: number };
+export function ConfettiBurst({ marks, origin: [ox, oy], colours }: { marks: BurstMark[]; origin: [number, number]; colours: string[] }) {
+  return marks.map((m, i) => {
+    const x = ox - m.x - m.s / 2;
+    const y = oy - m.y - m.s / 2;
+    return (
+      <motion.span
+        key={i}
+        aria-hidden
+        className="pointer-events-none absolute"
+        style={{ left: m.x, top: m.y }}
+        initial={{ x, y, scale: 0.3, opacity: 0 }}
+        animate={{ x: [x, 0, 0], y: [y, 0, m.f], scale: [0.3, 1, 1], opacity: [0, 1, 0], rotate: [0, 0, i % 2 ? 40 : -40] }}
+        transition={{ duration: 1.9, times: [0, 0.24, 1], ease: [[0.16, 1, 0.3, 1], [0.55, 0, 0.85, 0.4]], delay: (i % 5) * 0.025 }}
+      >
+        <ConfettiMark kind={m.kind} colour={colours[i % colours.length]} size={m.s} rotate={m.r} />
+      </motion.span>
+    );
+  });
+}
+// Around the pile's 120px box, from its glad coin: up into the panel's padding, out over the
+// head's middle, and down only left of the words under the pile.
+const PILE_BURST: BurstMark[] = [
+  { kind: "squiggle", x: -12, y: -22, s: 30, r: -20, f: 30 },
+  { kind: "dot", x: 36, y: -24, s: 20, f: 36 },
+  { kind: "squiggle", x: 84, y: -17, s: 28, r: 25, f: 30 },
+  { kind: "dot", x: 124, y: 10, s: 18, f: 40 },
+  { kind: "dot", x: -41, y: 7, s: 20, f: 50 },
+  { kind: "squiggle", x: -74, y: -14, s: 32, r: 35, f: 60 },
+  { kind: "dot", x: -106, y: 24, s: 22, f: 70 },
+  { kind: "squiggle", x: -120, y: 53, s: 30, r: -15, f: 70 },
+  { kind: "dot", x: 12, y: 38, s: 18, f: 30 },
+  { kind: "squiggle", x: 100, y: 43, s: 28, r: -30, f: 24 },
+  { kind: "dot", x: 122, y: 79, s: 18, f: 20 },
+  { kind: "dot", x: -55, y: 86, s: 20, f: 60 },
+  { kind: "squiggle", x: -115, y: 108, s: 30, r: 50, f: 60 },
+  { kind: "dot", x: -78, y: 130, s: 20, f: 40 },
+  { kind: "squiggle", x: 48, y: -29, s: 26, r: 10, f: 34 },
+  { kind: "dot", x: 70, y: -7, s: 16, f: 40 },
+  { kind: "dot", x: -60, y: -19, s: 18, f: 60 },
+];
+// Around the phone's 40px coin: the row's words start 12px to its right, so the marks keep to
+// the coin's left, above and below, short of the figures and the line under the row.
+const PHONE_BURST: BurstMark[] = [
+  { kind: "squiggle", x: -16, y: -26, s: 22, r: -20, f: 8 },
+  { kind: "dot", x: 12, y: -28, s: 14, f: 10 },
+  { kind: "squiggle", x: 20, y: -24, s: 24, r: 30, f: 8 },
+  { kind: "dot", x: -18, y: 8, s: 14, f: 14 },
+  { kind: "squiggle", x: -18, y: 40, s: 22, r: 50, f: 4 },
+  { kind: "dot", x: 6, y: 50, s: 14, f: 2 },
+  { kind: "dot", x: 30, y: 46, s: 12, f: 6 },
+];
+
 // A roll as a place to drop a ledger row dragged onto it, when the page lets rows be dragged.
 // A loose coin's charge, shown while it is picked up, hovered or focused: the pill the mouse carries
 // when a row is dragged (coin-board.tsx), so a coin is never filed blind. Screen readers hear the same
@@ -211,7 +268,9 @@ export function CoinStage({
   const [gulp, setGulp] = useState<{ category: string; n: number } | null>(null);
   const [jarGulp, setJarGulp] = useState(0);
   const [cheer, setCheer] = useState(0);
-  const [celebrating, setCelebrating] = useState(false);
+  // The month whose last loose coin just landed: it celebrates for 2.6 s, and only while it is shown.
+  const [party, setParty] = useState<string | null>(null);
+  const celebrating = party === month;
   const [lastFiled, setLastFiled] = useState<{ category: string; n: number } | null>(null);
   // A coin held in one month is put back when another month is shown.
   const [shown, setShown] = useState(month);
@@ -260,6 +319,14 @@ export function CoinStage({
     .filter((c) => c.name !== SAVINGS)
     .map((c) => ({ name: c.name, total: now.byCat.get(c.name) ?? 0, budget: c.budget }));
   const sleeping = rolls.filter((r) => r.total <= 0);
+  // The month sorted, the rolls with money take their turns, left to right (top to bottom on a
+  // phone), 70 ms apart, and the confetti takes their colours.
+  const awake = rolls.filter((r) => r.total > 0);
+  const cheerOf = (name: string) => {
+    const k = awake.findIndex((r) => r.name === name);
+    return celebrating && k >= 0 ? 0.15 + k * 0.07 : null;
+  };
+  const partyColours = awake.map((r) => wrapper(r.name));
   // A limit is set in whole euros as a rule, so it shows without cents unless it has them.
   const limitText = (b: number) => (Number.isInteger(b) ? eurWhole : eur).format(b);
   // How a roll's limit reads to a screen reader.
@@ -289,6 +356,8 @@ export function CoinStage({
   const oneMonth = elsewhere.every((t) => monthOf(t.date) === elsewhereMonth);
   const pickedTx = loose.find((t) => t.id === picked) ?? null;
   const labelled = pickedTx ?? loose.find((t) => t.id === peek) ?? null;
+  // A month with charges and none loose says so; one with nothing in it has nothing to file.
+  const sorted = loose.length === 0 && txs.some((t) => t.amount < 0 && !t.micro && monthOf(t.date) === month);
 
   // One shared scale: a euro is the same height on every roll. A sleeper's limit
   // waits for its first coin, so it stretches nothing.
@@ -361,9 +430,12 @@ export function CoinStage({
       })}
       {loose.length === 0 && (
         <div className="absolute inset-x-6 bottom-0 flex justify-center">
-          <PaintedCoin size={36} mood="glad" seed={5} />
+          <motion.div initial={celebrating && !reduce ? { scale: 0.5, opacity: 0 } : false} animate={{ scale: 1, opacity: 1 }} transition={SPRING}>
+            <PaintedCoin size={36} mood="glad" seed={5} />
+          </motion.div>
         </div>
       )}
+      {celebrating && !reduce && <ConfettiBurst marks={PILE_BURST} origin={[60, 102]} colours={partyColours} />}
     </div>
   );
   const elsewhereNote = elsewhereMonth && (
@@ -385,7 +457,7 @@ export function CoinStage({
   // Under the pile, whose column is only 120px, the label may be wider than it: centred while it
   // fits the column plus the panel's padding either side, else held at the padding's right edge and
   // grown leftwards into the air, never clipped (right-to-left with "safe" centring does that).
-  const countSlot = (count: string, under: boolean) => (
+  const countSlot = (count: ReactNode, under: boolean) => (
     <div className={cn("grid h-[30px] grid-cols-1 items-center", under ? "-mx-7 [direction:rtl] [justify-items:safe_center]" : "justify-items-start")}>
       <div className={cn("col-start-1 row-start-1 text-[13px] tabular-nums [direction:ltr]", MUTED, labelled && "invisible")}>{count}</div>
       {labelled && (
@@ -398,6 +470,15 @@ export function CoinStage({
       )}
     </div>
   );
+  // What the count says: how many wait, or, the month sorted, that it is, in Ink.
+  const countText = (shown: number) =>
+    loose.length > 0 ? (
+      `${loose.length} to file${loose.length > shown ? ` · ${shown} shown` : ""}`
+    ) : sorted ? (
+      <span className="font-medium text-ink dark:text-chalk">All sorted for {label(month)}</span>
+    ) : (
+      "nothing to file"
+    );
   const hintSlot = (hint: string) => (
     <div className="grid min-h-5">
       <div className={cn("col-start-1 row-start-1", pickedTx && "invisible")}>{elsewhereNote}</div>
@@ -411,7 +492,7 @@ export function CoinStage({
   const pileLabel = (
     <div className="mt-3 text-center">
       <div className={cn(DISPLAY, "text-[16px] font-semibold")}>Loose change</div>
-      {countSlot(loose.length === 0 ? "nothing to file" : `${loose.length} to file${loose.length > PILE.length ? ` · ${PILE.length} shown` : ""}`, true)}
+      {countSlot(countText(PILE.length), true)}
       {hintSlot("Tap its roll")}
     </div>
   );
@@ -429,8 +510,7 @@ export function CoinStage({
   }, [jarGulp]);
   useEffect(() => {
     if (!cheer) return;
-    setCelebrating(true);
-    const t = setTimeout(() => setCelebrating(false), 2600);
+    const t = setTimeout(() => setParty(null), 2600);
     return () => clearTimeout(t);
   }, [cheer]);
   useEffect(() => {
@@ -450,7 +530,10 @@ export function CoinStage({
     onFile(tx, category);
     setGulp((g) => ({ category, n: (g?.n ?? 0) + 1 }));
     setLastFiled((f) => ({ category, n: (f?.n ?? 0) + 1 }));
-    if (last) setCheer((c) => c + 1);
+    if (last) {
+      setCheer((c) => c + 1);
+      setParty(month);
+    }
   };
 
   const commitSplit = (tx: BoardTx) => {
@@ -612,7 +695,12 @@ export function CoinStage({
             <div className="flex items-center gap-3" role="group" aria-label={`Loose change: ${loose.length} to file`}>
               <div className="flex items-center -space-x-1.5">
                 {loose.length === 0 ? (
-                  <PaintedCoin size={40} mood="glad" seed={5} />
+                  <span className="relative block">
+                    <motion.span className="block" initial={celebrating && !reduce ? { scale: 0.5, opacity: 0 } : false} animate={{ scale: 1, opacity: 1 }} transition={SPRING}>
+                      <PaintedCoin size={40} mood="glad" seed={5} />
+                    </motion.span>
+                    {celebrating && !reduce && <ConfettiBurst marks={PHONE_BURST} origin={[20, 20]} colours={partyColours} />}
+                  </span>
                 ) : (
                   loose.slice(0, 6).map((t, i) => {
                     const isPicked = picked === t.id;
@@ -642,7 +730,7 @@ export function CoinStage({
               </div>
               <div className="min-w-0">
                 <div className={cn(DISPLAY, "text-[16px] font-semibold leading-tight")}>Loose change</div>
-                {countSlot(loose.length === 0 ? "nothing to file" : `${loose.length} to file${loose.length > 6 ? " · 6 shown" : ""}`, false)}
+                {countSlot(countText(6), false)}
                 {hintSlot("Tap its roll below")}
               </div>
             </div>
@@ -688,6 +776,7 @@ export function CoinStage({
                       budget={r.budget != null ? hpx(r.budget) : null}
                       over={over}
                       gulping={gulp?.category === r.name}
+                      cheer={cheerOf(r.name)}
                       width={listW}
                       delay={0.15 + i * 0.05}
                     />
@@ -766,6 +855,7 @@ export function CoinStage({
                           budget={r.budget != null ? px(r.budget) : null}
                           over={over}
                           gulping={gulp?.category === r.name}
+                          cheer={cheerOf(r.name)}
                           height={H}
                           width={RW}
                           pad={pad}

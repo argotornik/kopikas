@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
 import { PaintedCoin, PaintedMini } from "@/components/painted";
-import { eur, label, looseCoins, monthOf, wrapperOf } from "@/components/coin-stage";
+import { ConfettiBurst, eur, label, looseCoins, monthOf, wrapperOf, type BurstMark } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 import { cn, shareLabel } from "@/lib/utils";
 
@@ -19,6 +19,21 @@ import { cn, shareLabel } from "@/lib/utils";
 const day = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const count = new Intl.NumberFormat("et-EE");
 const SPRING = { type: "spring" as const, stiffness: 320, damping: 26 };
+// Around "All filed"'s 72px coin: up into the panel's padding and out to the sides, falling
+// beside the words below it, never onto them.
+const BURST: BurstMark[] = [
+  { kind: "squiggle", x: -44, y: -30, s: 30, r: -25, f: 12 },
+  { kind: "dot", x: 24, y: -42, s: 16, f: 12 },
+  { kind: "squiggle", x: 78, y: -28, s: 30, r: 30, f: 12 },
+  { kind: "dot", x: 112, y: 0, s: 18, f: 30 },
+  { kind: "dot", x: -70, y: -6, s: 18, f: 30 },
+  { kind: "squiggle", x: -112, y: 18, s: 30, r: 40, f: 40 },
+  { kind: "dot", x: 140, y: 28, s: 16, f: 40 },
+  { kind: "squiggle", x: 116, y: 56, s: 28, r: -20, f: 16 },
+  { kind: "dot", x: -96, y: 62, s: 18, f: 30 },
+  { kind: "dot", x: 62, y: -40, s: 14, f: 12 },
+  { kind: "dot", x: -124, y: -26, s: 14, f: 30 },
+];
 
 export function CoinQueue({
   txs,
@@ -41,6 +56,13 @@ export function CoinQueue({
   const [skipped, setSkipped] = useState<string[]>([]);
   // Always is set for one coin at a time: the next coin starts with it off.
   const [alwaysFor, setAlwaysFor] = useState<string | null>(null);
+  // The tap that empties the queue gets a burst of confetti around "All filed", once.
+  const [party, setParty] = useState(false);
+  useEffect(() => {
+    if (!party) return;
+    const t = setTimeout(() => setParty(false), 2600);
+    return () => clearTimeout(t);
+  }, [party]);
   const all = looseCoins(txs, null);
   const queue = [...all.filter((t) => !skipped.includes(t.id)), ...all.filter((t) => skipped.includes(t.id))];
   const waiting = skipped.filter((id) => all.some((t) => t.id === id)).length;
@@ -59,7 +81,12 @@ export function CoinQueue({
   if (!tx)
     return (
       <section aria-labelledby="queue-heading" className={cn(PANEL, "flex flex-col items-center bg-oat px-6 py-12 text-center dark:bg-oat-night")}>
-        <PaintedCoin size={72} mood="glad" seed={5} />
+        <span className="relative">
+          <motion.span className="block" initial={party && !reduce ? { scale: 0.5, opacity: 0 } : false} animate={{ scale: 1, opacity: 1 }} transition={SPRING}>
+            <PaintedCoin size={72} mood="glad" seed={5} />
+          </motion.span>
+          {party && !reduce && <ConfettiBurst marks={BURST} origin={[36, 36]} colours={categories.map((c) => wrapperOf(categories, c.name))} />}
+        </span>
         <h2 id="queue-heading" className={cn(DISPLAY, "mt-4 text-[20px] font-semibold")}>
           All filed
         </h2>
@@ -166,7 +193,11 @@ export function CoinQueue({
             <button
               key={c.name}
               type="button"
-              onClick={() => onFile(tx, c.name, always && c.name !== SUBSCRIPTIONS)}
+              onClick={() => {
+                const wide = always && c.name !== SUBSCRIPTIONS;
+                if ((wide ? alike + 1 : 1) === queue.length) setParty(true);
+                onFile(tx, c.name, wide);
+              }}
               aria-label={`File under ${c.name}${c.name === SAVINGS ? "" : `, ${eur.format(total)} in ${label(monthOf(tx.date))}`}`}
               className={cn(
                 "flex min-h-14 items-center gap-2.5 rounded-2xl bg-white py-2 pl-2.5 pr-3 text-left transition-transform hover:bg-mist motion-safe:active:scale-[0.96] dark:bg-card-night dark:hover:bg-card-night-hover",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useSpring, useTransform, type MotionValue } from "motion/react";
 import { wobblyCircle, wobblyRect, type Mood } from "@/components/goofy";
 
@@ -114,7 +114,15 @@ function useCrossing(value: MotionValue<number>, line: number, reduce: boolean |
 }
 
 // The two eyes of every painted face, in a 40 by 28 box.
-export function PaintedEyes({ ink, blink = 0 }: { ink: string; blink?: number }) {
+// Shut with joy, the eyes curve up into arcs, and they don't blink.
+export function PaintedEyes({ ink, blink = 0, joy = false }: { ink: string; blink?: number; joy?: boolean }) {
+  if (joy)
+    return (
+      <g fill="none" strokeWidth="2.4" strokeLinecap="round" style={{ stroke: ink }}>
+        <path d="M11.4 11.6 Q14 7.2 16.6 11.6" />
+        <path d="M23.4 11 Q26 6.6 28.6 11" />
+      </g>
+    );
   return (
     <g className="goofy-blink" style={{ animationDelay: `${-blink}s` }}>
       <ellipse cx="14" cy="10.4" rx="2.6" ry="3" style={{ fill: ink }} />
@@ -157,16 +165,35 @@ export function PaintedFace({ ink, mood = "happy", blink = 0, flip = false }: { 
   }
   return (
     <g>
-      <PaintedEyes ink={ink} blink={blink} />
+      <PaintedEyes ink={ink} blink={blink} joy={mood === "joy"} />
       {mood === "wow" ? (
         <ellipse cx="20" cy="20" rx="2.6" ry="3.2" fill={ink} />
-      ) : mood === "glad" ? (
+      ) : mood === "glad" || mood === "joy" ? (
         <path d="M12.5 16.5 Q20 27 27.5 16 Z" fill={ink} />
       ) : (
         <path d="M13 17.5 Q20 24.5 27 17" stroke={ink} strokeWidth="2.4" fill="none" strokeLinecap="round" />
       )}
     </g>
   );
+}
+
+// A month sorted, each roll with money takes its turn: from `cheer` seconds on it hops for HOP
+// seconds wearing joy. With reduced motion it only wears joy, for as long as the celebration
+// lasts, until `cheer` is null again.
+export const HOP = 0.55;
+function useJoy(cheer: number | null | undefined, reduce: boolean | null) {
+  const [joy, setJoy] = useState(false);
+  useEffect(() => {
+    if (cheer == null) return;
+    const on = setTimeout(() => setJoy(true), reduce ? 0 : cheer * 1000);
+    const off = reduce ? undefined : setTimeout(() => setJoy(false), (cheer + HOP + 0.1) * 1000);
+    return () => {
+      clearTimeout(on);
+      clearTimeout(off);
+      setJoy(false);
+    };
+  }, [cheer, reduce]);
+  return joy;
 }
 
 const PAINTED_METALS = {
@@ -224,6 +251,7 @@ export function PaintedRoll({
   width: RW,
   pad: PAD = 12,
   delay,
+  cheer,
 }: {
   index: number;
   colour: string;
@@ -236,10 +264,14 @@ export function PaintedRoll({
   width: number;
   pad?: number;
   delay: number;
+  cheer?: number | null;
 }) {
   const reduce = useReducedMotion();
   const FOOT = 10;
   const asleep = body <= 0;
+  // A sleeper has nothing to celebrate and sleeps through it.
+  const joy = useJoy(asleep ? null : cheer, reduce);
+  const hop = cheer != null && !asleep && !reduce;
   const target = asleep ? 0 : Math.max(ROLL_FLOOR, body);
   const hv = useSpring(target, { stiffness: 200, damping: 20 });
   const first = useRef(true);
@@ -294,7 +326,7 @@ export function PaintedRoll({
   const eyesOut = useTransform(drop, (p) => 1 - arrive(p));
   const faceIn = useTransform(drop, arrive);
   const ink = faceInk(colour);
-  const mood: Mood = gulping ? "glad" : over ? "wow" : "happy";
+  const mood: Mood = joy ? "joy" : gulping ? "glad" : over ? "wow" : "happy";
   const faceX = PAD + RW / 2 - 20;
   const blink = index * 0.83 + 0.4;
   return (
@@ -333,7 +365,12 @@ export function PaintedRoll({
         )}
       </AnimatePresence>
       {!asleep && (
-        <>
+        // Its turn in the celebration: up with a stretch, down into a squash, and back.
+        <motion.g
+          style={{ originY: 1 }}
+          animate={hop ? { y: [0, -16, 0, 0], scaleY: [1, 1.04, 0.92, 1] } : { y: 0, scaleY: 1 }}
+          transition={hop ? { delay: cheer as number, duration: HOP, times: [0, 0.42, 0.78, 1], ease: [[0.2, 0.7, 0.4, 1], [0.6, 0, 0.8, 0.4], [0.2, 0.7, 0.4, 1]] } : { duration: 0 }}
+        >
           <motion.g initial={waking ? { opacity: 0 } : false} animate={{ opacity: 1 }} transition={swap}>
             <rect x={PAD + RW * 0.24} y={H - FOOT - 2} width="7" height={FOOT} rx="3" style={{ fill: LIMB }} />
             <rect x={PAD + RW * 0.76 - 7} y={H - FOOT - 2} width="7" height={FOOT} rx="3" style={{ fill: LIMB }} />
@@ -352,7 +389,7 @@ export function PaintedRoll({
                   animate={{ scaleX: 1, scaleY: 1 }}
                   transition={swap}
                 >
-                  <PaintedEyes ink={STAGE_INK} blink={blink} />
+                  <PaintedEyes ink={STAGE_INK} blink={blink} joy={joy} />
                 </motion.g>
                 <motion.g style={{ opacity: faceIn }}>
                   <PaintedFace ink={ink} mood={mood} blink={blink} />
@@ -360,7 +397,7 @@ export function PaintedRoll({
               </g>
             </motion.g>
           </motion.g>
-        </>
+        </motion.g>
       )}
     </svg>
   );
@@ -406,6 +443,7 @@ export function PaintedBar({
   gulping,
   width: W,
   delay,
+  cheer,
 }: {
   index: number;
   colour: string;
@@ -416,8 +454,11 @@ export function PaintedBar({
   gulping: boolean;
   width: number;
   delay: number;
+  cheer?: number | null;
 }) {
   const reduce = useReducedMotion();
+  const joy = useJoy(cheer, reduce);
+  const hop = cheer != null && !reduce;
   const H = 34;
   const Y = 4;
   const BH = 26;
@@ -461,7 +502,7 @@ export function PaintedBar({
   const eyesIn = useTransform([eyes, face], ([e, f]: number[]) => e * (1 - arrive(f)));
   const faceX = useTransform(lv, (v) => Math.max(v - 28, 2 + v / 2 - 13.6));
   const faceIn = useTransform(face, arrive);
-  const mood: Mood = gulping ? "glad" : over ? "wow" : "happy";
+  const mood: Mood = joy ? "joy" : gulping ? "glad" : over ? "wow" : "happy";
   const blink = index * 0.83 + 0.4;
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="block overflow-visible">
@@ -476,21 +517,28 @@ export function PaintedBar({
          
         />
       )}
-      <motion.g style={{ originX: 0 }} animate={gulping && !reduce ? { scaleX: [1, 0.93, 1.03, 1] } : { scaleX: 1 }} transition={{ duration: 0.6 }}>
-        <g>
-          <motion.path d={d} fill={colour} />
-          <motion.path d={dSpill} style={{ fill: deepened(colour) }} />
-          <motion.path d={dRim} fill="none" stroke={BLUE} strokeWidth="2" strokeDasharray="3 7" strokeLinecap="round" />
-        </g>
-        <motion.g style={{ x: eyesX, y: eyesY, opacity: eyesIn }}>
-          <g transform="scale(0.68)">
-            <PaintedEyes ink={faceInk(colour)} blink={blink} />
+      {/* Its turn in the celebration: lying down, it bounces along its length, as it does when it gulps. */}
+      <motion.g
+        style={{ originX: 0 }}
+        animate={hop ? { scaleX: [1, 1.05, 0.98, 1] } : { scaleX: 1 }}
+        transition={hop ? { delay: cheer as number, duration: HOP, times: [0, 0.4, 0.75, 1] } : { duration: 0 }}
+      >
+        <motion.g style={{ originX: 0 }} animate={gulping && !reduce ? { scaleX: [1, 0.93, 1.03, 1] } : { scaleX: 1 }} transition={{ duration: 0.6 }}>
+          <g>
+            <motion.path d={d} fill={colour} />
+            <motion.path d={dSpill} style={{ fill: deepened(colour) }} />
+            <motion.path d={dRim} fill="none" stroke={BLUE} strokeWidth="2" strokeDasharray="3 7" strokeLinecap="round" />
           </g>
-        </motion.g>
-        <motion.g style={{ x: faceX, opacity: faceIn }}>
-          <g transform="translate(0 7) scale(0.68)">
-            <PaintedFace ink={faceInk(colour)} mood={mood} blink={blink} />
-          </g>
+          <motion.g style={{ x: eyesX, y: eyesY, opacity: eyesIn }}>
+            <g transform="scale(0.68)">
+              <PaintedEyes ink={faceInk(colour)} blink={blink} joy={joy} />
+            </g>
+          </motion.g>
+          <motion.g style={{ x: faceX, opacity: faceIn }}>
+            <g transform="translate(0 7) scale(0.68)">
+              <PaintedFace ink={faceInk(colour)} mood={mood} blink={blink} />
+            </g>
+          </motion.g>
         </motion.g>
       </motion.g>
     </svg>

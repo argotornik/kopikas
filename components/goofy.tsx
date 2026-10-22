@@ -89,5 +89,5 @@ export function wobblyRect(x: number, y: number, w: number, h: number, r: number
   return smoothClosed(pts);
 }
 
-// The faces' moods; puzzled is a coin still looking for its roll.
-export type Mood = "happy" | "glad" | "wow" | "puzzled";
+// The faces' moods; puzzled is a coin still looking for its roll, joy a roll whose month is sorted.
+export type Mood = "happy" | "glad" | "wow" | "puzzled" | "joy";
