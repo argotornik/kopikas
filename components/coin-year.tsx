@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Board, BoardTx } from "@/lib/board";
 import { wobblyRect } from "@/components/goofy";
 import { BLUE, deepened } from "@/components/painted";
@@ -10,7 +11,7 @@ import { cn } from "@/lib/utils";
 // A chosen roll's year, in the tray's head where the month's figures sit otherwise: a
 // bar for each of the last twelve months, drawn like the rolls (a darker top past the
 // limit, the limit dashed), the month on show at full strength. A bar takes the tray to
-// its month. The average leaves out the unfinished month and those before the charges
+// its month; pointed at or focused, it shows its month and amount in the note's place. The average leaves out the unfinished month and those before the charges
 // start, as on the old board.
 
 // One month's column in the drawing, which scales with the space it gets.
@@ -51,12 +52,22 @@ export function CoinYear({
   const colour = wrapperOf(categories, category);
   const seed = Math.max(0, categories.findIndex((c) => c.name === category)) * 977 + 13;
   const note = [average > 0 && `on average ${eur.format(average)}`, limit != null && `limit ${limitText(limit)}`].filter(Boolean).join(" · ");
+  // The bar under the pointer or the keyboard's focus. Its words share the note's cell, so the bars never move.
+  const [peek, setPeek] = useState<number | null>(null);
+  const leave = (i: number) => setPeek((p) => (p === i ? null : p));
 
   return (
     <div className="max-w-[440px] pt-1">
       <p className="flex flex-wrap items-baseline gap-x-2.5">
         <span className="font-medium text-ink dark:text-chalk">{category}, the last 12 months</span>
-        {note && <span>{note}</span>}
+        <span className="grid">
+          <span className={cn("col-start-1 row-start-1", peek != null && "invisible")}>{note}</span>
+          {peek != null && (
+            <span aria-hidden className="col-start-1 row-start-1">
+              {label(months[peek])} <span className="tabular-nums text-ink dark:text-chalk">{eur.format(totals[peek])}</span>
+            </span>
+          )}
+        </span>
       </p>
       <div className="relative mt-1.5">
         <div role="group" aria-label={`${category} in each of the last 12 months`} className="grid grid-cols-12">
@@ -72,6 +83,10 @@ export function CoinYear({
                 type="button"
                 disabled={before}
                 onClick={() => onMonth(m)}
+                onMouseEnter={() => !before && setPeek(i)}
+                onMouseLeave={() => leave(i)}
+                onFocus={() => setPeek(i)}
+                onBlur={() => leave(i)}
                 aria-pressed={shown}
                 aria-label={before ? `${label(m)}: before your charges start` : `${label(m)}: ${eur.format(v)}`}
                 className={cn("group flex flex-col items-center rounded-lg disabled:cursor-default", FOCUS)}

@@ -606,10 +606,10 @@ export function CoinStage({
         {/* Nothing floats up by the month: on the phone the marks there sat on the panel's
             edge and read as strays. On desktop the air is around the loose change. */}
 
-        {/* One row from 1024px: the month gives way and its figures wrap, so the jar and the
-            loose change keep their place beside it instead of dropping below. */}
-        <div className="relative flex flex-wrap items-start justify-between gap-x-8 gap-y-4 lg:flex-nowrap">
-          <div className="min-w-0 lg:flex-1">
+        {/* One row: the month gives way and its figures wrap, so the loose change keeps its place
+            beside it instead of dropping below. With the jar beside the pile too, that needs 1024px. */}
+        <div className={cn("relative flex items-start justify-between gap-x-8 gap-y-4", jar && "flex-wrap lg:flex-nowrap")}>
+          <div className={cn("min-w-0", jar ? "lg:flex-1" : "flex-1")}>
             <div className="flex items-center gap-1">
               <button
                 type="button"
