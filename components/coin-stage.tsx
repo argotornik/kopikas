@@ -587,7 +587,8 @@ export function CoinStage({
   const rollAction = (name: string) =>
     pickedTx ? `. File ${pickedTx.name} here` : onSelect ? (selected === name ? ". Show every category" : `. Show only ${name}`) : "";
   // With a category chosen, the other rolls step back, unless a coin is in hand and every roll can take it.
-  const faded = (name: string) => !!selected && !pickedTx && selected !== name && "opacity-40";
+  // Only the painting fades: names and amounts stay readable, and so does a focus outline.
+  const faded = (name: string) => cn("transition-opacity duration-200", !!selected && !pickedTx && selected !== name && "opacity-40");
 
   return (
     <>
@@ -749,7 +750,7 @@ export function CoinStage({
                     aria-pressed={onSelect && !pickedTx ? selected === r.name : undefined}
                     onClick={() => pressRoll(r.name)}
                     aria-label={`${r.name}: ${eur.format(r.total)}${limitNote(r)}${rollAction(r.name)}`}
-                    className={cn("w-full rounded-xl text-left transition-opacity duration-200 disabled:cursor-default", faded(r.name), FOCUS)}
+                    className={cn("w-full rounded-xl text-left disabled:cursor-default", FOCUS)}
                     style={{ originX: 0 }}
                     animate={pickedTx && !reduce ? { x: [0, 4, 0] } : { x: 0 }}
                     // Only the nudge repeats; a press springs back once.
@@ -767,19 +768,21 @@ export function CoinStage({
                     </div>
                     {/* Redrawn when the list's width changes, as a roll is when its size does: with
                         reduced motion a bar otherwise keeps the length of its first, guessed width. */}
-                    <PaintedBar
-                      key={`w-${listW}`}
-                      index={index.get(r.name) ?? i}
-                      colour={wrapper(r.name)}
-                      length={hpx(over ? (r.budget as number) : r.total)}
-                      extra={over ? hpx(r.total - (r.budget as number)) : 0}
-                      budget={r.budget != null ? hpx(r.budget) : null}
-                      over={over}
-                      gulping={gulp?.category === r.name}
-                      cheer={cheerOf(r.name)}
-                      width={listW}
-                      delay={0.15 + i * 0.05}
-                    />
+                    <div className={faded(r.name)}>
+                      <PaintedBar
+                        key={`w-${listW}`}
+                        index={index.get(r.name) ?? i}
+                        colour={wrapper(r.name)}
+                        length={hpx(over ? (r.budget as number) : r.total)}
+                        extra={over ? hpx(r.total - (r.budget as number)) : 0}
+                        budget={r.budget != null ? hpx(r.budget) : null}
+                        over={over}
+                        gulping={gulp?.category === r.name}
+                        cheer={cheerOf(r.name)}
+                        width={listW}
+                        delay={0.15 + i * 0.05}
+                      />
+                    </div>
                   </motion.button>
                 );
               })}
@@ -798,9 +801,11 @@ export function CoinStage({
                       aria-pressed={onSelect && !pickedTx ? selected === r.name : undefined}
                       onClick={() => pressRoll(r.name)}
                       aria-label={`${r.name}: nothing filed yet${rollAction(r.name)}`}
-                      className={cn("flex min-h-11 items-center gap-2 rounded-full pr-1 text-[13px] font-medium transition-[opacity,scale] duration-200 enabled:motion-safe:active:scale-[0.96] disabled:cursor-default", faded(r.name), FOCUS)}
+                      className={cn("flex min-h-11 items-center gap-2 rounded-full pr-1 text-[13px] font-medium transition-[scale] duration-200 enabled:motion-safe:active:scale-[0.96] disabled:cursor-default", FOCUS)}
                     >
-                      <PaintedMini index={index.get(r.name) ?? 0} colour={wrapper(r.name)} />
+                      <span className={faded(r.name)}>
+                        <PaintedMini index={index.get(r.name) ?? 0} colour={wrapper(r.name)} />
+                      </span>
                       <span>{r.name}</span>
                     </button>
                   ))}
@@ -827,7 +832,7 @@ export function CoinStage({
               const pad = (colW - RW) / 2;
               const H = narrow ? 150 : empty ? 56 : tall ? 310 : 230;
               return (
-                <div key={r.name} className={cn("flex shrink-0 flex-col items-center transition-opacity duration-200", faded(r.name))} style={{ width: RW + pad * 2 }}>
+                <div key={r.name} className="flex shrink-0 flex-col items-center" style={{ width: RW + pad * 2 }}>
                   <RollTarget name={r.name}>
                     <motion.button
                       type="button"
@@ -846,7 +851,8 @@ export function CoinStage({
                       // As on the bars: the press is there either way, a no-op when motion is reduced.
                       whileTap={pickedTx || onSelect ? { scale: reduce ? 1 : 0.96, transition: PRESS } : undefined}
                     >
-                      <PaintedRoll
+                      <div className={faded(r.name)}>
+                        <PaintedRoll
                           key={`p-${RW}-${H}`}
                           index={index.get(r.name) ?? i}
                           colour={colour}
@@ -861,6 +867,7 @@ export function CoinStage({
                           pad={pad}
                           delay={0.15 + i * 0.05}
                         />
+                      </div>
                     </motion.button>
                   </RollTarget>
                   {/* A name may use the gap on either side and run to two lines, hyphenated where the
