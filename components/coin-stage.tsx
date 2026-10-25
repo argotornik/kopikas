@@ -543,9 +543,10 @@ export function CoinStage({
   // waits for its first coin, so it stretches nothing.
   const tallest = Math.max(1, ...rolls.map((r) => Math.max(r.total, r.total > 0 ? (r.budget ?? 0) : 0)));
   // The floor has the stage's full width, and in one row the height to match: the floor is the
-  // picture. Its tallest roll stands 280px, less in a short window, down to 120px, so the charges
-  // start on the first screen. A floor that wraps keeps the shorter 200px scale.
-  const MAX = narrow ? 112 : floorFits ? Math.max(120, Math.min(280, vh - 660)) : 200;
+  // picture. Its tallest roll stands 280px, less in a short window (the window's height less 700px),
+  // down to 120px, so the charges start on the first screen. A floor that wraps keeps the shorter
+  // 200px scale.
+  const MAX = narrow ? 112 : floorFits ? Math.max(120, Math.min(280, vh - 700)) : 200;
   // A month with nothing filed yet stands its sleepers on a short floor, under a line that says so:
   // the tall one would be empty air. It grows back with the first coin.
   const empty = !narrow && rolls.every((r) => r.total <= 0);
@@ -556,6 +557,8 @@ export function CoinStage({
   // mostly air.
   const fitShelf = Math.max(1, Math.floor((floorW + floorGap) / (colW + floorGap)));
   const perShelf = Math.ceil(n / Math.ceil(n / fitShelf));
+  // The gap a wrapped floor's columns end up with, spread across its width, which their names may use.
+  const shelfGap = floorFits ? floorGap : Math.max(floorGap, (floorW - perShelf * colW) / Math.max(1, perShelf - 1));
   const shelfOf = (i: number) => {
     const from = Math.floor(i / perShelf) * perShelf;
     const reach = rolls.slice(from, from + perShelf).map((r) => px(Math.max(r.total, r.total > 0 ? (r.budget ?? 0) : 0)));
@@ -616,8 +619,11 @@ export function CoinStage({
     g.length > 1
       ? `${g[0].name}, ${g.length} charges, ${eur.format(g.reduce((sum, t) => sum - t.amount, 0))}. Pick up to file them all`
       : `${g[0].name}, ${eur.format(Math.abs(g[0].amount))}, ${shortDate.format(new Date(g[0].date + "T00:00:00Z"))}${splitNote(g[0])}. Pick up to file`;
+  // The pile's box: one row of coins while there are three stacks or fewer, so a small pile doesn't
+  // push the floor, and the list, off a laptop's first screen; four or more fill the 168px square.
+  const pileH = piles.length > 3 ? 168 : 80;
   const pileBox = (
-    <div className="relative size-[168px]" role="group" aria-label={`Loose change: ${loose.length} to file`}>
+    <div className="relative w-[168px]" style={{ height: pileH }} role="group" aria-label={`Loose change: ${loose.length} to file`}>
       {piles.slice(0, PILE.length).map((g, i) => {
         const t = g[0];
         const spot = PILE[i];
@@ -658,7 +664,7 @@ export function CoinStage({
           </motion.div>
         </div>
       )}
-      {celebrating && !reduce && <ConfettiBurst marks={PILE_BURST} origin={[84, 150]} colours={partyColours} />}
+      {celebrating && !reduce && <ConfettiBurst marks={PILE_BURST} origin={[84, pileH - 18]} colours={partyColours} />}
     </div>
   );
   // Coins on show, a stack counting all its charges: the pile shows `shown` stacks at most.
@@ -744,7 +750,7 @@ export function CoinStage({
               so the floor never moves; on the phone the line stays, saying while it's off what
               switching on would take, so it never appears under a thumb. */}
           {(always || !under) && (
-            <span aria-hidden className={cn("text-[12px]", MUTED, under ? "absolute right-0 top-full mt-1 whitespace-nowrap" : "basis-full")}>
+            <span aria-hidden className={cn("text-[12px]", MUTED, under ? "absolute right-0 top-full mt-1 whitespace-nowrap" : "basis-full text-pretty")}>
               {always ? takes : alwaysOffer(takes)}
             </span>
           )}
@@ -1238,7 +1244,7 @@ export function CoinStage({
                   </RollTarget>
                   {/* A name may use the gap on either side and run to two lines, hyphenated where the
                       browser can; two lines are kept for every name, so the floor stays level when one wraps. */}
-                  <div className="mt-3 text-center" style={{ width: RW + pad * 2 + floorGap, marginInline: -floorGap / 2 }}>
+                  <div className="mt-3 text-center" style={{ width: RW + pad * 2 + shelfGap, marginInline: -shelfGap / 2 }}>
                     <div className="flex min-h-[2lh] flex-col justify-end text-[13px] font-medium leading-tight hyphens-auto wrap-anywhere">
                       <span className="line-clamp-2">{breakable(r.name)}</span>
                     </div>

@@ -257,7 +257,7 @@ export function CoinQueue({
       </div>
       {/* What it takes, or while it's off what switching on would take: the line stays, so turning
           the switch on never moves the tiles under a thumb. */}
-      <p aria-hidden className={cn("px-1 pt-1.5 text-[12px]", MUTED)}>
+      <p aria-hidden className={cn("px-1 pt-1.5 text-[12px] text-pretty", MUTED)}>
         {always ? alwaysTakes(1, alikeTxs) : alwaysOffer(alwaysTakes(1, alikeTxs))}
       </p>
       {last && lastIndex >= 0 && (
