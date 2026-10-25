@@ -30,7 +30,7 @@ const MONEY_IN = "money-in";
 // The list's view of every charge still waiting to be filed, from every month.
 const TO_FILE = "to-file";
 // A skip link: hidden until Tab reaches it, then an Ink pill top left.
-const SKIP = "sr-only rounded-full bg-ink text-[15px] font-medium text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:px-4 focus:py-3 dark:bg-chalk dark:text-ink";
+const SKIP = cn("sr-only rounded-full bg-ink text-[15px] font-medium text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:px-4 focus:py-3 dark:bg-chalk dark:text-ink", FOCUS);
 // Notices sit above the phone's tab bar. The editors' new look is `.coins-panel`, in globals.css.
 const PANEL_CSS = `@media (max-width: 639px) { :root { --bottom-bar: 4.5rem; } }`;
 // A row starts to drag only once the mouse has moved, so a click stays a click.

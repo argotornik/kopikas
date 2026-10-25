@@ -6,7 +6,7 @@ import { Menu } from "@base-ui/react/menu";
 import { CheckIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
 import type { BoardTx } from "@/lib/board";
 import { SUBSCRIPTIONS, matches } from "@/lib/engine";
-import { alwaysTakes, eur, nameMatches, wrapperOf } from "@/components/coin-stage";
+import { alwaysTakes, eur, nameMatches, typedOrder, wrapperOf } from "@/components/coin-stage";
 import { FOCUS, INK, MUTED } from "@/components/coin-look";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { PaintedCoin } from "@/components/painted";
@@ -26,7 +26,7 @@ const day = (d: string) => dayMonth.format(new Date(d + "T00:00:00Z"));
 const fileMenu = Menu.createHandle<string>();
 // The list's File chips, in order (the To file card's are its own).
 const fileChips = () => [...document.querySelectorAll<HTMLElement>("[data-file]")].filter((el) => el.getBoundingClientRect().width > 0);
-const CHIP = "relative inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-2 pointer-coarse:after:absolute pointer-coarse:after:content-['']";
+const CHIP = "relative inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-2.5 pointer-coarse:after:absolute pointer-coarse:after:content-['']";
 // The board's menus: a white card of rows, as here and on Subscriptions. As tall as the window
 // allows, so the File menu's thirteen categories only scroll on a short screen.
 export const MENU_ITEM =
@@ -351,11 +351,7 @@ function FileMenu({
     (chips[Math.min(was.i, chips.length - 1)] ?? document.getElementById("charges"))?.focus();
   });
   const q = query.trim().toLowerCase();
-  const shown = q
-    ? categories
-        .filter((c) => nameMatches(c.name, q))
-        .sort((a, b) => Number(!a.name.toLowerCase().startsWith(q)) - Number(!b.name.toLowerCase().startsWith(q)))
-    : categories;
+  const shown = q ? categories.filter((c) => nameMatches(c.name, q)) : categories;
   // A category's row; Enter's (`target`) is lit with the stage's Ink ↵ tag.
   const item = (name: string, note?: string, target = false) => (
     <Menu.RadioItem key={name} value={name} closeOnClick className={cn(MENU_ITEM, target && inField && "bg-mist! dark:bg-card-night-hover!")}>
@@ -375,14 +371,11 @@ function FileMenu({
   const LABEL = cn("px-2.5 pb-1 pt-1 text-[13px]", MUTED);
   // What a menu offers for a charge (a shop's: its first): where the shop usually goes, the list
   // under it, and Enter's category. Before typing, the list leaves out where it usually goes
-  // (shown above it) and Enter files where it went last time; while typing, what the shop has
-  // used comes first, most often first, and Subscriptions, which also tracks the charge, last
-  // unless the shop has used it, and Enter files the first. Never where the charge is already.
+  // (shown above it) and Enter files where it went last time; while typing, the matches come in
+  // the stage's order (typedOrder) and Enter files the first. Never where the charge is already.
   const plan = (subject: BoardTx, current: string | null) => {
     const often = usually(subject).filter((o) => categories.some((c) => c.name === o.category));
-    const used = (name: string) => often.findIndex((o) => o.category === name);
-    const weight = (name: string) => (used(name) >= 0 ? used(name) : name === SUBSCRIPTIONS ? 99 : 50);
-    const list = q ? [...shown].sort((a, b) => weight(a.name) - weight(b.name)) : shown.filter((c) => used(c.name) < 0);
+    const list = q ? typedOrder(categories, q, often) : shown.filter((c) => !often.some((o) => o.category === c.name));
     const target = (q ? list.find((c) => c.name !== current)?.name : often.find((o) => o.last && o.category !== current)?.category) ?? null;
     return { often, list, target };
   };
@@ -495,7 +488,16 @@ function FileMenu({
             <Menu.Positioner sideOffset={6} align="start" className="z-50 outline-none">
               {/* While the field has focus, Enter is its lit row's: the row the menu highlighted on a
                   keyboard opening shows plain. A row the mouse is on takes focus, so it still shows. */}
-              <Menu.Popup className={cn(MENU_POPUP, "[&:has(input:focus)_[data-highlighted]]:bg-transparent")}>
+              <Menu.Popup
+                className={cn(MENU_POPUP, "[&:has(input:focus)_[data-highlighted]]:bg-transparent")}
+                // The up arrow from the first row goes back to the field, as the down arrow left it.
+                onKeyDownCapture={(e) => {
+                  if (e.key !== "ArrowUp" || document.activeElement !== e.currentTarget.querySelector('[role^="menuitem"]')) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  find.current?.focus();
+                }}
+              >
                 {shop && (
                   <Menu.Group>
                     <Menu.GroupLabel className={cn("flex items-baseline gap-2 px-2.5 pb-1.5 pt-1 text-[13px]", MUTED)}>

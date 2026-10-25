@@ -6,7 +6,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { motion, useReducedMotion } from "motion/react";
 import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { Board, BoardTx } from "@/lib/board";
-import { SAVINGS, matches } from "@/lib/engine";
+import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 // The hand both looks share: the painted faces blink with its keyframes.
 import type { Mood } from "@/components/goofy";
@@ -259,6 +259,16 @@ export const nameMatches = (name: string, typed: string) => {
   return n.startsWith(typed) || n.split(/\s+/).some((w) => w.startsWith(typed));
 };
 
+// What typed letters pick, in order, on the stage and in the File menu alike: what the shop has used,
+// most often first (`often`, from usuallyOf); then the rest, Subscriptions, which also tracks the
+// charge, last; among equals, the names the letters start before those they start a word of.
+export const typedOrder = <T extends { name: string }>(items: T[], typed: string, often: { category: string }[]) => {
+  const used = (name: string) => often.findIndex((o) => o.category === name);
+  const weight = (name: string) => (used(name) >= 0 ? used(name) : name === SUBSCRIPTIONS ? 99 : 50);
+  const late = (name: string) => Number(!name.toLowerCase().startsWith(typed));
+  return items.filter((c) => nameMatches(c.name, typed)).sort((a, b) => weight(a.name) - weight(b.name) || late(a.name) - late(b.name));
+};
+
 // What Always takes, said under its switch while it is on, the same on the stage, in the queue
 // and in the menus: the charges in hand, the shop's other loose ones and where they wait, and
 // the ones to come.
@@ -491,9 +501,13 @@ export function CoinStage({
     setTypedFor(picked);
     setTyped("");
   }
-  const typedMatch =
-    pickedTx && typed ? ((rolls.find((r) => r.name.toLowerCase().startsWith(typed)) ?? rolls.find((r) => nameMatches(r.name, typed)))?.name ?? null) : null;
-  const typedHint = pickedTx && typed ? (typedMatch ? `Typed “${typed}”: Enter files it under ${typedMatch}` : `No roll matches “${typed}”`) : null;
+  const typedMatch = pickedTx && typed ? (typedOrder(rolls, typed, usuallyOf(txs, pickedTx))[0]?.name ?? null) : null;
+  const typedHint =
+    pickedTx && typed
+      ? typedMatch
+        ? `Typed “${typed}”: Enter files it under ${typedMatch}${typedMatch === SUBSCRIPTIONS ? ", which also tracks it" : ""}`
+        : `No roll matches “${typed}”`
+      : null;
   // The roll that lifts: the one typed, else the one the shop went to last time.
   const aim = typedMatch ?? suggestion;
   const aimTag = typedMatch ? `${typed} ↵` : "last time";
