@@ -783,9 +783,10 @@ export function CoinStage({
       </>
     );
   };
-  // The side panel: the month's rolls as bars beside the backlog, places to drop a row and where
-  // a filed row's coin lands, growing as it does. Not buttons: the stage's rolls file a coin in hand.
-  // Drawn at the end of the render, with the helpers it shares declared.
+  // The side panel: the month's rolls as bars beside the backlog. The stage folds its floor away
+  // while it shows, so these are the month's rolls: a coin in hand files on a press, as on the floor
+  // or the phone's bars, a row dropped here files too, and a filed coin lands here, growing as it
+  // does. Drawn at the end of the render, with the helpers it shares declared.
   const sidePanel = () => (
     <>
       <h2 className={cn(DISPLAY, "text-[20px] font-semibold")}>{label(month)}&rsquo;s rolls</h2>
@@ -796,9 +797,21 @@ export function CoinStage({
           .filter((r) => r.total > 0)
           .map((r, i) => (
             <RollTarget key={r.name} name={r.name} side>
-              <div data-roll={r.name} className="rounded-xl">
+              <motion.button
+                type="button"
+                data-roll={r.name}
+                disabled={!pickedTx && !onSelect}
+                aria-pressed={onSelect && !pickedTx ? selected === r.name : undefined}
+                onClick={() => pressRoll(r.name)}
+                aria-label={`${r.name}: ${eur.format(r.total)}${limitNote(r)}${rollAction(r.name)}`}
+                className={cn("w-full rounded-xl text-left disabled:cursor-default", FOCUS)}
+                style={{ originX: 0 }}
+                animate={pickedTx && !reduce ? { x: [0, 4, 0] } : { x: 0 }}
+                transition={pickedTx ? { x: { duration: 0.9, repeat: Infinity, delay: i * 0.06 }, default: SPRING } : SPRING}
+                whileTap={pickedTx || onSelect ? { scale: reduce ? 1 : 0.98, transition: PRESS } : undefined}
+              >
                 {barBody(r, i, sideW)}
-              </div>
+              </motion.button>
             </RollTarget>
           ))}
       </div>
@@ -808,7 +821,15 @@ export function CoinStage({
           <div className="flex flex-wrap gap-x-[18px] gap-y-1.5">
             {sleeping.map((r) => (
               <RollTarget key={r.name} name={r.name} side inline>
-                <div data-roll={r.name} className="flex min-h-11 items-center gap-2 pr-1 text-[13px] font-medium">
+                <button
+                  type="button"
+                  data-roll={r.name}
+                  disabled={!pickedTx && !onSelect}
+                  aria-pressed={onSelect && !pickedTx ? selected === r.name : undefined}
+                  onClick={() => pressRoll(r.name)}
+                  aria-label={`${r.name}: nothing filed yet${rollAction(r.name)}`}
+                  className={cn("flex min-h-11 items-center gap-2 rounded-full pr-1 text-[13px] font-medium transition-[scale] duration-200 enabled:motion-safe:active:scale-[0.96] disabled:cursor-default", FOCUS)}
+                >
                   <span className={faded(r.name)}>
                     <PaintedMini index={index.get(r.name) ?? 0} colour={wrapper(r.name)} />
                   </span>
@@ -816,7 +837,7 @@ export function CoinStage({
                     {r.name}
                     {lastTag(r.name)}
                   </span>
-                </div>
+                </button>
               </RollTarget>
             ))}
           </div>
@@ -1133,8 +1154,9 @@ export function CoinStage({
           </div>
         ) : (
         <>
-        {empty && <p className={cn("relative mt-6 text-[15px]", MUTED)}>Nothing filed in {label(month)} yet.</p>}
-        <div className="relative mt-6 flex items-end gap-6 pb-1 sm:gap-8">
+        {/* Beside the backlog the side panel's bars are the month's rolls: the floor folds away. */}
+        {empty && !side && <p className={cn("relative mt-6 text-[15px]", MUTED)}>Nothing filed in {label(month)} yet.</p>}
+        <div className={cn("relative mt-6 flex items-end gap-6 pb-1 sm:gap-8", side && "hidden")}>
           <div
             ref={floorRef}
             role="group"
