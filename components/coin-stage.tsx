@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
+import { createPortal } from "react-dom";
 import { useDroppable } from "@dnd-kit/core";
 import { motion, useReducedMotion } from "motion/react";
 import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
@@ -179,8 +180,8 @@ function CoinLabel({ pile, day = true, className }: { pile: BoardTx[]; day?: boo
   );
 }
 
-function RollTarget({ name, children }: { name: string; children: ReactNode }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `roll:${name}` });
+function RollTarget({ name, side = false, children }: { name: string; side?: boolean; children: ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `${side ? "side" : "roll"}:${name}` });
   return (
     <div ref={setNodeRef} className={cn("w-full transition-transform duration-150", isOver && "scale-[1.06]")}>
       {children}
@@ -247,6 +248,17 @@ export const alwaysTakes = (here: number, others: BoardTx[]) => {
   return `${these}, ${others.length} more ${where}, and every one to come`;
 };
 
+// A category's roll as it stands on screen: the floor's, or with the stage scrolled away the
+// side panel's bar beside the list, so a coin always lands where it can be seen.
+export const rollOnScreen = (category: string) => {
+  const all = [...document.querySelectorAll(`[data-roll="${CSS.escape(category)}"]`)];
+  const seen = (el: Element) => {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
+  };
+  return all.find(seen) ?? all.find((el) => el.getBoundingClientRect().width > 0) ?? null;
+};
+
 // A category's wrapper colour, by its place in the list.
 export const wrapperOf = (categories: { name: string }[], name: string) =>
   PAINTED_WRAPPERS[Math.max(0, categories.findIndex((c) => c.name === name)) % PAINTED_WRAPPERS.length];
@@ -274,6 +286,7 @@ export function CoinStage({
   figures,
   jar,
   actions,
+  side = null,
   ref,
 }: {
   txs: BoardTx[];
@@ -297,6 +310,9 @@ export function CoinStage({
   // dropped in is split with them. Its drawing (glad as it takes a coin) and the caption
   // under it are the page's.
   jar?: { partner: string; draw: (mood: Mood) => ReactNode; caption: ReactNode; onSplit: (tx: BoardTx) => void };
+  // Where the month's rolls also stand as bars, beside the backlog on a laptop, so a row filed
+  // from the list lands in a roll on screen once the stage has scrolled away.
+  side?: HTMLElement | null;
   ref?: Ref<CoinStageHandle>;
 }) {
   const reduce = useReducedMotion();
@@ -344,6 +360,16 @@ export function CoinStage({
     ro.observe(el);
     return () => ro.disconnect();
   }, [narrow]);
+  // So does the side panel's, when the page gives the stage one.
+  const sideRef = useRef<HTMLDivElement>(null);
+  const [sideW, setSideW] = useState(300);
+  useEffect(() => {
+    const el = sideRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setSideW(Math.round(e.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [side]);
   // The floor's width sets the columns: 84px while they fit, narrower with the count, down to 60px.
   const floorRef = useRef<HTMLDivElement>(null);
   const [floorW, setFloorW] = useState(0);
@@ -650,6 +676,84 @@ export function CoinStage({
     </div>
   );
 
+  // A lying bar's insides, on the phone's list and in the side panel: its name and amount over
+  // the painted bar, on one scale for the list's width.
+  const barBody = (r: (typeof rolls)[number], i: number, w: number) => {
+    const over = r.budget != null && r.total > r.budget;
+    const hpx = (v: number) => (v / tallest) * Math.max(60, w - 6);
+    return (
+      <>
+        <div className="flex items-baseline justify-between gap-3 text-[15px]">
+          <span className="truncate font-medium">
+            {r.name}
+            {lastTag(r.name)}
+          </span>
+          <span className="shrink-0 tabular-nums">
+            <span className={over ? "font-medium" : MUTED}>{eur.format(r.total)}</span>
+            {r.budget != null && <span className={MUTED}> of {limitText(r.budget)}</span>}
+          </span>
+        </div>
+        {/* Redrawn when the list's width changes, as a roll is when its size does: with
+            reduced motion a bar otherwise keeps the length of its first, guessed width. */}
+        <div className={faded(r.name)}>
+          <PaintedBar
+            key={`w-${w}`}
+            index={index.get(r.name) ?? i}
+            colour={wrapper(r.name)}
+            length={hpx(over ? (r.budget as number) : r.total)}
+            extra={over ? hpx(r.total - (r.budget as number)) : 0}
+            budget={r.budget != null ? hpx(r.budget) : null}
+            over={over}
+            gulping={gulp?.category === r.name}
+            cheer={cheerOf(r.name)}
+            width={w}
+            delay={0.15 + i * 0.05}
+          />
+        </div>
+      </>
+    );
+  };
+  // The side panel: the month's rolls as bars beside the backlog, places to drop a row and where
+  // a filed row's coin lands, growing as it does. Not buttons: the stage's rolls file a coin in hand.
+  // Drawn at the end of the render, with the helpers it shares declared.
+  const sidePanel = () => (
+    <>
+      <h2 className={cn(DISPLAY, "text-[20px] font-semibold")}>{label(month)}&rsquo;s rolls</h2>
+      <p className={cn("mt-0.5 text-[13px]", MUTED)}>Drop a row on a roll</p>
+      <div ref={sideRef} role="group" aria-label={`Where ${label(month)}'s money went`} className="mt-4 flex flex-col gap-2">
+        {rolls
+          .filter((r) => r.total > 0)
+          .map((r, i) => (
+            <RollTarget key={r.name} name={r.name} side>
+              <div data-roll={r.name} className="rounded-xl">
+                {barBody(r, i, sideW)}
+              </div>
+            </RollTarget>
+          ))}
+      </div>
+      {sleeping.length > 0 && (
+        <div role="group" aria-label="Categories with nothing filed yet" className="mt-4 flex flex-col gap-2">
+          <div className={cn("text-[13px] font-medium", MUTED)}>Nothing yet</div>
+          <div className="flex flex-wrap gap-x-[18px] gap-y-1.5">
+            {sleeping.map((r) => (
+              <RollTarget key={r.name} name={r.name} side>
+                <div data-roll={r.name} className="flex min-h-11 items-center gap-2 pr-1 text-[13px] font-medium">
+                  <span className={faded(r.name)}>
+                    <PaintedMini index={index.get(r.name) ?? 0} colour={wrapper(r.name)} />
+                  </span>
+                  <span>
+                    {r.name}
+                    {lastTag(r.name)}
+                  </span>
+                </div>
+              </RollTarget>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   const monthHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (!gulp) return;
@@ -738,7 +842,7 @@ export function CoinStage({
   };
   // A charge from another month has no roll on this floor to land in.
   const file = (tx: BoardTx, category: string, from?: Element | null, always = false, many?: BoardTx[]) =>
-    !!category && fly(tx, category, monthOf(tx.date) === month ? document.querySelector(`[data-roll="${CSS.escape(category)}"]`) : null, from, always, many);
+    !!category && fly(tx, category, monthOf(tx.date) === month ? rollOnScreen(category) : null, from, always, many);
   const split = (tx: BoardTx, from?: Element | null) => !!jar && fly(tx, null, document.querySelector("[data-jar]"), from);
   useImperativeHandle(ref, () => ({ file, split }));
   // A roll takes the coin in hand; with none held, it picks its category for the page.
@@ -900,9 +1004,6 @@ export function CoinStage({
             <div className="h-px bg-ink/10 dark:bg-white/10" aria-hidden />
             <div ref={listRef} role="group" aria-label={`Where ${label(month)}'s money went`} className="flex flex-col gap-2">
               {rolls.filter((r) => r.total > 0).map((r, i) => {
-                const over = r.budget != null && r.total > r.budget;
-                const span = Math.max(60, listW - 6);
-                const hpx = (v: number) => (v / tallest) * span;
                 return (
                   <motion.button
                     key={r.name}
@@ -921,33 +1022,7 @@ export function CoinStage({
                     // know: Motion gives a pressable a tabindex, and the two renders must agree.
                     whileTap={pickedTx || onSelect ? { scale: reduce ? 1 : 0.98, transition: PRESS } : undefined}
                   >
-                    <div className="flex items-baseline justify-between gap-3 text-[15px]">
-                      <span className="truncate font-medium">
-                        {r.name}
-                        {lastTag(r.name)}
-                      </span>
-                      <span className="shrink-0 tabular-nums">
-                        <span className={over ? "font-medium" : MUTED}>{eur.format(r.total)}</span>
-                        {r.budget != null && <span className={MUTED}> of {limitText(r.budget)}</span>}
-                      </span>
-                    </div>
-                    {/* Redrawn when the list's width changes, as a roll is when its size does: with
-                        reduced motion a bar otherwise keeps the length of its first, guessed width. */}
-                    <div className={faded(r.name)}>
-                      <PaintedBar
-                        key={`w-${listW}`}
-                        index={index.get(r.name) ?? i}
-                        colour={wrapper(r.name)}
-                        length={hpx(over ? (r.budget as number) : r.total)}
-                        extra={over ? hpx(r.total - (r.budget as number)) : 0}
-                        budget={r.budget != null ? hpx(r.budget) : null}
-                        over={over}
-                        gulping={gulp?.category === r.name}
-                        cheer={cheerOf(r.name)}
-                        width={listW}
-                        delay={0.15 + i * 0.05}
-                      />
-                    </div>
+                    {barBody(r, i, listW)}
                   </motion.button>
                 );
               })}
@@ -1090,6 +1165,7 @@ export function CoinStage({
           <PaintedCoin size={flight.size} mood="glad" seed={9} />
         </motion.div>
       )}
+      {side && createPortal(sidePanel(), side)}
     </>
   );
 }

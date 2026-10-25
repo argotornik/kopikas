@@ -8,7 +8,7 @@ import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
 import { act, type Undo } from "@/lib/act";
 import { announceError, announceUndoable } from "@/components/toaster";
 import { PaintedCoin } from "@/components/painted";
-import { CoinStage, eur, label, lastTimeOf, looseCoins, monthOf, shortDate, type CoinStageHandle } from "@/components/coin-stage";
+import { CoinStage, eur, label, lastTimeOf, looseCoins, monthOf, rollOnScreen, shortDate, type CoinStageHandle } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, OAT, PAGE, PANEL } from "@/components/coin-look";
 import { CoinLedger, FileChip } from "@/components/coin-ledger";
 import { CoinQueue, type Said } from "@/components/coin-queue";
@@ -126,6 +126,9 @@ export function CoinBoard({
     return () => mq.removeEventListener("change", on);
   }, []);
   const pageOrder = (cards: React.ReactNode, charges: React.ReactNode) => (listFirst ? [charges, cards] : [cards, charges]);
+  // With To file on, from 1024px up to 1900px (where the stage travels beside the list) the
+  // month's rolls also stand as bars in the side column, beside the backlog; the stage draws them.
+  const [sideEl, setSideEl] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
     const tray = trayBox.current, cards = cardsBox.current, grid = tray?.parentElement;
     if (!tray || !cards || !grid) return;
@@ -509,14 +512,15 @@ export function CoinBoard({
     const t = board.txs.find((x) => x.id === id);
     return t ? `${t.name}, ${eur.format(Math.abs(t.amount))}` : "the charge";
   };
-  const rollOf = (id: unknown) => (typeof id === "string" && id.startsWith("roll:") ? id.slice(5) : null);
+  // A roll on the floor (roll:) or its bar in the side panel beside the backlog (side:).
+  const rollOf = (id: unknown) => (typeof id === "string" && /^(roll|side):/.test(id) ? id.slice(5) : null);
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     setDragged(null);
     const tx = board.txs.find((t) => t.id === active.id);
     const category = rollOf(over?.id);
     if (!tx || !category || category === tx.category) return;
     // The coin drops in from the roll it was let go over.
-    const roll = document.querySelector(`[data-roll="${CSS.escape(category)}"]`);
+    const roll = rollOnScreen(category);
     if (!stage.current?.file(tx, category, roll)) onFile(tx, category);
   };
 
@@ -622,6 +626,7 @@ export function CoinBoard({
             onMonthChange={setMonth}
             onFile={onFile}
             onFileMany={onFileMany}
+            side={only === TO_FILE && listFirst && !travels ? sideEl : null}
             selected={picked}
             onSelect={toggle}
             // A chosen roll's year takes the figures' place; they come back when it is let go.
@@ -673,7 +678,11 @@ export function CoinBoard({
             <aside
               key="cards"
               ref={cardsBox}
-              className="flex flex-col gap-8 lg:col-start-2 lg:row-start-1 wide:col-start-1 wide:row-start-2 wide:grid wide:grid-cols-2 wide:items-start wide:sticky"
+              className={cn(
+                "flex flex-col gap-8 lg:col-start-2 lg:row-start-1 wide:col-start-1 wide:row-start-2 wide:grid wide:grid-cols-2 wide:items-start wide:sticky",
+                // Under the list while the backlog's rolls take the side column.
+                only === TO_FILE && "lg:col-start-1 lg:row-start-2"
+              )}
             >
               {/* The same loose change as the pile, as rows: the way to file from the keyboard. */}
               <section aria-labelledby="tofile-heading" className={cn(PANEL, OAT, "p-5 max-sm:hidden sm:p-6 lg:hidden")}>
@@ -884,6 +893,11 @@ export function CoinBoard({
                 </p>
               )}
             </section>
+            )}
+            {only === TO_FILE && (
+              <div className="max-lg:hidden lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-stretch wide:hidden">
+                <div ref={setSideEl} className={cn(PANEL, OAT, "sticky top-4 max-h-[calc(100dvh-2rem)] overflow-y-auto p-5 sm:p-6")} />
+              </div>
             )}
           </div>
           </div>
