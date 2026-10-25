@@ -170,13 +170,14 @@ export function CoinBoard({
 
   // The board after a change: what the server sent back with its answer, or a
   // fresh read. If the change saved but the read fails, the change still stands.
-  const refetch = useCallback(async () => {
+  // `quiet` after a change that failed: its own notice has said so already.
+  const refetch = useCallback(async (quiet = false) => {
     try {
       const res = await fetch("/api/board", { cache: "no-store" });
       if (!res.ok) throw new Error(String(res.status));
       setBoard(await res.json());
     } catch {
-      announceError("The board couldn't refresh. Reload to see the latest.", () => window.location.reload());
+      if (!quiet) announceError("The board couldn't refresh. Reload to see the latest.", () => window.location.reload());
     }
   }, []);
   const run = useCallback(
@@ -205,16 +206,26 @@ export function CoinBoard({
       await refetch();
       return true;
     });
+  // A change shows before the server answers. One that doesn't save is taken back on the page, so
+  // no number shows what isn't so (`filed`: how many it took off the count of charges to file);
+  // the board is then read again quietly, in case the server kept it after all.
+  const putBack = (before: BoardTx[], filed = 0) => {
+    const old = new Map(before.map((t) => [t.id, t]));
+    setBoard((b) => ({ ...b, txs: b.txs.map((t) => old.get(t.id) ?? t), uncategorizedCount: b.uncategorizedCount + filed }));
+    void refetch(true);
+  };
 
   // A coin files at once, as just this one: it is in its roll before the server
   // answers, and the notice offers Always beside Undo. The Subscriptions roll
   // tracks the charge as a subscription, which always means always. With Always set
   // before the tap (the phone queue's toggle), the shop's other loose charges go in too
-  // and the rule is taught in the same request, so one Undo takes back all of it.
-  const onFile = (tx: BoardTx, category: string, always = false, say?: (s: Said) => void) => {
+  // and the rule is taught in the same request, so one Undo takes back all of it. It answers
+  // whether the filing saved, so a celebration can wait for that; one that didn't is put back.
+  const onFile = (tx: BoardTx, category: string, always = false, say?: (s: Said) => void): Promise<boolean> => {
     const subscription = category === SUBSCRIPTIONS;
     const wide = always && !subscription;
     const alike = new Set(wide ? looseCoins(board.txs, null).filter((t) => t.id !== tx.id && matches(t, tx.rulePattern)).map((t) => t.id) : []);
+    const before = board.txs.filter((t) => t.id === tx.id || alike.has(t.id));
     setBoard((b) => ({
       ...b,
       txs: b.txs.map((t) =>
@@ -222,10 +233,15 @@ export function CoinBoard({
       ),
       uncategorizedCount: b.uncategorizedCount - (tx.category ? 0 : 1) - alike.size,
     }));
-    void run(subscription ? { type: "subscribe", txId: tx.id } : { type: "override", txId: tx.id, category, ...(wide && { always: true }) }).then((r) => {
+    const saving = run(subscription ? { type: "subscribe", txId: tx.id } : { type: "override", txId: tx.id, category, ...(wide && { always: true }) });
+    void saving.then((r) => {
       if (!r.ok) {
-        announceError(r.error);
-        return refetch();
+        putBack(before, (tx.category ? 0 : 1) + alike.size);
+        announceError(
+          `${subscription ? `Couldn't track ${tx.name} as a subscription.` : `Couldn't file ${alike.size ? `${alike.size + 1} from ` : ""}${tx.name} under ${category}.`} ${r.error}`,
+          () => void onFile(tx, category, always, say)
+        );
+        return;
       }
       if (subscription)
         return say
@@ -244,33 +260,38 @@ export function CoinBoard({
         onClick: () => void teachAlways(tx, category),
       });
     });
+    return saving.then((r) => r.ok);
   };
   // A shop's charges or a stack of coins, filed at once. With Always it is the first one's
   // Always filing, which takes the rest by its rule; without, they are pinned together, no
   // rule, one Undo takes them all back, and the notice offers Always as a single charge's does.
   // Subscriptions tracks the shop, always.
-  const onFileMany = (txs: BoardTx[], category: string, always = false) => {
+  const onFileMany = (txs: BoardTx[], category: string, always = false): Promise<boolean> => {
     if (txs.length === 1 || always || category === SUBSCRIPTIONS) return onFile(txs[0], category, always);
     const ids = new Set(txs.map((t) => t.id));
+    const before = board.txs.filter((t) => ids.has(t.id));
     setBoard((b) => ({
       ...b,
       txs: b.txs.map((t) => (ids.has(t.id) ? { ...t, category, categorySource: "override" as const } : t)),
       uncategorizedCount: b.uncategorizedCount - txs.filter((t) => !t.category).length,
     }));
-    void run({ type: "override-many", txIds: [...ids], category }).then((r) => {
+    const saving = run({ type: "override-many", txIds: [...ids], category });
+    void saving.then((r) => {
       if (!r.ok) {
-        announceError(r.error);
-        return refetch();
+        putBack(before, txs.filter((t) => !t.category).length);
+        announceError(`Couldn't file ${txs.length} from ${txs[0].name} under ${category}. ${r.error}`, () => void onFileMany(txs, category, always));
+        return;
       }
       announceUndoable(`Filed ${txs.length} from ${txs[0].name} under ${category}.`, r.undo, refetch, {
         label: "Always",
         onClick: () => void teachAlways(txs[0], category),
       });
     });
+    return saving.then((r) => r.ok);
   };
   const teachAlways = async (tx: BoardTx, category: string, say?: (s: Said) => void) => {
     const r = await run({ type: "rule", txId: tx.id, category });
-    if (!r.ok) return announceError(r.error);
+    if (!r.ok) return announceError(`Couldn't send every ${tx.name} charge under ${category}. ${r.error}`, () => void teachAlways(tx, category, say));
     if (say) return say({ lead: `Every ${tx.name} charge`, tail: ` now goes under ${category}`, undo: takeBack(r.undo) });
     announceUndoable(`Every ${tx.name} charge now goes under ${category}.`, r.undo, refetch);
   };
@@ -280,11 +301,12 @@ export function CoinBoard({
   // still needs a roll, and its coin wears its part in the pile.
   const onSplit = (tx: BoardTx, share: number, say?: (s: Said) => void) => {
     if (!partner) return;
+    const before = board.txs.filter((t) => t.id === tx.id);
     setBoard((b) => ({ ...b, txs: b.txs.map((t) => (t.id === tx.id ? { ...t, shared: true, partnerShare: share } : t)) }));
     void run({ type: "share", txId: tx.id, partnerShare: share }).then((r) => {
       if (!r.ok) {
-        announceError(r.error);
-        return refetch();
+        putBack(before);
+        return announceError(`Couldn't split ${tx.name} with ${partner}. ${r.error}`, () => onSplit(tx, share, say));
       }
       const always = { label: "Always", onClick: () => void splitAlways(tx, share, say) };
       if (say) return say({ lead: `Split with ${partner}`, tail: `, who pays ${shareLabel(share)}`, undo: takeBack(r.undo), also: always });
@@ -293,7 +315,7 @@ export function CoinBoard({
   };
   const splitAlways = async (tx: BoardTx, share: number, say?: (s: Said) => void) => {
     const r = await run({ type: "share", txId: tx.id, partnerShare: share, always: true });
-    if (!r.ok) return announceError(r.error);
+    if (!r.ok) return announceError(`Couldn't split every ${tx.name} charge with ${partner}. ${r.error}`, () => void splitAlways(tx, share, say));
     if (say) return say({ lead: `Every ${tx.name} charge`, tail: ` split with ${partner}`, undo: takeBack(r.undo) });
     announceUndoable(`Every ${tx.name} charge is now split with ${partner}.`, r.undo, refetch);
   };

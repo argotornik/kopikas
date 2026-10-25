@@ -53,7 +53,7 @@ export function CoinQueue({
   partner: string | null;
   // `always` files the charge's whole shop and teaches the rule, as the notice's Always does.
   // `say` gets what happened, for the queue's own line.
-  onFile: (tx: BoardTx, category: string, always?: boolean, say?: (s: Said) => void) => void;
+  onFile: (tx: BoardTx, category: string, always?: boolean, say?: (s: Said) => void) => Promise<boolean>;
   onSplit: (tx: BoardTx, share: number, say?: (s: Said) => void) => void;
   // With nothing left to file, the way to the month.
   onDone: () => void;
@@ -125,8 +125,9 @@ export function CoinQueue({
   const fileTo = (category: string) => {
     if (!tx) return;
     const wide = always && category !== SUBSCRIPTIONS;
-    if ((wide ? alike + 1 : 1) === queue.length) setParty(true);
-    onFile(tx, category, wide, setSaid);
+    // The burst waits for the server to have the last filing; one that failed brings its coin back.
+    const last = (wide ? alike + 1 : 1) === queue.length;
+    void onFile(tx, category, wide, setSaid).then((ok) => ok && last && setParty(true));
   };
   const filed = txs.filter((t) => t.amount < 0 && !t.micro && t.category).length;
   // Each tile carries what its category holds in the coin's month, for a sense of scale.

@@ -280,9 +280,9 @@ export function CoinStage({
   months: string[];
   currentMonth: string;
   onMonthChange: (month: string) => void;
-  onFile: (tx: BoardTx, category: string, always?: boolean) => void;
+  onFile: (tx: BoardTx, category: string, always?: boolean) => Promise<boolean>;
   // A shop's stack of coins at once; with `always`, every one to come too.
-  onFileMany: (txs: BoardTx[], category: string, always: boolean) => void;
+  onFileMany: (txs: BoardTx[], category: string, always: boolean) => Promise<boolean>;
   // The category the page is showing on its own, marked on its roll.
   selected?: string | null;
   // With no coin in hand, a roll picks its category for the page to show.
@@ -681,14 +681,17 @@ export function CoinStage({
     const gone = new Set((many ?? [tx]).map((t) => t.id));
     if (always) for (const t of loose) if (matches(t, tx.rulePattern)) gone.add(t.id);
     const last = loose.length > 0 && loose.every((t) => gone.has(t.id));
-    if (many && many.length > 1) onFileMany(many, category, always);
-    else onFile(tx, category, always);
+    const saved = many && many.length > 1 ? onFileMany(many, category, always) : onFile(tx, category, always);
     setGulp((g) => ({ category, n: (g?.n ?? 0) + 1 }));
     setLastFiled((f) => ({ category, n: (f?.n ?? 0) + 1 }));
-    if (last) {
+    // The month is cheered once the server has it: a filing that didn't save puts its coins
+    // back in the pile, and nothing is celebrated or said to have gone in.
+    void saved.then((ok) => {
+      if (!ok) return setLastFiled(null);
+      if (!last) return;
       setCheer((c) => c + 1);
       setParty(month);
-    }
+    });
   };
 
   const commitSplit = (tx: BoardTx) => {

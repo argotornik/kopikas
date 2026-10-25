@@ -45,14 +45,22 @@ export function announceUndoable(message: string, undo: Undo | undefined, after:
 }
 
 // A failure that has no dialog of its own to show in. High priority, so a
-// screen reader hears it straight away.
+// screen reader hears it straight away. Try again closes it: the retry says how it went.
 export function announceError(message: string, retry?: () => void) {
-  toasts.add({
+  const id = toasts.add({
     title: message,
     type: "error",
     priority: "high",
     timeout: 10000,
-    actionProps: retry ? { children: "Try again", onClick: retry } : undefined,
+    actionProps: retry
+      ? {
+          children: "Try again",
+          onClick: () => {
+            toasts.close(id);
+            retry();
+          },
+        }
+      : undefined,
   });
 }
 

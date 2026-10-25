@@ -381,6 +381,7 @@ Taken off the painted stage on 2026-10-15, with his bubble: the stage reads bett
 
 ### Notices
 - **Style:** one line of what happened ("Filed Coop under Groceries."), with Undo, and Always where a rule can be taught: after one charge, a stack or a shop's charges filed with the switch off. Errors say what went wrong, with a retry where one helps, behind a Stamp Red alert icon.
+- **A change that doesn't save:** a filing or a split shows at once, before the server answers. If it doesn't save, the page takes it back (the coins return to the pile or the queue, the rolls and counts to what they were), one notice says what didn't happen and why ("Couldn't file 5 from Pesumaja Puhas OÜ under Home. Couldn't reach Kopikas. Check the connection and try again."), and Try again closes it and files again. The celebration waits for the server's answer, so a month is only cheered once it is really sorted.
 - **Shape:** dressed as a menu: a white card (card-night in dark) with a 1px Ink ring at 10% and no shadow, at the foot of the screen (above the tab bar on a phone). The buttons are Mist pills and the ✕ is round; when the words need the room, the buttons drop under them to the right, so a phone shows two lines, never more.
 
 ### Inputs
