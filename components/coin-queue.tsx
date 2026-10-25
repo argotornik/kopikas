@@ -22,7 +22,7 @@ import { cn, shareLabel } from "@/lib/utils";
 export type Said = { lead: string; tail: string; undo?: () => Promise<boolean>; also?: { label: string; onClick: () => void } };
 
 const day = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
-const count = new Intl.NumberFormat("et-EE");
+const count = new Intl.NumberFormat("et-EE", { useGrouping: "always" });
 const SPRING = { type: "spring" as const, stiffness: 320, damping: 26 };
 // Around "All filed"'s 72px coin: up into the panel's padding and out to the sides, falling
 // beside the words below it, never onto them.
@@ -243,7 +243,7 @@ export function CoinQueue({
           onClick={() => setAlwaysFor(always ? null : tx.id)}
           aria-label={`Always: ${alwaysTakes(1, alikeTxs)}`}
           className={cn(
-            "relative -my-1 inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-full pl-2 pr-3 text-[13px] font-medium transition-transform motion-safe:active:scale-[0.96] pointer-coarse:after:absolute pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-2 pointer-coarse:after:content-['']",
+            "relative -my-1 inline-flex h-[30px] shrink-0 items-center gap-1.5 rounded-full pl-2 pr-3 text-[13px] font-medium transition-transform motion-safe:active:scale-[0.96] pointer-coarse:after:absolute pointer-coarse:after:-inset-x-1 pointer-coarse:after:-top-3 pointer-coarse:after:-bottom-1 pointer-coarse:after:content-['']",
             always ? "bg-ink text-white dark:bg-chalk dark:text-ink" : "bg-white inset-ring-[1.5px] inset-ring-ink/15 dark:bg-card-night dark:inset-ring-white/15",
             FOCUS
           )}

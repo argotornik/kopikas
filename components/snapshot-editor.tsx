@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
-const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
+const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR", useGrouping: "always" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
 type PotLatest = { total: number; returnPct?: number; at: string; auto?: boolean } | null;

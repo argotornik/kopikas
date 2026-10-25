@@ -349,7 +349,7 @@ export function CoinBoard({
     <button
       type="button"
       onClick={() => setSnapOpen(true)}
-      className={cn("relative underline decoration-dotted decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
+      className={cn("relative underline decoration-dotted decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3.5 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
     >
       {board.investments.total != null ? "Investments" : "Add investments"}
     </button>
@@ -633,7 +633,7 @@ export function CoinBoard({
                 <button
                   type="button"
                   onClick={() => setCatsOpen(true)}
-                  className={cn("rounded-full px-3.5 py-2 text-[15px] font-medium hover:bg-white dark:hover:bg-card-night", FOCUS)}
+                  className={cn("relative rounded-full px-3.5 py-2 text-[15px] font-medium hover:bg-white dark:hover:bg-card-night pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-1 pointer-coarse:after:content-['']", FOCUS)}
                 >
                   Edit categories
                 </button>

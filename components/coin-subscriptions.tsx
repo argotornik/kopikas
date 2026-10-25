@@ -141,7 +141,7 @@ export function CoinSubscriptions({
             aria-expanded={open}
             aria-controls="subs-all"
             onClick={() => setOpen((o) => !o)}
-            className={cn("relative mt-3 text-[13px] underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3 pointer-coarse:after:absolute pointer-coarse:after:content-['']", MUTED, FOCUS)}
+            className={cn("relative mt-3 text-[13px] underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3.5 pointer-coarse:after:absolute pointer-coarse:after:content-['']", MUTED, FOCUS)}
           >
             {open ? "Hide the list" : `Show all ${active.length}`}
           </button>

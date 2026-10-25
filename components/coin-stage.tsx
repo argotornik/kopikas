@@ -17,8 +17,10 @@ import { cn, shareLabel } from "@/lib/utils";
 // rolls on the floor below. The page that shows it owns the month and decides what
 // filing does; the stage picks a coin up, flies it to its roll and hands it over.
 
-export const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
-export const eurWhole = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+// Amounts the Estonian way (comma decimals, space thousands), the space from 1 000 up: the
+// locale's own default only groups from 10 000, so 1842,16 € would sit beside 10 700,40 €.
+export const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR", useGrouping: "always" });
+export const eurWhole = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR", maximumFractionDigits: 0, useGrouping: "always" });
 const monthName = new Intl.DateTimeFormat("en-GB", { month: "long", timeZone: "UTC" });
 export const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 
@@ -73,7 +75,7 @@ function ConfettiMark({ kind, colour, size, rotate = 0 }: { kind: MarkKind; colo
 type Mark = { kind: MarkKind; x: number; y: number; s: number; d: number; c?: number; r?: number };
 const AIR: Mark[] = [
   { kind: "squiggle", x: -82, y: 4, s: 30, d: 9, c: 3, r: -8 },
-  { kind: "squiggle", x: -63, y: 62, s: 30, d: 8, c: 0, r: 6 },
+  { kind: "squiggle", x: -63, y: 45, s: 30, d: 8, c: 0, r: 6 },
   { kind: "dot", x: -18, y: 32, s: 8, d: 10, c: 1 },
   { kind: "dot", x: 109, y: 43, s: 7, d: 9, c: 4 },
 ];
@@ -566,7 +568,7 @@ export function CoinStage({
       <button
         type="button"
         onClick={() => onMonthChange(elsewhereMonth)}
-        className={cn("relative underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
+        className={cn("relative underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3.5 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
       >
         {oneMonth ? "Go there" : `Go to ${label(elsewhereMonth)}`}
       </button>

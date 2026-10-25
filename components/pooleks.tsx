@@ -26,7 +26,7 @@ import { PaintedCoin } from "@/components/painted";
 import { wrapperOf } from "@/components/coin-stage";
 import { CARD, DISPLAY, FOCUS, INK, INK_TEXT, MUTED, OAT, PAGE, PANEL, PILL, WHITE } from "@/components/coin-look";
 
-const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR" });
+const eur = new Intl.NumberFormat("et-EE", { style: "currency", currency: "EUR", useGrouping: "always" });
 const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
 type Person = "owner" | "partner";
