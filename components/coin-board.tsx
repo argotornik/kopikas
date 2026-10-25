@@ -809,11 +809,8 @@ export function CoinBoard({
                     {only === MONEY_IN ? `+${eur.format(received)}` : only === TO_FILE && !q ? eur.format(spent) : `${eur.format(spent)} spent`}
                   </span>
                   {" · "}
-                  <button
-                    type="button"
-                    onClick={() => (setQuery(""), setOnly(null))}
-                    className={cn("underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", FOCUS)}
-                  >
+                  {/* Its tap area stops short of the search field above it. */}
+                  <button type="button" onClick={() => (setQuery(""), setOnly(null))} className={cn(LINK, "pointer-coarse:after:-inset-y-3")}>
                     Show all
                   </button>
                 </p>
@@ -883,7 +880,7 @@ export function CoinBoard({
                   </p>
                   <p className={cn("pt-1 text-[13px]", MUTED)}>
                     Split a charge from its menu in the list.{" "}
-                    <a href="/pooleks" className={cn("underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", FOCUS)}>
+                    <a href="/pooleks" className={cn(LINK, "inline-block")}>
                       Open Pooleks
                     </a>
                   </p>

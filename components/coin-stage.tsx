@@ -1037,7 +1037,8 @@ export function CoinStage({
                         onMouseLeave={() => setPeek((p) => (p === t.id ? null : p))}
                         onFocus={() => setPeek(t.id)}
                         onBlur={() => setPeek((p) => (p === t.id ? null : p))}
-                        className={cn("relative rounded-full", FOCUS, flight?.tx.id === t.id && "opacity-0")}
+                        // A 44px tap area on a touch screen; where coins overlap, the one on top takes the tap.
+                        className={cn("relative rounded-full pointer-coarse:after:absolute pointer-coarse:after:-inset-0.5 pointer-coarse:after:content-['']", FOCUS, flight?.tx.id === t.id && "opacity-0")}
                         style={{ zIndex: isPicked ? 20 : 10 - i }}
                         animate={isPicked ? { y: -10, scale: 1.15, rotate: [0, -10, 10, 0] } : { y: 0, scale: 1, rotate: 0 }}
                         transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : SPRING}

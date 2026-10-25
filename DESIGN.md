@@ -412,6 +412,8 @@ Springs everywhere: the general one at stiffness 260 and damping 18, rolls at 20
 - **Do** stack depth with tone: Page White, then Oat Paper, then white cards; the only shadow is the floor oval.
 - **Do** keep text at 4.5:1 or better on its ground in both themes, including Received Green on Oat Paper.
 - **Do** honour reduced motion by keeping every state and dropping the movement.
+- **Do** give everything a finger can press a 44px tap area on a touch screen, grown invisibly where the thing drawn is smaller, and never into a neighbour's; where coins overlap, the one on top takes the tap.
+- **Do** let a row's note wrap to a second line rather than cut it, at every width.
 
 ### Don't:
 - **Don't** use stat cards, sparklines or grey dashboard cards; the month is shown by the stage, not by tiles.

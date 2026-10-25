@@ -267,7 +267,7 @@ function Row({
       <div className="min-w-0">
         {/* Under its shop's row the name is said already; its day tells the charges apart. */}
         <div className="truncate text-[15px] font-medium">{inset ? weekdayMonth.format(new Date(t.date + "T00:00:00Z")) : t.name}</div>
-        {sub && <div className={cn("line-clamp-2 text-[13px] sm:line-clamp-1", MUTED)}>{sub}</div>}
+        {sub && <div className={cn("line-clamp-2 text-[13px]", MUTED)}>{sub}</div>}
       </div>
       {/* Under the name on a phone, in its own column from 640px. */}
       <div className="col-start-2 row-start-2 min-w-0 sm:col-start-3 sm:row-start-1">
