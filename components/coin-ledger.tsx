@@ -485,11 +485,13 @@ function FileMenu({
         const note = (name: string) => (q && name === SUBSCRIPTIONS && tx?.category !== SUBSCRIPTIONS ? "also tracks it" : undefined);
         return (
           <Menu.Portal>
-            <Menu.Positioner sideOffset={6} align="start" className="z-50 outline-none">
+            {/* 12px clear of the screen's edges, where a phone's edge would cut a row short. */}
+            <Menu.Positioner sideOffset={6} align="start" collisionPadding={12} className="z-50 outline-none">
               {/* While the field has focus, Enter is its lit row's: the row the menu highlighted on a
                   keyboard opening shows plain. A row the mouse is on takes focus, so it still shows. */}
               <Menu.Popup
-                className={cn(MENU_POPUP, "[&:has(input:focus)_[data-highlighted]]:bg-transparent")}
+                // As wide as typing ever makes it ("3 of 13", "also tracks it"), so it never shifts under the pointer.
+                className={cn(MENU_POPUP, "w-80 max-w-[var(--available-width)] [&:has(input:focus)_[data-highlighted]]:bg-transparent")}
                 // The up arrow from the first row goes back to the field, as the down arrow left it.
                 onKeyDownCapture={(e) => {
                   if (e.key !== "ArrowUp" || document.activeElement !== e.currentTarget.querySelector('[role^="menuitem"]')) return;
@@ -552,7 +554,7 @@ function FileMenu({
                         <ChevronRightIcon aria-hidden className="size-4 shrink-0" />
                       </Menu.SubmenuTrigger>
                       <Menu.Portal>
-                        <Menu.Positioner sideOffset={4} alignOffset={-6} className="z-50 outline-none">
+                        <Menu.Positioner sideOffset={4} alignOffset={-6} collisionPadding={12} className="z-50 outline-none">
                           <Menu.Popup className={MENU_POPUP}>
                             <Menu.RadioGroup
                               value={tx.shared ? String(SPLITS.find((f) => Math.abs(f - (tx.partnerShare ?? 0.5)) < 0.01) ?? "") : ""}

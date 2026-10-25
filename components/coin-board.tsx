@@ -779,8 +779,9 @@ export function CoinBoard({
               className={cn(PANEL, OAT, "min-w-0 scroll-mt-4 p-5 outline-none sm:p-6 lg:col-start-1 lg:row-start-1 wide:col-start-2 wide:row-span-2 wide:row-start-1")}
             >
               <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+                {/* The list's name follows its filter: the backlog and the money in are not every charge. */}
                 <h2 id="ledger-heading" className={cn(DISPLAY, "mr-auto text-[20px] font-semibold")}>
-                  Every charge
+                  {only === TO_FILE ? "To file" : only === MONEY_IN ? "Money in" : "Every charge"}
                 </h2>
                 {/* The phone has its To file tab for the backlog, so the pill shows there only when a link turned it on. */}
                 {(toFile > 0 || only === TO_FILE) && (
