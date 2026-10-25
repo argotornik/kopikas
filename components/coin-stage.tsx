@@ -550,9 +550,12 @@ export function CoinStage({
   // the tall one would be empty air. It grows back with the first coin.
   const empty = !narrow && rolls.every((r) => r.total <= 0);
   const px = (v: number) => (v / tallest) * MAX;
-  // Each shelf of a wrapped floor is as tall as its tallest roll, limit included, with room above
-  // for the "last time" tag, so a second shelf of small rolls isn't mostly air.
-  const perShelf = Math.max(1, Math.floor((floorW + floorGap) / (colW + floorGap)));
+  // A wrapped floor shares its rolls evenly between the shelves it needs (12 on two shelves stand
+  // 6 and 6, not 10 and 2), in columns spread across its width. Each shelf is as tall as its tallest
+  // roll, limit included, with room above for the "last time" tag, so a shelf of small rolls isn't
+  // mostly air.
+  const fitShelf = Math.max(1, Math.floor((floorW + floorGap) / (colW + floorGap)));
+  const perShelf = Math.ceil(n / Math.ceil(n / fitShelf));
   const shelfOf = (i: number) => {
     const from = Math.floor(i / perShelf) * perShelf;
     const reach = rolls.slice(from, from + perShelf).map((r) => px(Math.max(r.total, r.total > 0 ? (r.budget ?? 0) : 0)));
@@ -563,7 +566,8 @@ export function CoinStage({
   let said: string;
   if (pickedTx) said = typedHint ?? `Pick the roll ${pickedTx.name} goes in.`;
   else if (celebrating || (lastFiled && loose.length === 0)) said = "All sorted! Every coin is in its roll.";
-  else if (lastFiled) said = `In it goes! ${coinCount(loose.length)} to go.`;
+  // The month named, as a filing from the list may have stepped the stage to the row's month.
+  else if (lastFiled) said = `In it goes! ${coinCount(loose.length)} to go in ${label(month)}.`;
   else said = loose.length ? `Hi! ${coinCount(loose.length)} to sort in ${label(month)}.` : `All sorted for ${label(month)}. Nice work.`;
 
   // The loose change: a pile of coins to pick up, and its count, in the stage's head, top
@@ -1171,8 +1175,8 @@ export function CoinStage({
             ref={floorRef}
             role="group"
             aria-label={`Where ${label(month)}'s money went`}
-            className={cn("flex flex-1 flex-wrap items-start gap-y-6", floorFits ? "justify-between" : "justify-start")}
-            style={{ columnGap: floorGap }}
+            className={cn("min-w-0 flex-1 items-start gap-y-6", floorFits ? "flex justify-between" : "grid justify-between")}
+            style={floorFits ? { columnGap: floorGap } : { columnGap: floorGap, gridTemplateColumns: `repeat(${perShelf}, ${colW}px)` }}
           >
             {rolls.map((r, i) => {
               const over = r.budget != null && r.total > r.budget;

@@ -716,10 +716,13 @@ export function CoinBoard({
                 the charges, the way to file from the keyboard. With To file on the list is the backlog,
                 so the card steps aside. */}
             <section aria-labelledby="tofile-heading" className={cn(PANEL, OAT, "p-5 max-sm:hidden sm:p-6 lg:hidden", only === TO_FILE && "hidden")}>
-              <h2 id="tofile-heading" className={cn(DISPLAY, "flex items-baseline justify-between text-[20px] font-semibold")}>
-                To file
-                <span className={cn("font-sans text-[13px] font-normal tabular-nums", MUTED)}>{label(month)}</span>
-              </h2>
+              {/* The side text sits beside the heading, not in it, so a screen reader hears just the name. */}
+              <div className="flex items-baseline justify-between">
+                <h2 id="tofile-heading" className={cn(DISPLAY, "text-[20px] font-semibold")}>
+                  To file
+                </h2>
+                <span className={cn("text-[13px] tabular-nums", MUTED)}>{label(month)}</span>
+              </div>
               {loose.length === 0 ? (
                 <p className={cn("pt-3 text-[15px]", MUTED)}>Nothing loose in {label(month)}.</p>
               ) : (
@@ -874,10 +877,12 @@ export function CoinBoard({
                   tray. Splitting is in each row's menu. */}
               {partner && (
                 <section aria-labelledby="pooleks-heading" className={cn(PANEL, OAT, "p-5 sm:p-6")}>
-                  <h2 id="pooleks-heading" className={cn(DISPLAY, "flex items-baseline justify-between gap-3 text-[20px] font-semibold")}>
-                    Pooleks
-                    <span className={cn("font-sans text-[13px] font-normal", MUTED)}>with {partner}</span>
-                  </h2>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h2 id="pooleks-heading" className={cn(DISPLAY, "text-[20px] font-semibold")}>
+                      Pooleks
+                    </h2>
+                    <span className={cn("text-[13px]", MUTED)}>with {partner}</span>
+                  </div>
                   <p className="pt-3 text-[15px] font-medium">
                     {board.sharedItems.length === 0 ? (
                       <span className={cn("font-normal", MUTED)}>Nothing shared yet.</span>

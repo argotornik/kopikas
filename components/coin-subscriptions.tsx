@@ -130,10 +130,13 @@ export function CoinSubscriptions({
 
   return (
     <section aria-labelledby="subs-heading" className={cn(PANEL, "bg-oat p-5 sm:p-6 dark:bg-oat-night")}>
-      <h2 id="subs-heading" className={cn(DISPLAY, "flex items-baseline justify-between gap-3 text-[20px] font-semibold")}>
-        Subscriptions
-        {active.length > 0 && <span className={cn("font-sans text-[13px] font-normal tabular-nums", MUTED)}>{eur.format(monthly)} a month</span>}
-      </h2>
+      {/* The side text sits beside the heading, not in it, so a screen reader hears just the name. */}
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="subs-heading" className={cn(DISPLAY, "text-[20px] font-semibold")}>
+          Subscriptions
+        </h2>
+        {active.length > 0 && <span className={cn("text-[13px] tabular-nums", MUTED)}>{eur.format(monthly)} a month</span>}
+      </div>
       {active.length === 0 ? (
         <p className={cn("pt-3 text-[15px]", MUTED)}>
           Nothing tracked yet. Drop a coin on the Subscriptions roll and Kopikas keeps an eye on its price and when it is due.
