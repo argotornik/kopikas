@@ -694,10 +694,13 @@ export function CoinBoard({
           />
           </div>
 
-          <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px] wide:contents">
+          {/* With To file on, the list's row hugs the list: the side column's rolls, taller than a short
+              backlog, give their extra height to the cards' row below it, not to a gap above the cards. */}
+          <div className={cn("mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px] wide:contents", only === TO_FILE && "lg:grid-rows-[auto_1fr]")}>
             {/* The same loose change as the pile, as rows, from 640px to 1024px: under the stage and over
-                the charges, the way to file from the keyboard. */}
-            <section aria-labelledby="tofile-heading" className={cn(PANEL, OAT, "p-5 max-sm:hidden sm:p-6 lg:hidden")}>
+                the charges, the way to file from the keyboard. With To file on the list is the backlog,
+                so the card steps aside. */}
+            <section aria-labelledby="tofile-heading" className={cn(PANEL, OAT, "p-5 max-sm:hidden sm:p-6 lg:hidden", only === TO_FILE && "hidden")}>
               <h2 id="tofile-heading" className={cn(DISPLAY, "flex items-baseline justify-between text-[20px] font-semibold")}>
                 To file
                 <span className={cn("font-sans text-[13px] font-normal tabular-nums", MUTED)}>{label(month)}</span>

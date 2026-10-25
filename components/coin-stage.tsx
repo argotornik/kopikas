@@ -180,10 +180,12 @@ function CoinLabel({ pile, day = true, className }: { pile: BoardTx[]; day?: boo
   );
 }
 
-function RollTarget({ name, side = false, children }: { name: string; side?: boolean; children: ReactNode }) {
+// A roll as a place to drop a ledger row: on the floor, or in the side panel (`side`). `inline`: a
+// sleeper in the side panel, which shares its line with the others, as on the phone.
+function RollTarget({ name, side = false, inline = false, children }: { name: string; side?: boolean; inline?: boolean; children: ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: `${side ? "side" : "roll"}:${name}` });
   return (
-    <div ref={setNodeRef} className={cn("w-full transition-transform duration-150", isOver && "scale-[1.06]")}>
+    <div ref={setNodeRef} className={cn(!inline && "w-full", "transition-transform duration-150", isOver && "scale-[1.06]")}>
       {children}
     </div>
   );
@@ -787,7 +789,7 @@ export function CoinStage({
           <div className={cn("text-[13px] font-medium", MUTED)}>Nothing yet</div>
           <div className="flex flex-wrap gap-x-[18px] gap-y-1.5">
             {sleeping.map((r) => (
-              <RollTarget key={r.name} name={r.name} side>
+              <RollTarget key={r.name} name={r.name} side inline>
                 <div data-roll={r.name} className="flex min-h-11 items-center gap-2 pr-1 text-[13px] font-medium">
                   <span className={faded(r.name)}>
                     <PaintedMini index={index.get(r.name) ?? 0} colour={wrapper(r.name)} />
