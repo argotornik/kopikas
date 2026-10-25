@@ -114,9 +114,8 @@ export function CoinBoard({
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
   }, []);
-  // From 1024px the charges sit left of the cards, so they come first in the page's order and Tab
-  // reaches them before the cards; below, the cards sit above the list and come first. The grid
-  // places both either way, so only the order changes.
+  // From 1024px the side column sits beside the charges (the page's order is the same at every
+  // width: the To file card, the charges, then the cards; the grid places them).
   const [listFirst, setListFirst] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
@@ -125,7 +124,6 @@ export function CoinBoard({
     mq.addEventListener("change", on);
     return () => mq.removeEventListener("change", on);
   }, []);
-  const pageOrder = (cards: React.ReactNode, charges: React.ReactNode) => (listFirst ? [charges, cards] : [cards, charges]);
   // With To file on, from 1024px up to 1900px (where the stage travels beside the list) the
   // month's rolls also stand as bars in the side column, beside the backlog; the stage draws them.
   const [sideEl, setSideEl] = useState<HTMLDivElement | null>(null);
@@ -674,123 +672,56 @@ export function CoinBoard({
           </div>
 
           <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px] wide:contents">
-            {pageOrder(
-            <aside
-              key="cards"
-              ref={cardsBox}
-              className={cn(
-                "flex flex-col gap-8 lg:col-start-2 lg:row-start-1 wide:col-start-1 wide:row-start-2 wide:grid wide:grid-cols-2 wide:items-start wide:sticky",
-                // Under the list while the backlog's rolls take the side column.
-                only === TO_FILE && "lg:col-start-1 lg:row-start-2"
-              )}
-            >
-              {/* The same loose change as the pile, as rows: the way to file from the keyboard. */}
-              <section aria-labelledby="tofile-heading" className={cn(PANEL, OAT, "p-5 max-sm:hidden sm:p-6 lg:hidden")}>
-                <h2 id="tofile-heading" className={cn(DISPLAY, "flex items-baseline justify-between text-[20px] font-semibold")}>
-                  To file
-                  <span className={cn("font-sans text-[13px] font-normal tabular-nums", MUTED)}>{label(month)}</span>
-                </h2>
-                {loose.length === 0 ? (
-                  <p className={cn("pt-3 text-[15px]", MUTED)}>Nothing loose in {label(month)}.</p>
-                ) : (
-                  <ul className="mt-3 flex flex-col gap-2">
-                    {loose.map((t, i) => (
-                      <li key={t.id} data-queue={t.id} className="rounded-2xl bg-white p-3 dark:bg-card-night">
-                        <div className="flex items-center gap-3">
-                          <MerchantIcon name={t.name} domain={t.domain} emoji={t.emoji} />
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate text-[15px] font-medium">{t.name}</div>
-                            <div className={cn("text-[13px]", MUTED)}>{shortDate.format(new Date(t.date + "T00:00:00Z"))}</div>
-                          </div>
-                          <div className="text-[15px] tabular-nums">{eur.format(t.amount)}</div>
+            {/* The same loose change as the pile, as rows, from 640px to 1024px: under the stage and over
+                the charges, the way to file from the keyboard. */}
+            <section aria-labelledby="tofile-heading" className={cn(PANEL, OAT, "p-5 max-sm:hidden sm:p-6 lg:hidden")}>
+              <h2 id="tofile-heading" className={cn(DISPLAY, "flex items-baseline justify-between text-[20px] font-semibold")}>
+                To file
+                <span className={cn("font-sans text-[13px] font-normal tabular-nums", MUTED)}>{label(month)}</span>
+              </h2>
+              {loose.length === 0 ? (
+                <p className={cn("pt-3 text-[15px]", MUTED)}>Nothing loose in {label(month)}.</p>
+              ) : (
+                <ul className="mt-3 flex flex-col gap-2">
+                  {loose.map((t, i) => (
+                    <li key={t.id} data-queue={t.id} className="rounded-2xl bg-white p-3 dark:bg-card-night">
+                      <div className="flex items-center gap-3">
+                        <MerchantIcon name={t.name} domain={t.domain} emoji={t.emoji} />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[15px] font-medium">{t.name}</div>
+                          <div className={cn("text-[13px]", MUTED)}>{shortDate.format(new Date(t.date + "T00:00:00Z"))}</div>
                         </div>
-                        {/* The list's File… chip and menu: Last time first, the switch, every category, the split. */}
-                        <div className="mt-2.5">
-                          <FileChip
-                            t={t}
-                            categories={categories}
-                            card
-                            ref={(el) => {
-                              chips.current[i] = el;
-                            }}
-                          />
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {elsewhereMonth && (
-                  <p className={cn("pt-3 text-[13px]", MUTED)}>
-                    {looseElsewhere.length} more in other months.{" "}
-                    <button
-                      type="button"
-                      onClick={() => setMonth(elsewhereMonth)}
-                      className={cn("underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", FOCUS)}
-                    >
-                      Go to {label(elsewhereMonth)}
-                    </button>
-                  </p>
-                )}
-              </section>
-              {/* Who owes whom on the shared statement, until Pooleks gets its own place on the
-                  tray. Splitting is in each row's menu. */}
-              {partner && (
-                <section aria-labelledby="pooleks-heading" className={cn(PANEL, OAT, "p-5 sm:p-6")}>
-                  <h2 id="pooleks-heading" className={cn(DISPLAY, "flex items-baseline justify-between gap-3 text-[20px] font-semibold")}>
-                    Pooleks
-                    <span className={cn("font-sans text-[13px] font-normal", MUTED)}>with {partner}</span>
-                  </h2>
-                  <p className="pt-3 text-[15px] font-medium">
-                    {board.sharedItems.length === 0 ? (
-                      <span className={cn("font-normal", MUTED)}>Nothing shared yet.</span>
-                    ) : board.balance === 0 ? (
-                      "All square."
-                    ) : board.balance > 0 ? (
-                      <>
-                        {partner} owes you <span className="tabular-nums">{eur.format(board.balance)}</span>
-                      </>
-                    ) : (
-                      <>
-                        You owe {partner} <span className="tabular-nums">{eur.format(-board.balance)}</span>
-                      </>
-                    )}
-                  </p>
-                  <p className={cn("pt-1 text-[13px]", MUTED)}>
-                    Split a charge from its menu in the list.{" "}
-                    <a href="/pooleks" className={cn("underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", FOCUS)}>
-                      Open Pooleks
-                    </a>
-                  </p>
-                </section>
+                        <div className="text-[15px] tabular-nums">{eur.format(t.amount)}</div>
+                      </div>
+                      {/* The list's File… chip and menu: Last time first, the switch, every category, the split. */}
+                      <div className="mt-2.5">
+                        <FileChip
+                          t={t}
+                          categories={categories}
+                          card
+                          ref={(el) => {
+                            chips.current[i] = el;
+                          }}
+                        />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
-              <CoinSubscriptions
-                subscriptions={board.subscriptions}
-                monthly={board.monthlyBurn}
-                month={initial.month}
-                onAcceptPrice={(sub) =>
-                  sub.lastCharge && subAction({ type: "accept-price", subId: sub.sub.id }, `${sub.label} now expects ${eur.format(sub.lastCharge.amount)}.`)
-                }
-                onStop={(sub) => subAction({ type: "unsubscribe", subId: sub.sub.id }, `Stopped tracking ${sub.label}.`)}
-                onRename={(sub) =>
-                  setMerchantSubject({
-                    key: sub.sub.id,
-                    name: sub.label,
-                    domain: sub.domain,
-                    emoji: sub.emoji,
-                    pattern: sub.sub.match,
-                    custom: sub.customMerchant,
-                    target: { subId: sub.sub.id },
-                  })
-                }
-                onCadence={(sub) => {
-                  const cadence = sub.sub.cadence === "monthly" ? "yearly" : "monthly";
-                  subAction({ type: "cadence", subId: sub.sub.id, cadence }, `${sub.label} moved to ${cadence}.`);
-                }}
-              />
-            </aside>,
-
+              {elsewhereMonth && (
+                <p className={cn("pt-3 text-[13px]", MUTED)}>
+                  {looseElsewhere.length} more in other months.{" "}
+                  <button
+                    type="button"
+                    onClick={() => setMonth(elsewhereMonth)}
+                    className={cn("underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", FOCUS)}
+                  >
+                    Go to {label(elsewhereMonth)}
+                  </button>
+                </p>
+              )}
+            </section>
             <section
-              key="charges"
               id="charges"
               tabIndex={-1}
               aria-labelledby="ledger-heading"
@@ -893,7 +824,70 @@ export function CoinBoard({
                 </p>
               )}
             </section>
-            )}
+            <aside
+              ref={cardsBox}
+              className={cn(
+                "flex flex-col gap-8 lg:col-start-2 lg:row-start-1 wide:col-start-1 wide:row-start-2 wide:grid wide:grid-cols-2 wide:items-start wide:sticky",
+                // Under the list while the backlog's rolls take the side column.
+                only === TO_FILE && "lg:col-start-1 lg:row-start-2"
+              )}
+            >
+              {/* Who owes whom on the shared statement, until Pooleks gets its own place on the
+                  tray. Splitting is in each row's menu. */}
+              {partner && (
+                <section aria-labelledby="pooleks-heading" className={cn(PANEL, OAT, "p-5 sm:p-6")}>
+                  <h2 id="pooleks-heading" className={cn(DISPLAY, "flex items-baseline justify-between gap-3 text-[20px] font-semibold")}>
+                    Pooleks
+                    <span className={cn("font-sans text-[13px] font-normal", MUTED)}>with {partner}</span>
+                  </h2>
+                  <p className="pt-3 text-[15px] font-medium">
+                    {board.sharedItems.length === 0 ? (
+                      <span className={cn("font-normal", MUTED)}>Nothing shared yet.</span>
+                    ) : board.balance === 0 ? (
+                      "All square."
+                    ) : board.balance > 0 ? (
+                      <>
+                        {partner} owes you <span className="tabular-nums">{eur.format(board.balance)}</span>
+                      </>
+                    ) : (
+                      <>
+                        You owe {partner} <span className="tabular-nums">{eur.format(-board.balance)}</span>
+                      </>
+                    )}
+                  </p>
+                  <p className={cn("pt-1 text-[13px]", MUTED)}>
+                    Split a charge from its menu in the list.{" "}
+                    <a href="/pooleks" className={cn("underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white", FOCUS)}>
+                      Open Pooleks
+                    </a>
+                  </p>
+                </section>
+              )}
+              <CoinSubscriptions
+                subscriptions={board.subscriptions}
+                monthly={board.monthlyBurn}
+                month={initial.month}
+                onAcceptPrice={(sub) =>
+                  sub.lastCharge && subAction({ type: "accept-price", subId: sub.sub.id }, `${sub.label} now expects ${eur.format(sub.lastCharge.amount)}.`)
+                }
+                onStop={(sub) => subAction({ type: "unsubscribe", subId: sub.sub.id }, `Stopped tracking ${sub.label}.`)}
+                onRename={(sub) =>
+                  setMerchantSubject({
+                    key: sub.sub.id,
+                    name: sub.label,
+                    domain: sub.domain,
+                    emoji: sub.emoji,
+                    pattern: sub.sub.match,
+                    custom: sub.customMerchant,
+                    target: { subId: sub.sub.id },
+                  })
+                }
+                onCadence={(sub) => {
+                  const cadence = sub.sub.cadence === "monthly" ? "yearly" : "monthly";
+                  subAction({ type: "cadence", subId: sub.sub.id, cadence }, `${sub.label} moved to ${cadence}.`);
+                }}
+              />
+            </aside>
             {only === TO_FILE && (
               <div className="max-lg:hidden lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-stretch wide:hidden">
                 <div ref={setSideEl} className={cn(PANEL, OAT, "sticky top-4 max-h-[calc(100dvh-2rem)] overflow-y-auto p-5 sm:p-6")} />

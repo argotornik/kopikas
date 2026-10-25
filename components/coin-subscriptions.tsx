@@ -11,9 +11,10 @@ import { MerchantIcon } from "@/components/merchant-icon";
 import { cn } from "@/lib/utils";
 
 // The new board's subscriptions: only what needs the owner (a new price to accept,
-// one gone quiet, one due within a week) and what they cost a month. The full list
-// opens in place, each row with a menu to rename it, fix a wrong monthly or yearly
-// guess, or stop tracking it.
+// one gone quiet, one due within a week), folded into one line that says how many of
+// each and opens them in place, and what they cost a month. The full list opens in
+// place too, each row with a menu to rename it, fix a wrong monthly or yearly guess,
+// or stop tracking it.
 
 type Sub = Board["subscriptions"][number];
 const WEEK = 7 * 86_400_000;
@@ -42,6 +43,7 @@ export function CoinSubscriptions({
   onCadence: (s: Sub) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const active = subscriptions.filter((s) => s.sub.active);
   const today = new Date().toLocaleDateString("sv-SE");
   const dueSoon = (s: Sub) => !!s.nextDue && s.nextDue >= today && new Date(s.nextDue).getTime() - new Date(today).getTime() <= WEEK;
@@ -51,6 +53,15 @@ export function CoinSubscriptions({
   function rank(s: Sub) {
     return s.priceChanged ? 0 : s.overdue ? 1 : 2;
   }
+  // The folded line: "1 new price · 4 gone quiet · 1 due this week", what needs the owner by kind.
+  const counted = (n: number, one: string, many: string) => (n === 0 ? null : `${n} ${n === 1 ? one : many}`);
+  const alerts = [
+    counted(needs.filter((s) => rank(s) === 0).length, "new price", "new prices"),
+    counted(needs.filter((s) => rank(s) === 1).length, "gone quiet", "gone quiet"),
+    counted(needs.filter((s) => rank(s) === 2).length, "due this week", "due this week"),
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const status = (s: Sub) =>
     s.lastCharge && s.lastCharge.date.slice(0, 7) === month
       ? `paid ${day(s.lastCharge.date)}`
@@ -130,7 +141,26 @@ export function CoinSubscriptions({
       ) : (
         <>
           {needs.length > 0 ? (
-            <ul className="mt-3 flex flex-col gap-2">{needs.map((s) => row(s, false))}</ul>
+            <>
+              <button
+                type="button"
+                aria-expanded={alertsOpen}
+                aria-controls="subs-needs"
+                onClick={() => setAlertsOpen((o) => !o)}
+                className={cn(
+                  "mt-3 flex min-h-12 w-full items-center justify-between gap-3 rounded-2xl bg-white px-3 text-left text-[15px] font-medium transition-transform hover:bg-mist motion-safe:active:scale-[0.98] dark:bg-card-night dark:hover:bg-card-night-hover",
+                  FOCUS
+                )}
+              >
+                <span className="min-w-0">{alerts}</span>
+                <span className={cn("shrink-0 text-[13px] font-normal underline decoration-1 underline-offset-2", MUTED)}>{alertsOpen ? "Hide" : "Show"}</span>
+              </button>
+              {alertsOpen && (
+                <ul id="subs-needs" className="mt-2 flex flex-col gap-2">
+                  {needs.map((s) => row(s, false))}
+                </ul>
+              )}
+            </>
           ) : (
             <p className={cn("pt-3 text-[15px]", MUTED)}>
               {active.length === 1 ? "Your one subscription is on track." : `All ${active.length} on track.`}
