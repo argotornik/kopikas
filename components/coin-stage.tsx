@@ -150,11 +150,10 @@ const PHONE_BURST: BurstMark[] = [
   { kind: "dot", x: 30, y: 46, s: 12, f: 6 },
 ];
 
-// A roll as a place to drop a ledger row dragged onto it, when the page lets rows be dragged.
 // A loose coin's charge, shown while it is picked up, hovered or focused: the pill the mouse carries
 // when a row is dragged (coin-board.tsx), so a coin is never filed blind. Screen readers hear the same
-// from the coin's own name, so this is for the eyes only. Beside the phone's coin row there is no room
-// for the day as well; the name and the amount are what tell two coins apart.
+// from the coin's own name, so this is for the eyes only. On the phone's line under its coins the name
+// takes the room the day would: the name and the amount are what tell two coins apart.
 function CoinLabel({ pile, day = true, className }: { pile: BoardTx[]; day?: boolean; className?: string }) {
   const tx = pile[0];
   return (
@@ -546,7 +545,7 @@ export function CoinStage({
 
   // What the tray says to a screen reader after every step: progress first, never shaming.
   let said: string;
-  if (pickedTx) said = typedHint ?? `Tap the roll ${pickedTx.name} goes in.`;
+  if (pickedTx) said = typedHint ?? `Pick the roll ${pickedTx.name} goes in.`;
   else if (celebrating || (lastFiled && loose.length === 0)) said = "All sorted! Every coin is in its roll.";
   else if (lastFiled) said = `In it goes! ${coinCount(loose.length)} to go.`;
   else said = loose.length ? `Hi! ${coinCount(loose.length)} to sort in ${label(month)}.` : `All sorted for ${label(month)}. Nice work.`;
@@ -725,7 +724,7 @@ export function CoinStage({
     <div className="mt-3 text-center">
       <div className={cn(DISPLAY, "text-[16px] font-semibold")}>Loose change</div>
       {countSlot(countText(PILE.length), true)}
-      {hintSlot(typedHint ?? "Tap its roll, or type its name", true)}
+      {hintSlot(typedHint ?? "Pick its roll, or type its name", true)}
     </div>
   );
 
@@ -772,7 +771,8 @@ export function CoinStage({
   const sidePanel = () => (
     <>
       <h2 className={cn(DISPLAY, "text-[20px] font-semibold")}>{label(month)}&rsquo;s rolls</h2>
-      <p className={cn("mt-0.5 text-[13px]", MUTED)}>Drop a row on a roll</p>
+      {/* Rows are dragged with a mouse only: a finger files from a row's File… chip. */}
+      <p className={cn("mt-0.5 text-[13px] pointer-coarse:hidden", MUTED)}>Drop a row on a roll</p>
       <div ref={sideRef} role="group" aria-label={`Where ${label(month)}'s money went`} className="mt-4 flex flex-col gap-2">
         {rolls
           .filter((r) => r.total > 0)
@@ -1049,11 +1049,13 @@ export function CoinStage({
                   })
                 )}
               </div>
-              <div className="min-w-0">
-                <div className={cn(DISPLAY, "text-[16px] font-semibold leading-tight")}>Loose change</div>
-                {countSlot(countText(6), false)}
-                {hintSlot(typedHint ?? "Tap its roll below", false)}
-              </div>
+              <div className={cn(DISPLAY, "min-w-0 text-[16px] font-semibold leading-tight")}>Loose change</div>
+            </div>
+            {/* The count (a picked coin's label in its place) and the hint, under the coins: there they
+                have the panel's width, not what the coins leave beside them. */}
+            <div className="-mt-2">
+              {countSlot(countText(6), false)}
+              {hintSlot(typedHint ?? "Tap its roll below", false)}
             </div>
             <div className="h-px bg-ink/10 dark:bg-white/10" aria-hidden />
             <div ref={listRef} role="group" aria-label={`Where ${label(month)}'s money went`} className="flex flex-col gap-2">
