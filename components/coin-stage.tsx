@@ -237,6 +237,27 @@ export const lastTimeOf = (txs: BoardTx[], tx: BoardTx) => {
   return latest?.category ?? null;
 };
 
+// Where a shop's charges have gone, most often first, at most three, the one it went to last
+// time marked and first among equals. Empty for a shop never filed. The File menu offers these
+// first.
+export const usuallyOf = (txs: BoardTx[], tx: BoardTx) => {
+  const counts = new Map<string, number>();
+  for (const t of txs)
+    if (t.category && t.amount < 0 && !t.micro && t.id !== tx.id && t.rulePattern === tx.rulePattern) counts.set(t.category, (counts.get(t.category) ?? 0) + 1);
+  const last = lastTimeOf(txs, tx);
+  return [...counts]
+    .sort(([a, n], [b, m]) => m - n || Number(b === last) - Number(a === last))
+    .slice(0, 3)
+    .map(([category, count]) => ({ category, count, last: category === last }));
+};
+
+// Whether a category's name answers what was typed: from its start, or from the start of one of
+// its words ("out" finds Eating out), never from the middle of one ("ho" isn't Shopping).
+export const nameMatches = (name: string, typed: string) => {
+  const n = name.toLowerCase();
+  return n.startsWith(typed) || n.split(/\s+/).some((w) => w.startsWith(typed));
+};
+
 // What Always takes, said under its switch while it is on, the same on the stage, in the queue
 // and in the menus: the charges in hand, the shop's other loose ones and where they wait, and
 // the ones to come.
@@ -455,11 +476,41 @@ export function CoinStage({
     if (suggestion) [...document.querySelectorAll<HTMLElement>(`[data-roll="${CSS.escape(suggestion)}"]`)].find((el) => el.getBoundingClientRect().width > 0)?.focus();
   }, [picked, suggestion]);
   const lastTag = (name: string) =>
-    suggestion === name && (
+    aim === name && (
       <span aria-hidden className="ml-1.5 inline-block rounded-full bg-ink px-1.5 align-[1px] text-[12px] font-medium leading-[18px] text-white dark:bg-chalk dark:text-ink">
-        last time
+        {aimTag}
       </span>
     );
+  // Typing a roll's name with a coin in hand picks it, as the File menu's field does: the roll it
+  // matches lifts under a tag of what was typed, the line under the pile says what Enter will do,
+  // and Enter files there. Backspace takes a letter back; dropping the coin clears it.
+  const [typed, setTyped] = useState("");
+  const [typedFor, setTypedFor] = useState(picked);
+  if (typedFor !== picked) {
+    setTypedFor(picked);
+    setTyped("");
+  }
+  const typedMatch =
+    pickedTx && typed ? ((rolls.find((r) => r.name.toLowerCase().startsWith(typed)) ?? rolls.find((r) => nameMatches(r.name, typed)))?.name ?? null) : null;
+  const typedHint = pickedTx && typed ? (typedMatch ? `Typed “${typed}”: Enter files it under ${typedMatch}` : `No roll matches “${typed}”`) : null;
+  // The roll that lifts: the one typed, else the one the shop went to last time.
+  const aim = typedMatch ?? suggestion;
+  const aimTag = typedMatch ? `${typed} ↵` : "last time";
+  useEffect(() => {
+    if (!pickedTx) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+      if ((e.target as HTMLElement | null)?.closest("input, textarea, select, [contenteditable='true'], [role=menu], [role=dialog]")) return;
+      if (e.key === "Backspace" && typed) setTyped((t) => t.slice(0, -1));
+      else if (e.key === "Enter" && typed) {
+        if (typedMatch) pressRoll(typedMatch);
+      } else if (e.key.length === 1 && (/\p{L}/u.test(e.key) || (e.key === " " && typed))) setTyped((t) => t + e.key.toLowerCase());
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
   // The switch, set afresh for each pick: on for a stack, a shop's charges together, as on a
   // shop's row in the list; off for one coin on its own.
   const [always, setAlways] = useState(false);
@@ -493,7 +544,7 @@ export function CoinStage({
 
   // What the tray says to a screen reader after every step: progress first, never shaming.
   let said: string;
-  if (pickedTx) said = `Tap the roll ${pickedTx.name} goes in.`;
+  if (pickedTx) said = typedHint ?? `Tap the roll ${pickedTx.name} goes in.`;
   else if (celebrating || (lastFiled && loose.length === 0)) said = "All sorted! Every coin is in its roll.";
   else if (lastFiled) said = `In it goes! ${coinCount(loose.length)} to go.`;
   else said = loose.length ? `Hi! ${coinCount(loose.length)} to sort in ${label(month)}.` : `All sorted for ${label(month)}. Nice work.`;
@@ -672,7 +723,7 @@ export function CoinStage({
     <div className="mt-3 text-center">
       <div className={cn(DISPLAY, "text-[16px] font-semibold")}>Loose change</div>
       {countSlot(countText(PILE.length), true)}
-      {hintSlot("Tap its roll", true)}
+      {hintSlot(typedHint ?? "Tap its roll, or type its name", true)}
     </div>
   );
 
@@ -998,7 +1049,7 @@ export function CoinStage({
               <div className="min-w-0">
                 <div className={cn(DISPLAY, "text-[16px] font-semibold leading-tight")}>Loose change</div>
                 {countSlot(countText(6), false)}
-                {hintSlot("Tap its roll below", false)}
+                {hintSlot(typedHint ?? "Tap its roll below", false)}
               </div>
             </div>
             <div className="h-px bg-ink/10 dark:bg-white/10" aria-hidden />
@@ -1087,7 +1138,7 @@ export function CoinStage({
                       className={cn("relative flex w-full items-end justify-center rounded-[22px] disabled:cursor-default", FOCUS)}
                       // Hover and press grow and squash from the floor, so the roll keeps standing on it.
                       style={{ height: H, originY: 1 }}
-                      animate={pickedTx && !reduce ? { y: suggestion === r.name ? [0, -14, 0] : [0, -5, 0] } : { y: 0 }}
+                      animate={pickedTx && !reduce ? { y: aim === r.name ? [0, -14, 0] : [0, -5, 0] } : { y: 0 }}
                       // Only the bob repeats; hover and press settle once.
                       transition={pickedTx ? { y: { duration: 0.9, repeat: Infinity, delay: i * 0.08 }, default: SPRING } : SPRING}
                       whileHover={pickedTx ? { scale: 1.06, rotate: -2 } : undefined}
@@ -1095,13 +1146,13 @@ export function CoinStage({
                       whileTap={pickedTx || onSelect ? { scale: reduce ? 1 : 0.96, transition: PRESS } : undefined}
                     >
                       {/* Clear of the face: higher over a sleeper or a hatchling, whose eyes sit above it. */}
-                      {suggestion === r.name && (
+                      {aim === r.name && (
                         <span
                           aria-hidden
                           className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-ink px-2 py-0.5 text-[12px] font-medium text-white dark:bg-chalk dark:text-ink"
                           style={{ bottom: px(r.total) + (px(r.total) < FACE_FROM ? 36 : 22) }}
                         >
-                          last time
+                          {aimTag}
                         </span>
                       )}
                       <div className={faded(r.name)}>

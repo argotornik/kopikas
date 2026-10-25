@@ -1,12 +1,12 @@
 "use client";
 
-import { Fragment, useState, type Ref } from "react";
+import { Fragment, useRef, useState, type Ref } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Menu } from "@base-ui/react/menu";
-import { CheckIcon, ChevronRightIcon } from "lucide-react";
+import { CheckIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
 import type { BoardTx } from "@/lib/board";
 import { SUBSCRIPTIONS, matches } from "@/lib/engine";
-import { alwaysTakes, eur, wrapperOf } from "@/components/coin-stage";
+import { alwaysTakes, eur, nameMatches, wrapperOf } from "@/components/coin-stage";
 import { FOCUS, INK, MUTED } from "@/components/coin-look";
 import { MerchantIcon } from "@/components/merchant-icon";
 import { PaintedCoin } from "@/components/painted";
@@ -40,8 +40,9 @@ type Actions = {
   onFile: (tx: BoardTx, category: string, from: Element | null, always?: boolean) => void;
   // A shop's charges at once; with `always`, every one to come too.
   onFileShop: (txs: BoardTx[], category: string, always: boolean) => void;
-  // Where the charge's shop went last time, offered first; null for a shop never filed.
-  lastTime: (tx: BoardTx) => string | null;
+  // Where the charge's shop usually goes, most often first, last time marked; offered first.
+  // Empty for a shop never filed.
+  usually: (tx: BoardTx) => { category: string; count: number; last: boolean }[];
   // Split with the partner, the household has one; null when it has none.
   partner: string | null;
   onSplit: (tx: BoardTx, share: number, from: Element | null) => void;
@@ -301,14 +302,15 @@ function RoundUps({ micro }: { micro: BoardTx[] }) {
 }
 
 // The categories a charge can go under, the one it has ticked. Picking one files
-// it there at once, the way a coin goes into a roll. Where the shop went last time comes
-// first; its split with the partner and its name sit below, the split in a submenu.
+// it there at once, the way a coin goes into a roll. A field at the top narrows them as you type
+// and Enter files the first; where the shop usually goes comes first; its split with the
+// partner and its name sit below, the split in a submenu.
 function FileMenu({
   txs,
   shops,
   backlog,
   categories,
-  lastTime,
+  usually,
   onFile,
   onFileShop,
   partner,
@@ -319,26 +321,38 @@ function FileMenu({
   // The switch for this opening of the menu; null is how it starts: on for a shop's charges,
   // off for one charge, as in the queue.
   const [always, setAlways] = useState<boolean | null>(null);
-  const item = (name: string) => (
+  // What the field has narrowed the categories to, for this opening of the menu.
+  const [query, setQuery] = useState("");
+  const find = useRef<HTMLInputElement>(null);
+  const q = query.trim().toLowerCase();
+  const shown = q
+    ? categories
+        .filter((c) => nameMatches(c.name, q))
+        .sort((a, b) => Number(!a.name.toLowerCase().startsWith(q)) - Number(!b.name.toLowerCase().startsWith(q)))
+    : categories;
+  const item = (name: string, note?: string) => (
     <Menu.RadioItem key={name} value={name} closeOnClick className={MENU_ITEM}>
       <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: wrapperOf(categories, name) }} />
       <span className="min-w-0 flex-1 truncate">{name}</span>
+      {note && <span className={cn("shrink-0 text-[13px]", MUTED)}>{note}</span>}
       <Menu.RadioItemIndicator>
         <CheckIcon aria-hidden className="size-4" />
       </Menu.RadioItemIndicator>
     </Menu.RadioItem>
   );
   const LABEL = cn("px-2.5 pb-1 pt-1 text-[13px]", MUTED);
-  // Last time's category in a group of its own, then the rest under "Every category". A shop
-  // never filed gets neither: no guess, just the categories.
-  const lastFirst = (last: string | null, current: string | null, pick: (v: string) => void) =>
-    last && last !== current && categories.some((c) => c.name === last) ? (
+  // Where the shop usually goes, in a group of its own (how often, the last one marked), then
+  // the rest under "Every category". A shop never filed gets neither: no guess, just the
+  // categories; and once the field has letters in it, only what they match.
+  const usuallyFirst = (name: string, often: ReturnType<Actions["usually"]>, current: string | null, pick: (v: string) => void) => {
+    const known = often.filter((o) => categories.some((c) => c.name === o.category));
+    return known.length > 0 && !q ? (
       <>
-        <Menu.RadioGroup value={current ?? ""} onValueChange={(v) => pick(String(v))} aria-label="Last time">
+        <Menu.RadioGroup value={current ?? ""} onValueChange={(v) => pick(String(v))} aria-label={`Where ${name} usually goes`}>
           <div aria-hidden className={LABEL}>
-            Last time
+            {name} usually goes
           </div>
-          {item(last)}
+          {known.map((o) => item(o.category, `${o.count === 1 ? "once" : `${o.count} times`}${o.last ? " · last time" : ""}`))}
         </Menu.RadioGroup>
         <Menu.Separator className={MENU_SEPARATOR} />
         <div aria-hidden className={LABEL}>
@@ -346,8 +360,43 @@ function FileMenu({
         </div>
       </>
     ) : null;
+  };
+  // The field: letters narrow the categories and stay in it, not the menu's own jump-to-letter;
+  // Enter files the first match; the arrows step into the list and Escape closes, as in any menu.
+  const findField = (pick: (v: string) => void) => (
+    <div className="px-1.5 pb-1.5">
+      <label className="flex h-10 items-center gap-2 rounded-xl bg-mist px-3 focus-within:ring-2 focus-within:ring-ink/20 dark:bg-mist-night dark:focus-within:ring-white/25">
+        <SearchIcon aria-hidden className={cn("size-4 shrink-0", MUTED)} />
+        <input
+          ref={find}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.stopPropagation();
+              if (q && shown[0]) pick(shown[0].name);
+            } else if (!["ArrowDown", "ArrowUp", "Escape", "Tab"].includes(e.key)) e.stopPropagation();
+          }}
+          placeholder="Type a category"
+          aria-label="Find a category"
+          className="min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-text dark:placeholder:text-muted-text-night"
+        />
+        {q && <span className={cn("shrink-0 text-[12px] tabular-nums", MUTED)}>{shown.length === 0 ? "none" : `${shown.length} of ${categories.length}`}</span>}
+      </label>
+    </div>
+  );
   return (
-    <Menu.Root handle={fileMenu} onOpenChange={(o) => o && setAlways(null)}>
+    <Menu.Root
+      handle={fileMenu}
+      onOpenChange={(o) => {
+        if (!o) return;
+        setAlways(null);
+        setQuery("");
+        // Ready to type with a mouse or a keyboard; on a touch screen a tap on the field brings the keyboard.
+        if (window.matchMedia("(pointer: fine)").matches) requestAnimationFrame(() => requestAnimationFrame(() => find.current?.focus()));
+      }}
+    >
       {({ payload }) => {
         const shop = payload?.startsWith("shop:") ? shops.find((s) => `shop:${s.key}` === payload) : undefined;
         // A card's row may be filtered out of the list; it is loose, so it is in the backlog.
@@ -383,16 +432,18 @@ function FileMenu({
                       </span>
                       <span className="ml-auto shrink-0 tabular-nums">{eur.format(shop.total)}</span>
                     </Menu.GroupLabel>
+                    {findField(pickShop)}
                     <AlwaysItem
                       checked={on}
                       onChange={setAlways}
                       takes={alwaysTakes(shop.txs.length, backlog.filter((t) => matches(t, shop.key) && !shop.txs.includes(t)))}
                     />
                     <Menu.Separator className={MENU_SEPARATOR} />
-                    {lastFirst(lastTime(shop.txs[0]), null, pickShop)}
+                    {usuallyFirst(shop.txs[0].name, usually(shop.txs[0]), null, pickShop)}
                     <Menu.RadioGroup value="" onValueChange={(v) => pickShop(String(v))}>
-                      {categories.map((c) => item(c.name))}
+                      {shown.map((c) => item(c.name))}
                     </Menu.RadioGroup>
+                    {q && shown.length === 0 && <div className={cn("px-2.5 py-2 text-[15px]", MUTED)}>No category matches &ldquo;{query.trim()}&rdquo;</div>}
                   </Menu.Group>
                 )}
                 {tx && (
@@ -401,16 +452,18 @@ function FileMenu({
                       <span className="truncate">File {tx.name}</span>
                       <span className="ml-auto shrink-0 tabular-nums">{eur.format(Math.abs(tx.amount))}</span>
                     </Menu.GroupLabel>
+                    {findField(pickTx)}
                     {!tx.category && (
                       <>
                         <AlwaysItem checked={on} onChange={setAlways} takes={alwaysTakes(1, alike)} />
                         <Menu.Separator className={MENU_SEPARATOR} />
                       </>
                     )}
-                    {lastFirst(lastTime(tx), tx.category ?? null, pickTx)}
+                    {usuallyFirst(tx.name, usually(tx), tx.category ?? null, pickTx)}
                     <Menu.RadioGroup value={tx.category ?? ""} onValueChange={(v) => pickTx(String(v))}>
-                      {categories.map((c) => item(c.name))}
+                      {shown.map((c) => item(c.name))}
                     </Menu.RadioGroup>
+                    {q && shown.length === 0 && <div className={cn("px-2.5 py-2 text-[15px]", MUTED)}>No category matches &ldquo;{query.trim()}&rdquo;</div>}
                   </Menu.Group>
                 )}
                 {tx && partner && (
