@@ -412,11 +412,12 @@ export function CoinBoard({
   );
   // One line per time frame, each led by its name in Ink: the month's (what came in, and your share
   // when something was split), then today's (the balances and investments as they stand now).
-  // Each figure keeps its name and amount together; a line breaks between them.
+  // Each figure keeps its name and amount together; a line breaks between them, after the dot, so
+  // no line starts with one.
   const inLine = (parts: React.ReactNode[]) =>
     parts.map((part, i) => (
       <span key={i}>
-        {i > 0 && " · "}
+        {i > 0 && "\u00a0· "}
         <span className="whitespace-nowrap">{part}</span>
       </span>
     ));
