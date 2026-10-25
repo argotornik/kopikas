@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState, type Ref } from "react";
+import { Fragment, useEffect, useId, useRef, useState, type Ref } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Menu } from "@base-ui/react/menu";
 import { CheckIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
@@ -30,7 +30,7 @@ const CHIP = "relative inline-flex max-w-full items-center gap-1.5 rounded-full 
 // The board's menus: a white card of rows, as here and on Subscriptions. As tall as the window
 // allows, so the File menu's thirteen categories only scroll on a short screen.
 export const MENU_ITEM =
-  "flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2 text-[15px] outline-none select-none data-highlighted:bg-mist dark:data-highlighted:bg-card-night-hover";
+  "flex cursor-default items-center gap-2.5 rounded-xl px-2.5 py-2 text-[15px] outline-none select-none pointer-coarse:min-h-11 data-highlighted:bg-mist dark:data-highlighted:bg-card-night-hover";
 export const MENU_POPUP =
   "max-h-[var(--available-height)] min-w-60 origin-[var(--transform-origin)] overflow-y-auto rounded-2xl bg-white p-1.5 text-ink ring-1 ring-ink/10 outline-none transition-[scale,opacity] duration-100 ease-out data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0 motion-reduce:transition-none dark:bg-card-night dark:text-chalk dark:ring-white/10";
 export const MENU_SEPARATOR = "mx-2.5 my-1 h-px bg-ink/10 dark:bg-white/10";
@@ -198,7 +198,7 @@ function AlwaysItem({ checked, onChange, takes }: { checked: boolean; onChange: 
       checked={checked}
       onCheckedChange={onChange}
       aria-label={`Always: ${takes}`}
-      className="flex cursor-default flex-col items-start rounded-xl px-1.5 py-1 outline-none select-none data-highlighted:bg-mist dark:data-highlighted:bg-card-night-hover"
+      className="flex cursor-default flex-col items-start justify-center rounded-xl px-1.5 py-1 outline-none select-none pointer-coarse:min-h-11 data-highlighted:bg-mist dark:data-highlighted:bg-card-night-hover"
     >
       <span
         className={cn(
@@ -306,8 +306,8 @@ function RoundUps({ micro }: { micro: BoardTx[] }) {
 }
 
 // The categories a charge can go under, the one it has ticked. Picking one files
-// it there at once, the way a coin goes into a roll. A field at the top narrows them as you type
-// and Enter files the first; where the shop usually goes comes first; its split with the
+// it there at once, the way a coin goes into a roll. A field at the top narrows them as you type,
+// and Enter files the row lit with ↵; where the shop usually goes comes first; its split with the
 // partner and its name sit below, the split in a submenu.
 function FileMenu({
   txs,
@@ -328,6 +328,12 @@ function FileMenu({
   // What the field has narrowed the categories to, for this opening of the menu.
   const [query, setQuery] = useState("");
   const find = useRef<HTMLInputElement>(null);
+  // Enter's row is lit only while the field has focus: in the list, Enter takes the row it's on.
+  const [inField, setInField] = useState(false);
+  // Opened with a mouse or a keyboard, the menu starts in the field, ready to type. On a touch
+  // screen it stays out of the menu's first focus, so the phone's keyboard waits for a tap on it.
+  const [typeFirst, setTypeFirst] = useState(true);
+  const hint = useId();
   // A filing can take its row out of the list (a loose charge in To file, one moved out of the
   // roll the list shows) while its chip has focus: focus goes on to the chip that took its
   // place, or to the list once nothing is left in it. A row still listed keeps it.
@@ -350,59 +356,90 @@ function FileMenu({
         .filter((c) => nameMatches(c.name, q))
         .sort((a, b) => Number(!a.name.toLowerCase().startsWith(q)) - Number(!b.name.toLowerCase().startsWith(q)))
     : categories;
-  const item = (name: string, note?: string) => (
-    <Menu.RadioItem key={name} value={name} closeOnClick className={MENU_ITEM}>
+  // A category's row; Enter's (`target`) is lit with the stage's Ink ↵ tag.
+  const item = (name: string, note?: string, target = false) => (
+    <Menu.RadioItem key={name} value={name} closeOnClick className={cn(MENU_ITEM, target && inField && "bg-mist! dark:bg-card-night-hover!")}>
       <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: wrapperOf(categories, name) }} />
       <span className="min-w-0 flex-1 truncate">{name}</span>
       {note && <span className={cn("shrink-0 text-[13px]", MUTED)}>{note}</span>}
+      {target && inField && (
+        <span aria-hidden className="shrink-0 rounded-full bg-ink px-2 py-0.5 text-[12px] font-medium text-white dark:bg-chalk dark:text-ink">
+          ↵
+        </span>
+      )}
       <Menu.RadioItemIndicator>
         <CheckIcon aria-hidden className="size-4" />
       </Menu.RadioItemIndicator>
     </Menu.RadioItem>
   );
   const LABEL = cn("px-2.5 pb-1 pt-1 text-[13px]", MUTED);
+  // What a menu offers for a charge (a shop's: its first): where the shop usually goes, the list
+  // under it, and Enter's category. Before typing, the list leaves out where it usually goes
+  // (shown above it) and Enter files where it went last time; while typing, what the shop has
+  // used comes first, most often first, and Subscriptions, which also tracks the charge, last
+  // unless the shop has used it, and Enter files the first. Never where the charge is already.
+  const plan = (subject: BoardTx, current: string | null) => {
+    const often = usually(subject).filter((o) => categories.some((c) => c.name === o.category));
+    const used = (name: string) => often.findIndex((o) => o.category === name);
+    const weight = (name: string) => (used(name) >= 0 ? used(name) : name === SUBSCRIPTIONS ? 99 : 50);
+    const list = q ? [...shown].sort((a, b) => weight(a.name) - weight(b.name)) : shown.filter((c) => used(c.name) < 0);
+    const target = (q ? list.find((c) => c.name !== current)?.name : often.find((o) => o.last && o.category !== current)?.category) ?? null;
+    return { often, list, target };
+  };
   // Where the shop usually goes, in a group of its own (how often, the last one marked), then
-  // the rest under "Every category". A shop never filed gets neither: no guess, just the
+  // the rest under "Every other category". A shop never filed gets neither: no guess, just the
   // categories; and once the field has letters in it, only what they match.
-  const usuallyFirst = (name: string, often: ReturnType<Actions["usually"]>, current: string | null, pick: (v: string) => void) => {
-    const known = often.filter((o) => categories.some((c) => c.name === o.category));
-    return known.length > 0 && !q ? (
+  const usuallyFirst = (name: string, often: ReturnType<Actions["usually"]>, current: string | null, target: string | null, pick: (v: string) => void) =>
+    often.length > 0 && !q ? (
       <>
         <Menu.RadioGroup value={current ?? ""} onValueChange={(v) => pick(String(v))} aria-label={`Where ${name} usually goes`}>
           <div aria-hidden className={LABEL}>
             {name} usually goes
           </div>
-          {known.map((o) => item(o.category, `${o.count === 1 ? "once" : `${o.count} times`}${o.last ? " · last time" : ""}`))}
+          {often.map((o) => item(o.category, `${o.count === 1 ? "once" : `${o.count} times`}${o.last ? " · last time" : ""}`, o.category === target))}
         </Menu.RadioGroup>
         <Menu.Separator className={MENU_SEPARATOR} />
         <div aria-hidden className={LABEL}>
-          Every category
+          Every other category
         </div>
       </>
     ) : null;
-  };
   // The field: letters narrow the categories and stay in it, not the menu's own jump-to-letter;
-  // Enter files the first match; the arrows step into the list and Escape closes, as in any menu.
-  const findField = (pick: (v: string) => void) => (
+  // Enter files the lit row; the down arrow steps past Always to the first category (the up
+  // arrow from there reaches it), and Escape closes, as in any menu.
+  const findField = (pick: (v: string) => void, target: string | null) => (
     <div className="px-1.5 pb-1.5">
-      <label className="flex h-10 items-center gap-2 rounded-xl bg-mist px-3 focus-within:ring-2 focus-within:ring-ink/20 dark:bg-mist-night dark:focus-within:ring-white/25">
+      <label className="flex h-10 items-center gap-2 rounded-xl bg-mist px-3 pointer-coarse:h-11 focus-within:ring-2 focus-within:ring-ink/20 dark:bg-mist-night dark:focus-within:ring-white/25">
         <SearchIcon aria-hidden className={cn("size-4 shrink-0", MUTED)} />
         <input
           ref={find}
+          tabIndex={typeFirst ? undefined : -1}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setInField(true)}
+          onBlur={() => setInField(false)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
               e.stopPropagation();
-              if (q && shown[0]) pick(shown[0].name);
-            } else if (!["ArrowDown", "ArrowUp", "Escape", "Tab"].includes(e.key)) e.stopPropagation();
+              if (target) pick(target);
+            } else if (e.key === "ArrowDown") {
+              const first = e.currentTarget.closest("[role=menu]")?.querySelector<HTMLElement>("[role=menuitemradio]");
+              if (!first) return;
+              e.preventDefault();
+              e.stopPropagation();
+              first.focus();
+            } else if (!["ArrowUp", "Escape", "Tab"].includes(e.key)) e.stopPropagation();
           }}
           placeholder="Type a category"
           aria-label="Find a category"
+          aria-describedby={hint}
           className="min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted-text dark:placeholder:text-muted-text-night"
         />
         {q && <span className={cn("shrink-0 text-[12px] tabular-nums", MUTED)}>{shown.length === 0 ? "none" : `${shown.length} of ${categories.length}`}</span>}
+        <span id={hint} className="sr-only">
+          {target ? `Enter files it under ${target}` : ""}
+        </span>
       </label>
     </div>
   );
@@ -413,8 +450,10 @@ function FileMenu({
         if (!o) return;
         setAlways(null);
         setQuery("");
-        // Ready to type with a mouse or a keyboard; on a touch screen a tap on the field brings the keyboard.
-        if (window.matchMedia("(pointer: fine)").matches) requestAnimationFrame(() => requestAnimationFrame(() => find.current?.focus()));
+        setInField(false);
+        const fine = window.matchMedia("(pointer: fine)").matches;
+        setTypeFirst(fine);
+        if (fine) requestAnimationFrame(() => requestAnimationFrame(() => find.current?.focus()));
       }}
     >
       {({ payload }) => {
@@ -448,10 +487,15 @@ function FileMenu({
           fileMenu.close();
           setTimeout(() => onFile(tx, v, row, on && !tx.category), 0);
         };
+        const { often, list, target } = shop ? plan(shop.txs[0], null) : tx ? plan(tx, tx.category ?? null) : { often: [], list: [], target: null };
+        // While typing, Subscriptions says what else it does: Enter shouldn't start tracking unseen.
+        const note = (name: string) => (q && name === SUBSCRIPTIONS && tx?.category !== SUBSCRIPTIONS ? "also tracks it" : undefined);
         return (
           <Menu.Portal>
             <Menu.Positioner sideOffset={6} align="start" className="z-50 outline-none">
-              <Menu.Popup className={MENU_POPUP}>
+              {/* While the field has focus, Enter is its lit row's: the row the menu highlighted on a
+                  keyboard opening shows plain. A row the mouse is on takes focus, so it still shows. */}
+              <Menu.Popup className={cn(MENU_POPUP, "[&:has(input:focus)_[data-highlighted]]:bg-transparent")}>
                 {shop && (
                   <Menu.Group>
                     <Menu.GroupLabel className={cn("flex items-baseline gap-2 px-2.5 pb-1.5 pt-1 text-[13px]", MUTED)}>
@@ -460,16 +504,16 @@ function FileMenu({
                       </span>
                       <span className="ml-auto shrink-0 tabular-nums">{eur.format(shop.total)}</span>
                     </Menu.GroupLabel>
-                    {findField(pickShop)}
+                    {findField(pickShop, target)}
                     <AlwaysItem
                       checked={on}
                       onChange={setAlways}
                       takes={alwaysTakes(shop.txs.length, backlog.filter((t) => matches(t, shop.key) && !shop.txs.includes(t)))}
                     />
                     <Menu.Separator className={MENU_SEPARATOR} />
-                    {usuallyFirst(shop.txs[0].name, usually(shop.txs[0]), null, pickShop)}
+                    {usuallyFirst(shop.txs[0].name, often, null, target, pickShop)}
                     <Menu.RadioGroup value="" onValueChange={(v) => pickShop(String(v))}>
-                      {shown.map((c) => item(c.name))}
+                      {list.map((c) => item(c.name, note(c.name), c.name === target))}
                     </Menu.RadioGroup>
                     {q && shown.length === 0 && <div className={cn("px-2.5 py-2 text-[15px]", MUTED)}>No category matches &ldquo;{query.trim()}&rdquo;</div>}
                   </Menu.Group>
@@ -480,16 +524,16 @@ function FileMenu({
                       <span className="truncate">File {tx.name}</span>
                       <span className="ml-auto shrink-0 tabular-nums">{eur.format(Math.abs(tx.amount))}</span>
                     </Menu.GroupLabel>
-                    {findField(pickTx)}
+                    {findField(pickTx, target)}
                     {!tx.category && (
                       <>
                         <AlwaysItem checked={on} onChange={setAlways} takes={alwaysTakes(1, alike)} />
                         <Menu.Separator className={MENU_SEPARATOR} />
                       </>
                     )}
-                    {usuallyFirst(tx.name, usually(tx), tx.category ?? null, pickTx)}
+                    {usuallyFirst(tx.name, often, tx.category ?? null, target, pickTx)}
                     <Menu.RadioGroup value={tx.category ?? ""} onValueChange={(v) => pickTx(String(v))}>
-                      {shown.map((c) => item(c.name))}
+                      {list.map((c) => item(c.name, note(c.name), c.name === target))}
                     </Menu.RadioGroup>
                     {q && shown.length === 0 && <div className={cn("px-2.5 py-2 text-[15px]", MUTED)}>No category matches &ldquo;{query.trim()}&rdquo;</div>}
                   </Menu.Group>
