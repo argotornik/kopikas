@@ -62,7 +62,8 @@ export function CoinQueue({
   const [skipped, setSkipped] = useState<string[]>([]);
   // Always is set for one coin at a time: the next coin starts with it off.
   const [alwaysFor, setAlwaysFor] = useState<string | null>(null);
-  // What the last filing or split did, said for 6 s in the progress line's place ("Undone" for 2.5 s).
+  // What the last filing or split did, said for 6 s right above the tiles, in the Always line's place,
+  // where the thumb that tapped is ("Undone" for 2.5 s).
   const [said, setSaid] = useState<Said | null>(null);
   useEffect(() => {
     if (!said) return;
@@ -119,7 +120,6 @@ export function CoinQueue({
   const always = !!tx && alwaysFor === tx.id;
   // Where the shop went last time, offered first; a shop never filed gets no guess.
   const last = tx ? lastTimeOf(txs, tx) : null;
-  const lastIndex = categories.findIndex((c) => c.name === last);
   // A tile files the coin, and with the switch the shop's every coin; the tap that empties the
   // queue gets the burst.
   const fileTo = (category: string) => {
@@ -167,17 +167,11 @@ export function CoinQueue({
   return (
     <section aria-labelledby="queue-heading" className={cn(PANEL, "bg-oat px-3 pb-4 pt-5 dark:bg-oat-night")}>
       <div className={cn("flex justify-between gap-3 px-1 text-[13px] tabular-nums", MUTED)}>
-        {/* Progress first: what's done, then what's left; after a filing, what it did. */}
-        <span role="status" className="flex min-w-0">
-          {said ? (
-            saidLine(said)
-          ) : (
-            <span>
-              <span className="font-medium text-ink dark:text-chalk">{count.format(filed)} filed</span> · {count.format(queue.length)} to go
-            </span>
-          )}
+        {/* Progress first: what's done, then what's left. What a filing did is said above the tiles. */}
+        <span>
+          <span className="font-medium text-ink dark:text-chalk">{count.format(filed)} filed</span> · {count.format(queue.length)} to go
         </span>
-        {!said && waiting > 0 && <span className="shrink-0">{waiting} skipped</span>}
+        {waiting > 0 && <span className="shrink-0">{waiting} skipped</span>}
       </div>
       {/* The coin on top: it hops out as it is filed, and the next one drops in. Room for a
           two-line name and the "more from here" line, so Skip and Split stay put from coin to coin. */}
@@ -255,30 +249,18 @@ export function CoinQueue({
           Always
         </button>
       </div>
-      {/* What it takes, or while it's off what switching on would take: the line stays, so turning
-          the switch on never moves the tiles under a thumb. */}
-      <p aria-hidden className={cn("px-1 pt-1.5 text-[12px] text-pretty", MUTED)}>
-        {always ? alwaysTakes(1, alikeTxs) : alwaysOffer(alwaysTakes(1, alikeTxs))}
-      </p>
-      {last && lastIndex >= 0 && (
-        // Last time's category first, across the grid; the grid keeps its places under it.
-        <button
-          type="button"
-          onClick={() => fileTo(last)}
-          aria-label={`File under ${last}, where ${tx.name} went last time`}
-          className={cn(
-            "mt-2 flex min-h-14 w-full items-center gap-2.5 rounded-2xl bg-white py-2 pl-2.5 pr-3 text-left ring-[1.5px] ring-ink/25 transition-transform hover:bg-mist motion-safe:active:scale-[0.98] dark:bg-card-night dark:ring-white/25 dark:hover:bg-card-night-hover",
-            FOCUS
-          )}
-        >
-          <PaintedMini index={lastIndex} colour={wrapperOf(categories, last)} awake />
-          <span className="min-w-0 flex-1">
-            <span className="block text-[13px] font-medium leading-tight">{last}</span>
-            <span className={cn("block text-[12px]", MUTED)}>where {tx.name} went last time</span>
-          </span>
-          <span className="shrink-0 rounded-full bg-ink px-2 py-0.5 text-[12px] font-medium text-white dark:bg-chalk dark:text-ink">Last time</span>
-        </button>
-      )}
+      {/* What it takes, or while it's off what switching on would take; for 6 s after a filing, what
+          the filing did, with Undo, where the thumb is. The room is the same either way (two lines),
+          so neither moves the tiles under a thumb. */}
+      <div role="status" className="min-h-[42px] px-1 pt-1.5">
+        {said ? (
+          <div className={cn("text-[13px]", MUTED)}>{saidLine(said)}</div>
+        ) : (
+          <p aria-hidden className={cn("text-[12px] text-pretty", MUTED)}>
+            {always ? alwaysTakes(1, alikeTxs) : alwaysOffer(alwaysTakes(1, alikeTxs))}
+          </p>
+        )}
+      </div>
       <div role="group" aria-label={`Categories for ${tx.name}`} className="mt-2 grid grid-cols-2 gap-2">
         {categories.map((c, i) => {
           const total = totals.get(c.name) ?? 0;
@@ -287,9 +269,12 @@ export function CoinQueue({
               key={c.name}
               type="button"
               onClick={() => fileTo(c.name)}
-              aria-label={`File under ${c.name}${c.name === SAVINGS ? "" : `, ${eur.format(total)} in ${label(monthOf(tx.date))}`}`}
+              aria-label={`File under ${c.name}${c.name === SAVINGS ? "" : `, ${eur.format(total)} in ${label(monthOf(tx.date))}`}${c.name === last ? `, where ${tx.name} went last time` : ""}`}
               className={cn(
-                "flex min-h-14 items-center gap-2.5 rounded-2xl bg-white py-2 pl-2.5 pr-3 text-left transition-transform hover:bg-mist motion-safe:active:scale-[0.96] dark:bg-card-night dark:hover:bg-card-night-hover",
+                "relative flex min-h-14 items-center gap-2.5 rounded-2xl bg-white py-2 pl-2.5 pr-3 text-left transition-transform hover:bg-mist motion-safe:active:scale-[0.96] dark:bg-card-night dark:hover:bg-card-night-hover",
+                // Where the shop went last time, marked in its own place (a ring, and a tag on its top
+                // edge, as a stack's count sits on its coin), so the grid never moves.
+                c.name === last && "ring-[1.5px] ring-ink/25 dark:ring-white/25",
                 FOCUS
               )}
             >
@@ -299,6 +284,11 @@ export function CoinQueue({
                 <span className="line-clamp-2 break-words text-[13px] font-medium leading-tight hyphens-auto">{c.name}</span>
                 {c.name !== SAVINGS && <span className={cn("block text-[12px] tabular-nums", MUTED)}>{eur.format(total)}</span>}
               </span>
+              {c.name === last && (
+                <span aria-hidden className="absolute -top-2 right-2.5 whitespace-nowrap rounded-full bg-ink px-1.5 text-[11px] font-medium leading-[16px] text-white dark:bg-chalk dark:text-ink">
+                  Last time
+                </span>
+              )}
             </button>
           );
         })}
