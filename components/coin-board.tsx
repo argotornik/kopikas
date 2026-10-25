@@ -6,7 +6,7 @@ import { DndContext, DragOverlay, MouseSensor, pointerWithin, useSensor, useSens
 import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
 import { act, type Undo } from "@/lib/act";
-import { announceError, announceUndoable } from "@/components/toaster";
+import { announce, announceError, announceUndoable } from "@/components/toaster";
 import { PaintedCoin } from "@/components/painted";
 import { CoinStage, eur, label, looseCoins, monthOf, rollOnScreen, shortDate, usuallyOf, type CoinStageHandle } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, OAT, PAGE, PANEL } from "@/components/coin-look";
@@ -215,6 +215,21 @@ export function CoinBoard({
     setBoard((b) => ({ ...b, txs: b.txs.map((t) => old.get(t.id) ?? t), uncategorizedCount: b.uncategorizedCount + filed }));
     void refetch(true);
   };
+  // A notice's Try again pressed once its charges have changed since (filed again meanwhile, or
+  // kept by the server after all) would undo the newer decision: it leaves them and says so.
+  // `before`: the charges as they stood when the change failed.
+  const now = useRef(board);
+  useEffect(() => {
+    now.current = board;
+  });
+  const retryUnlessChanged = (before: BoardTx[], retry: () => void) => () => {
+    for (const was of before) {
+      const t = now.current.txs.find((x) => x.id === was.id);
+      if (!t || (t.category === was.category && t.shared === was.shared && t.partnerShare === was.partnerShare)) continue;
+      return announce(t.category && t.category !== was.category ? `${t.name} is under ${t.category} now, so it stays there.` : `${t.name} has changed since, so it stays as it is.`);
+    }
+    retry();
+  };
 
   // A coin files at once, as just this one: it is in its roll before the server
   // answers, and the notice offers Always beside Undo. The Subscriptions roll
@@ -244,7 +259,7 @@ export function CoinBoard({
         putBack(before, (tx.category ? 0 : 1) + alike.size);
         announceError(
           `${subscription ? `Couldn't track ${tx.name} as a subscription.` : `Couldn't file ${alike.size ? `${alike.size + 1} from ` : ""}${tx.name} under ${category}.`} ${r.error}`,
-          () => void onFile(tx, category, always, say)
+          retryUnlessChanged(before, () => void onFile(tx, category, always, say))
         );
         return;
       }
@@ -284,7 +299,7 @@ export function CoinBoard({
     void saving.then((r) => {
       if (!r.ok) {
         putBack(before, txs.filter((t) => !t.category).length);
-        announceError(`Couldn't file ${txs.length} from ${txs[0].name} under ${category}. ${r.error}`, () => void onFileMany(txs, category, always));
+        announceError(`Couldn't file ${txs.length} from ${txs[0].name} under ${category}. ${r.error}`, retryUnlessChanged(before, () => void onFileMany(txs, category, always)));
         return;
       }
       announceUndoable(`Filed ${txs.length} from ${txs[0].name} under ${category}.`, r.undo, refetch, {
@@ -296,7 +311,11 @@ export function CoinBoard({
   };
   const teachAlways = async (tx: BoardTx, category: string, say?: (s: Said) => void) => {
     const r = await run({ type: "rule", txId: tx.id, category });
-    if (!r.ok) return announceError(`Couldn't send every ${tx.name} charge under ${category}. ${r.error}`, () => void teachAlways(tx, category, say));
+    if (!r.ok)
+      return announceError(
+        `Couldn't send every ${tx.name} charge under ${category}. ${r.error}`,
+        retryUnlessChanged(now.current.txs.filter((t) => t.id === tx.id), () => void teachAlways(tx, category, say))
+      );
     if (say) return say({ lead: `Every ${tx.name} charge`, tail: ` now goes under ${category}`, undo: takeBack(r.undo) });
     announceUndoable(`Every ${tx.name} charge now goes under ${category}.`, r.undo, refetch);
   };
@@ -311,7 +330,7 @@ export function CoinBoard({
     void run({ type: "share", txId: tx.id, partnerShare: share }).then((r) => {
       if (!r.ok) {
         putBack(before);
-        return announceError(`Couldn't split ${tx.name} with ${partner}. ${r.error}`, () => onSplit(tx, share, say));
+        return announceError(`Couldn't split ${tx.name} with ${partner}. ${r.error}`, retryUnlessChanged(before, () => onSplit(tx, share, say)));
       }
       const always = { label: "Always", onClick: () => void splitAlways(tx, share, say) };
       if (say) return say({ lead: `Split with ${partner}`, tail: `, who pays ${shareLabel(share)}`, undo: takeBack(r.undo), also: always });
@@ -320,7 +339,11 @@ export function CoinBoard({
   };
   const splitAlways = async (tx: BoardTx, share: number, say?: (s: Said) => void) => {
     const r = await run({ type: "share", txId: tx.id, partnerShare: share, always: true });
-    if (!r.ok) return announceError(`Couldn't split every ${tx.name} charge with ${partner}. ${r.error}`, () => void splitAlways(tx, share, say));
+    if (!r.ok)
+      return announceError(
+        `Couldn't split every ${tx.name} charge with ${partner}. ${r.error}`,
+        retryUnlessChanged(now.current.txs.filter((t) => t.id === tx.id), () => void splitAlways(tx, share, say))
+      );
     if (say) return say({ lead: `Every ${tx.name} charge`, tail: ` split with ${partner}`, undo: takeBack(r.undo) });
     announceUndoable(`Every ${tx.name} charge is now split with ${partner}.`, r.undo, refetch);
   };

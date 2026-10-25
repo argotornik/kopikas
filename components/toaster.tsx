@@ -44,6 +44,11 @@ export function announceUndoable(message: string, undo: Undo | undefined, after:
   latestUndo = { id, run: () => void run() };
 }
 
+// A plain line that offers nothing, such as a Try again that had nothing left to do.
+export function announce(message: string) {
+  toasts.add({ title: message, timeout: 4000 });
+}
+
 // A failure that has no dialog of its own to show in. High priority, so a
 // screen reader hears it straight away. Try again closes it: the retry says how it went.
 export function announceError(message: string, retry?: () => void) {

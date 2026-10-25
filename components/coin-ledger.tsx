@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useRef, useState, type Ref } from "react";
+import { Fragment, useEffect, useRef, useState, type Ref } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Menu } from "@base-ui/react/menu";
 import { CheckIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
@@ -24,6 +24,8 @@ const day = (d: string) => dayMonth.format(new Date(d + "T00:00:00Z"));
 // One File menu serves the whole list and the To file card; the row that opened it is its
 // payload ("card:" before a card's), or for a shop "shop:" and the pattern its charges share.
 const fileMenu = Menu.createHandle<string>();
+// The list's File chips, in order (the To file card's are its own).
+const fileChips = () => [...document.querySelectorAll<HTMLElement>("[data-file]")].filter((el) => el.getBoundingClientRect().width > 0);
 const CHIP = "relative inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-2 pointer-coarse:after:absolute pointer-coarse:after:content-['']";
 // The board's menus: a white card of rows, as here and on Subscriptions. As tall as the window
 // allows, so the File menu's thirteen categories only scroll on a short screen.
@@ -135,6 +137,7 @@ function ShopRow({ shop, open, onToggle }: { shop: Shop; open: boolean; onToggle
         <Menu.Trigger
           handle={fileMenu}
           payload={`shop:${shop.key}`}
+          data-file={`shop:${shop.key}`}
           aria-label={`File all ${n} from ${first.name}, ${eur.format(shop.total)}`}
           className={cn(CHIP, INK, "cursor-pointer pl-1 data-popup-open:ring-2 data-popup-open:ring-ink/20 dark:data-popup-open:ring-white/25", FOCUS)}
         >
@@ -163,6 +166,7 @@ export function FileChip({ t, categories, card = false, ref }: { t: BoardTx; cat
       ref={ref}
       handle={fileMenu}
       payload={card ? `card:${t.id}` : t.id}
+      data-file={card ? undefined : t.id}
       // A click files; it must not also start a drag of the row.
       onMouseDown={(e) => e.stopPropagation()}
       aria-label={`${t.category ? `${t.category}: file` : "File"} ${t.name}, ${eur.format(Math.abs(t.amount))}`}
@@ -324,6 +328,22 @@ function FileMenu({
   // What the field has narrowed the categories to, for this opening of the menu.
   const [query, setQuery] = useState("");
   const find = useRef<HTMLInputElement>(null);
+  // A filing can take its row out of the list (a loose charge in To file, one moved out of the
+  // roll the list shows) while its chip has focus: focus goes on to the chip that took its
+  // place, or to the list once nothing is left in it. A row still listed keeps it.
+  const left = useRef<{ chip: HTMLElement; i: number; ids: string[]; category: string } | null>(null);
+  useEffect(() => {
+    const was = left.current;
+    if (!was) return;
+    if (was.chip.isConnected) {
+      if (txs.some((t) => was.ids.includes(t.id) && t.category === was.category)) left.current = null;
+      return;
+    }
+    left.current = null;
+    if (document.activeElement && document.activeElement !== document.body) return;
+    const chips = fileChips();
+    (chips[Math.min(was.i, chips.length - 1)] ?? document.getElementById("charges"))?.focus();
+  });
   const q = query.trim().toLowerCase();
   const shown = q
     ? categories
@@ -408,14 +428,22 @@ function FileMenu({
         const alike = tx && !tx.category ? backlog.filter((t) => t.id !== tx.id && matches(t, tx.rulePattern)) : [];
         // The row the coin hops from: the card's, or the list's.
         const rowOf = (t: BoardTx) => document.querySelector(card ? `[data-queue="${t.id}"]` : `[data-row="${t.id}"]`);
+        // The list's chip that opened the menu, followed in case its row leaves the list.
+        const follow = (ids: string[], category: string) => {
+          const chips = fileChips();
+          const i = chips.findIndex((el) => el.dataset.file === payload);
+          if (i >= 0) left.current = { chip: chips[i], i, ids, category };
+        };
         const pickShop = (v: string) => {
           if (!shop) return;
+          follow(shop.txs.map((t) => t.id), v);
           fileMenu.close();
           setTimeout(() => onFileShop(shop.txs, v, on && v !== SUBSCRIPTIONS), 0);
         };
         const pickTx = (v: string) => {
           if (!tx || v === tx.category) return;
           const row = rowOf(tx);
+          follow([tx.id], v);
           // Close first, so the menu has handed focus back before the coin hops.
           fileMenu.close();
           setTimeout(() => onFile(tx, v, row, on && !tx.category), 0);
