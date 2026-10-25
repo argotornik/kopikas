@@ -301,8 +301,8 @@ export const wrapperOf = (categories: { name: string }[], name: string) =>
 // ledger row, with the coin hopping from that row to its roll. False when a coin is
 // already in the air.
 export type CoinStageHandle = {
-  // `always` files every loose charge from the shop and teaches the rule.
-  file: (tx: BoardTx, category: string, from?: Element | null, always?: boolean) => boolean;
+  // `always` files every loose charge from the shop and teaches the rule; `many`, a stack at once.
+  file: (tx: BoardTx, category: string, from?: Element | null, always?: boolean, many?: BoardTx[]) => boolean;
   split: (tx: BoardTx, from?: Element | null) => boolean;
 };
 
@@ -909,7 +909,19 @@ export function CoinStage({
     // The month is cheered once the server has it: a filing that didn't save puts its coins
     // back in the pile, and nothing is celebrated or said to have gone in.
     void saved.then((ok) => {
-      if (!ok) return setLastFiled(null);
+      if (!ok) {
+        setLastFiled(null);
+        // The coin is back in the pile: focus goes back to it, unless it has moved on from where the
+        // filing left it (the page, or the month's name).
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            const at = document.activeElement;
+            if (at && at !== document.body && at !== monthHeading.current) return;
+            [...document.querySelectorAll<HTMLElement>("[data-coin]")].find((el) => gone.has(el.dataset.coin ?? "") && el.getBoundingClientRect().width > 0)?.focus();
+          })
+        );
+        return;
+      }
       if (!last) return;
       setCheer((c) => c + 1);
       setParty(month);

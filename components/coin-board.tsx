@@ -231,6 +231,13 @@ export function CoinBoard({
     retry();
   };
 
+  // A Try again files through the stage, as a first try does: the coin flies from the pile, the roll
+  // gulps and a month it sorts is cheered. From the phone's queue (`say`), the queue files it itself.
+  const refile = (txs: BoardTx[], category: string, always: boolean, say?: (s: Said) => void) => {
+    if (!say && stage.current?.file(txs[0], category, null, always, txs.length > 1 ? txs : undefined)) return;
+    void (txs.length > 1 ? onFileMany(txs, category, always) : onFile(txs[0], category, always, say));
+  };
+
   // A coin files at once, as just this one: it is in its roll before the server
   // answers, and the notice offers Always beside Undo. The Subscriptions roll
   // tracks the charge as a subscription, which always means always. With Always set
@@ -259,7 +266,7 @@ export function CoinBoard({
         putBack(before, (tx.category ? 0 : 1) + alike.size);
         announceError(
           `${subscription ? `Couldn't track ${tx.name} as a subscription.` : `Couldn't file ${alike.size ? `${alike.size + 1} from ` : ""}${tx.name} under ${category}.`} ${r.error}`,
-          retryUnlessChanged(before, () => void onFile(tx, category, always, say))
+          retryUnlessChanged(before, () => refile([tx], category, always, say))
         );
         return;
       }
@@ -299,7 +306,7 @@ export function CoinBoard({
     void saving.then((r) => {
       if (!r.ok) {
         putBack(before, txs.filter((t) => !t.category).length);
-        announceError(`Couldn't file ${txs.length} from ${txs[0].name} under ${category}. ${r.error}`, retryUnlessChanged(before, () => void onFileMany(txs, category, always)));
+        announceError(`Couldn't file ${txs.length} from ${txs[0].name} under ${category}. ${r.error}`, retryUnlessChanged(before, () => refile(txs, category, always)));
         return;
       }
       announceUndoable(`Filed ${txs.length} from ${txs[0].name} under ${category}.`, r.undo, refetch, {
