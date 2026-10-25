@@ -410,28 +410,42 @@ export function CoinBoard({
       {eur.format(v)}
     </span>
   );
-  const figureParts: React.ReactNode[] = [
-    <>Received {cameIn > 0 ? amount(cameIn, "text-received dark:text-received-night", "+") : amount(cameIn)}</>,
-    ...(yourShare != null ? [<>Your share {amount(yourShare)}</>] : []),
-    ...standing.map((x, i) => (
-      <>
-        {i === 0 && month !== initial.month && "Today: "}
-        {x.name} {amount(x.value)}
-      </>
-    )),
+  // One line per time frame, each led by its name in Ink: the month's (what came in, and your share
+  // when something was split), then today's (the balances and investments as they stand now).
+  // Each figure keeps its name and amount together; a line breaks between them.
+  const inLine = (parts: React.ReactNode[]) =>
+    parts.map((part, i) => (
+      <span key={i}>
+        {i > 0 && " · "}
+        <span className="whitespace-nowrap">{part}</span>
+      </span>
+    ));
+  const LEAD = "font-medium text-ink dark:text-chalk";
+  const figures = (
     <>
-      {standing.length === 0 && month !== initial.month && "Today: "}
-      {investments}
-      {board.investments.total != null && <> {amount(board.investments.total)}</>}
-    </>,
-  ];
-  // Each figure keeps its name and amount together; the line breaks between them.
-  const figures = figureParts.map((part, i) => (
-    <span key={i}>
-      {i > 0 && " · "}
-      <span className="whitespace-nowrap">{part}</span>
-    </span>
-  ));
+      <div>
+        <span className={LEAD}>{label(month)}:</span>{" "}
+        {inLine([
+          <>Received {cameIn > 0 ? amount(cameIn, "text-received dark:text-received-night", "+") : amount(cameIn)}</>,
+          ...(yourShare != null ? [<>Your share {amount(yourShare)}</>] : []),
+        ])}
+      </div>
+      <div className="mt-0.5">
+        <span className={LEAD}>Today:</span>{" "}
+        {inLine([
+          ...standing.map((x) => (
+            <>
+              {x.name} {amount(x.value)}
+            </>
+          )),
+          <>
+            {investments}
+            {board.investments.total != null && <> {amount(board.investments.total)}</>}
+          </>,
+        ])}
+      </div>
+    </>
+  );
 
   // What the list shows: the month's charges, or one category's (picked on its
   // roll), or the money that came in. A search looks through every month.
