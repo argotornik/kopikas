@@ -667,6 +667,8 @@ export function CoinStage({
       {celebrating && !reduce && <ConfettiBurst marks={PILE_BURST} origin={[84, pileH - 18]} colours={partyColours} />}
     </div>
   );
+  // A month with nothing in it yet while coins wait in others: the count still leads with them.
+  const waitingElsewhere = loose.length === 0 && !sorted && elsewhere.length > 0;
   // Coins on show, a stack counting all its charges: the pile shows `shown` stacks at most.
   const onShow = (shown: number) => piles.slice(0, shown).reduce((n, g) => n + g.length, 0);
   // Under the count: how the backlog splits, this month's (and how many of them the pile shows)
@@ -677,6 +679,7 @@ export function CoinStage({
     return (
       <div className={cn("text-[13px]", MUTED)}>
         <div>
+          {waitingElsewhere && `none in ${label(month)} · `}
           {here && `${loose.length} in ${label(month)}${loose.length > onShow(shown) ? `, ${onShow(shown)} shown` : ""}${elsewhere.length > 0 ? " · " : ""}`}
           {elsewhereMonth && `${elsewhere.length} in ${oneMonth ? label(elsewhereMonth) : "other months"}`}
         </div>
@@ -711,9 +714,10 @@ export function CoinStage({
     </div>
   );
   // What the count says: while coins wait, how many wait in every month, in Ink Fredoka, the call to
-  // action (the note under it splits them); the month sorted, that it is, in Ink.
+  // action (the note under it splits them), also for a month with nothing in it yet; the month sorted,
+  // that it is, in Ink.
   const countText = () =>
-    loose.length > 0 ? (
+    loose.length > 0 || waitingElsewhere ? (
       <span className={cn(DISPLAY, "text-[22px] font-semibold leading-none text-ink dark:text-chalk")}>{loose.length + elsewhere.length} to file</span>
     ) : sorted ? (
       <span className="font-medium text-ink dark:text-chalk">All sorted for {label(month)}</span>
