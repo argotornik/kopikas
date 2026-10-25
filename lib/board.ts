@@ -33,6 +33,9 @@ export interface BoardTx {
   customMerchant: boolean;
   category: string | null;
   categorySource: "rule" | "override" | null;
+  // When it was filed: its hand-filing's time, or when the rule that files it was taught.
+  // Null when loose, or filed before times were kept.
+  filedAt: string | null;
   shared: boolean;
   shareId?: string;
   partnerShare?: number;
@@ -40,6 +43,12 @@ export interface BoardTx {
   // per-day rollup line in the feed. Math still counts the underlying rows.
   micro: boolean;
 }
+
+// A stored time as one comparable form; the database may hand back a Date or another layout.
+const iso = (t: string | Date | undefined) => {
+  const d = t ? new Date(t) : null;
+  return d && !Number.isNaN(d.getTime()) ? d.toISOString() : null;
+};
 
 export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[] = []) {
   const month = today.toISOString().slice(0, 7);
@@ -53,7 +62,8 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
       // "override" only when the hand-filing disagrees with the rules: an
       // "Always" drag files its own tile by override too, so a bare override
       // check would mark every teaching tile as an exception.
-      const ruleCategory = db.rules.findLast((r) => matches(tx, r.match))?.category ?? null;
+      const rule = db.rules.findLast((r) => matches(tx, r.match));
+      const ruleCategory = rule?.category ?? null;
       const share = shareByTx.get(tx.id);
       const merchant = merchantOf(tx, db.merchants);
       const isCardString = !!merchantFromDescription(tx.description);
@@ -79,6 +89,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
         micro: (tx.counterparty + " " + tx.description).toLowerCase().includes("mikroinvesteering"),
         category: cat,
         categorySource: override && override.category !== ruleCategory ? "override" : cat ? "rule" : null,
+        filedAt: iso(override ? override.at : rule?.createdAt),
         shared: !!share,
         shareId: share?.id,
         partnerShare: share ? partnerShareOf(share) : undefined,

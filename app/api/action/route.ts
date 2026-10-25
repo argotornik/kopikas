@@ -24,9 +24,9 @@ export const dynamic = "force-dynamic";
 type Action =
   | { type: "rule"; txId: string; category: string }
   | { type: "override"; txId: string; category: string; always?: boolean }
-  | { type: "unoverride"; txId: string; previous: string | null; ruleId?: string }
+  | { type: "unoverride"; txId: string; previous: string | null; previousAt?: string; ruleId?: string }
   | { type: "override-many"; txIds: string[]; category: string }
-  | { type: "unoverride-many"; items: { txId: string; previous: string | null }[] }
+  | { type: "unoverride-many"; items: { txId: string; previous: string | null; previousAt?: string }[] }
   | { type: "unrule"; ruleId: string }
   | { type: "share"; txId: string; partnerShare?: number; always?: boolean }
   | { type: "unshare"; shareId: string; ruleId?: string }
@@ -102,11 +102,12 @@ export async function POST(req: Request) {
         if (!tx || !action.category) return bad("txId and category required");
         ruleId = await teachRule(db, tx, action.category, now);
       }
-      const previous = db.overrides.find((o) => o.txId === action.txId)?.category ?? null;
+      const old = db.overrides.find((o) => o.txId === action.txId);
+      const previous = old?.category ?? null;
       db.overrides = db.overrides.filter((o) => o.txId !== action.txId);
-      db.overrides.push({ txId: action.txId, category: action.category });
+      db.overrides.push({ txId: action.txId, category: action.category, at: now });
       await writeCollection("overrides", db.overrides);
-      undo = { type: "unoverride", txId: action.txId, previous, ...(ruleId ? { ruleId } : {}) };
+      undo = { type: "unoverride", txId: action.txId, previous, ...(old?.at ? { previousAt: old.at } : {}), ...(ruleId ? { ruleId } : {}) };
       break;
     }
     case "unoverride": {
@@ -114,7 +115,7 @@ export async function POST(req: Request) {
       // charge goes back to what its rules say, or to the loose change.
       db.overrides = db.overrides.filter((o) => o.txId !== action.txId);
       if (typeof action.previous === "string" && db.categories.some((c) => c.name === action.previous)) {
-        db.overrides.push({ txId: action.txId, category: action.previous });
+        db.overrides.push({ txId: action.txId, category: action.previous, ...(typeof action.previousAt === "string" ? { at: action.previousAt } : {}) });
       }
       await writeCollection("overrides", db.overrides);
       if (action.ruleId) {
@@ -128,8 +129,11 @@ export async function POST(req: Request) {
       // takes them all back to what they were.
       if (!Array.isArray(action.txIds) || action.txIds.length === 0 || !action.category) return bad("txIds and category required");
       const ids = new Set(action.txIds);
-      const items = [...ids].map((txId) => ({ txId, previous: db.overrides.find((o) => o.txId === txId)?.category ?? null }));
-      db.overrides = [...db.overrides.filter((o) => !ids.has(o.txId)), ...[...ids].map((txId) => ({ txId, category: action.category }))];
+      const items = [...ids].map((txId) => {
+        const old = db.overrides.find((o) => o.txId === txId);
+        return { txId, previous: old?.category ?? null, ...(old?.at ? { previousAt: old.at } : {}) };
+      });
+      db.overrides = [...db.overrides.filter((o) => !ids.has(o.txId)), ...[...ids].map((txId) => ({ txId, category: action.category, at: now }))];
       await writeCollection("overrides", db.overrides);
       undo = { type: "unoverride-many", items };
       break;
@@ -139,7 +143,8 @@ export async function POST(req: Request) {
       const ids = new Set(action.items.map((i) => i.txId));
       db.overrides = db.overrides.filter((o) => !ids.has(o.txId));
       for (const i of action.items) {
-        if (typeof i.previous === "string" && db.categories.some((c) => c.name === i.previous)) db.overrides.push({ txId: i.txId, category: i.previous });
+        if (typeof i.previous === "string" && db.categories.some((c) => c.name === i.previous))
+          db.overrides.push({ txId: i.txId, category: i.previous, ...(typeof i.previousAt === "string" ? { at: i.previousAt } : {}) });
       }
       await writeCollection("overrides", db.overrides);
       break;

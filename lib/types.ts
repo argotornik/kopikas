@@ -20,6 +20,9 @@ export interface Rule {
 export interface Override {
   txId: string;
   category: string;
+  // When it was filed, so "Last time" follows the latest decision. Absent on
+  // filings from before it was kept (Oct 2026).
+  at?: string;
 }
 
 // A shared expense. Either points at a bank transaction (txId)

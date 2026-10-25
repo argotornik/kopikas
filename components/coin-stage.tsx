@@ -224,13 +224,15 @@ export const looseCoins = (txs: BoardTx[], month: string | null) =>
     .filter((t) => t.amount < 0 && !t.category && !t.micro && (month === null || monthOf(t.date) === month))
     .sort((a, b) => b.date.localeCompare(a.date));
 
-// Where a shop's charges went last time: the category of its latest filed charge, or null
-// for a shop never filed, which gets no guess. The suggestion the queue, the menus and the
-// stage offer first.
+// Where a shop's charges went last time: the category of its most recent filing, so a backlog
+// filed out of order follows what was just decided; filings from before their times were kept
+// count as older, and among them the latest charge wins. Null for a shop never filed, which gets
+// no guess. The suggestion the queue, the menus and the stage offer first.
 export const lastTimeOf = (txs: BoardTx[], tx: BoardTx) => {
   let latest: BoardTx | null = null;
+  const later = (a: BoardTx, b: BoardTx) => ((a.filedAt ?? "") !== (b.filedAt ?? "") ? (a.filedAt ?? "") > (b.filedAt ?? "") : a.date > b.date);
   for (const t of txs)
-    if (t.category && t.amount < 0 && !t.micro && t.id !== tx.id && t.rulePattern === tx.rulePattern && (!latest || t.date > latest.date)) latest = t;
+    if (t.category && t.amount < 0 && !t.micro && t.id !== tx.id && t.rulePattern === tx.rulePattern && (!latest || later(t, latest))) latest = t;
   return latest?.category ?? null;
 };
 

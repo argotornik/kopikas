@@ -229,7 +229,11 @@ export function CoinBoard({
     setBoard((b) => ({
       ...b,
       txs: b.txs.map((t) =>
-        t.id === tx.id ? { ...t, category, categorySource: "override" as const } : alike.has(t.id) ? { ...t, category, categorySource: "rule" as const } : t
+        t.id === tx.id
+          ? { ...t, category, categorySource: "override" as const, filedAt: new Date().toISOString() }
+          : alike.has(t.id)
+            ? { ...t, category, categorySource: "rule" as const, filedAt: new Date().toISOString() }
+            : t
       ),
       uncategorizedCount: b.uncategorizedCount - (tx.category ? 0 : 1) - alike.size,
     }));
@@ -272,7 +276,7 @@ export function CoinBoard({
     const before = board.txs.filter((t) => ids.has(t.id));
     setBoard((b) => ({
       ...b,
-      txs: b.txs.map((t) => (ids.has(t.id) ? { ...t, category, categorySource: "override" as const } : t)),
+      txs: b.txs.map((t) => (ids.has(t.id) ? { ...t, category, categorySource: "override" as const, filedAt: new Date().toISOString() } : t)),
       uncategorizedCount: b.uncategorizedCount - txs.filter((t) => !t.category).length,
     }));
     const saving = run({ type: "override-many", txIds: [...ids], category });

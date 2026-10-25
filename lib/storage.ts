@@ -156,6 +156,7 @@ function ensureSchema(sql: ReturnType<typeof db>): Promise<void> {
       await sql`alter table subscriptions add column if not exists cadence_by_hand boolean not null default false`;
       await sql`alter table categories add column if not exists budget numeric(12,2)`;
       await sql`alter table snapshots add column if not exists auto boolean not null default false`;
+      await sql`alter table overrides add column if not exists filed_at timestamptz`;
     })().catch((e) => {
       schemaReady = null;
       throw e;
@@ -172,7 +173,7 @@ async function pgReadDb(): Promise<Db> {
     sql`select id, date::text as date, amount::float8 as amount, currency, counterparty, description, iban
         from transactions order by date, id`,
     sql`select id, match, category, created_at::text as created_at from rules order by created_at, id`,
-    sql`select tx_id, category from overrides`,
+    sql`select tx_id, category, filed_at from overrides`,
     sql`select id, paid_by, tx_id, manual_date::text as manual_date, manual_description,
         manual_amount::float8 as manual_amount, manual_category, partner_share::float8 as partner_share,
         created_at::text as created_at
@@ -197,7 +198,7 @@ async function pgReadDb(): Promise<Db> {
       iban: r.iban,
     })),
     rules: rules.map((r) => ({ id: r.id, match: r.match, category: r.category, createdAt: r.created_at })),
-    overrides: overrides.map((r) => ({ txId: r.tx_id, category: r.category })),
+    overrides: overrides.map((r) => ({ txId: r.tx_id, category: r.category, ...(r.filed_at ? { at: new Date(r.filed_at).toISOString() } : {}) })),
     shares: shares.map((r) => ({
       id: r.id,
       paidBy: r.paid_by,
@@ -294,7 +295,7 @@ async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Pro
     case "overrides": {
       await sql`delete from overrides`;
       for (const o of value as Db["overrides"]) {
-        await sql.query(`insert into overrides (tx_id, category) values ($1, $2)`, [o.txId, o.category]);
+        await sql.query(`insert into overrides (tx_id, category, filed_at) values ($1, $2, $3)`, [o.txId, o.category, o.at ?? null]);
       }
       return;
     }
