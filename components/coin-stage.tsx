@@ -279,6 +279,8 @@ export const alwaysTakes = (here: number, others: BoardTx[]) => {
   const where = months.length > 2 ? `from ${months[0]} to ${months.at(-1)}` : `in ${months.join(" and ")}`;
   return `${these}, ${others.length} more ${where}, and every one to come`;
 };
+// The same, offered while the switch is off, where the phone keeps its line: what switching on would take.
+export const alwaysOffer = (takes: string) => `Switch on to file ${takes.charAt(0).toLowerCase()}${takes.slice(1)}`;
 
 // A category's roll as it stands on screen: the floor's, or with the stage scrolled away the
 // side panel's bar beside the list, so a coin always lands where it can be seen.
@@ -699,9 +701,10 @@ export function CoinStage({
     );
   };
   // Under the pile it grows leftwards like the count's slot, so the switch never leaves the panel;
-  // beside the phone's row it wraps instead.
+  // on the phone it wraps instead, and the slot keeps room for the hint's line and two of what
+  // Always takes, so picking a coin or switching Always on never moves the rolls under a thumb.
   const hintSlot = (hint: string, under: boolean) => (
-    <div className={cn("grid min-h-[30px] grid-cols-1", under ? "-mx-7 [direction:rtl] [justify-items:safe_center]" : "justify-items-start")}>
+    <div className={cn("grid min-h-[30px] grid-cols-1", under ? "-mx-7 [direction:rtl] [justify-items:safe_center]" : "min-h-[70px] justify-items-start")}>
       <div className={cn("col-start-1 row-start-1 [direction:ltr]", pickedTx && "invisible")}>{elsewhereNote}</div>
       {pickedTx && (
         <div className={cn("relative col-start-1 row-start-1 flex items-center gap-x-3 gap-y-1 text-[13px] text-ink [direction:ltr] dark:text-chalk", under ? "w-max" : "flex-wrap")}>
@@ -723,11 +726,12 @@ export function CoinStage({
             </span>
             Always
           </button>
-          {/* What it takes, while it's on. Under the pile it hangs below the switch, clear of the
-              slot, so the floor never moves; beside the phone's row it takes a line of its own. */}
-          {always && (
+          {/* What it takes. Under the pile it hangs below the switch while it's on, clear of the slot,
+              so the floor never moves; on the phone the line stays, saying while it's off what
+              switching on would take, so it never appears under a thumb. */}
+          {(always || !under) && (
             <span aria-hidden className={cn("text-[12px]", MUTED, under ? "absolute right-0 top-full mt-1 whitespace-nowrap" : "basis-full")}>
-              {takes}
+              {always ? takes : alwaysOffer(takes)}
             </span>
           )}
         </div>
@@ -1054,7 +1058,8 @@ export function CoinStage({
                         // A 44px tap area on a touch screen; where coins overlap, the one on top takes the tap.
                         className={cn("relative rounded-full pointer-coarse:after:absolute pointer-coarse:after:-inset-0.5 pointer-coarse:after:content-['']", FOCUS, flight?.tx.id === t.id && "opacity-0")}
                         style={{ zIndex: isPicked ? 20 : 10 - i }}
-                        animate={isPicked ? { y: -10, scale: 1.15, rotate: [0, -10, 10, 0] } : { y: 0, scale: 1, rotate: 0 }}
+                        // A lift that keeps the stack's count clear of the figures above the row.
+                        animate={isPicked ? { y: -5, scale: 1.15, rotate: [0, -10, 10, 0] } : { y: 0, scale: 1, rotate: 0 }}
                         transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : SPRING}
                       >
                         {coinFace(g, i, isPicked)}

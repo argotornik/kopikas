@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
 import { PaintedCoin, PaintedMini } from "@/components/painted";
-import { ConfettiBurst, alwaysTakes, eur, label, lastTimeOf, looseCoins, monthOf, wrapperOf, type BurstMark } from "@/components/coin-stage";
+import { ConfettiBurst, alwaysOffer, alwaysTakes, eur, label, lastTimeOf, looseCoins, monthOf, wrapperOf, type BurstMark } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 import { cn, shareLabel } from "@/lib/utils";
 
@@ -255,11 +255,11 @@ export function CoinQueue({
           Always
         </button>
       </div>
-      {always && (
-        <p aria-hidden className={cn("px-1 pt-1.5 text-[12px]", MUTED)}>
-          {alwaysTakes(1, alikeTxs)}
-        </p>
-      )}
+      {/* What it takes, or while it's off what switching on would take: the line stays, so turning
+          the switch on never moves the tiles under a thumb. */}
+      <p aria-hidden className={cn("px-1 pt-1.5 text-[12px]", MUTED)}>
+        {always ? alwaysTakes(1, alikeTxs) : alwaysOffer(alwaysTakes(1, alikeTxs))}
+      </p>
       {last && lastIndex >= 0 && (
         // Last time's category first, across the grid; the grid keeps its places under it.
         <button
