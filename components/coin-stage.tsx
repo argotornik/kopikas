@@ -579,20 +579,21 @@ export function CoinStage({
         {shareLabel(t.partnerShare)}
       </span>
     );
-  const pileScale = 0.8;
-  const pileCoin = 40;
-  const coinFace = (g: BoardTx[], i: number, isPicked: boolean) => (
+  // The desktop pile leads the head while coins wait: its coins are 56px, the phone row's 40px.
+  const pileScale = 1.12;
+  const pileCoin = 56;
+  const coinFace = (g: BoardTx[], i: number, isPicked: boolean, size: number) => (
     <>
       {g
         .slice(1, 3)
         .map((t, k) => (
-          <span key={t.id} aria-hidden className="absolute left-0" style={{ top: -6 * (k + 1) }}>
-            <PaintedCoin size={pileCoin} metal={PILE_METALS[(i + k + 1) % PILE_METALS.length]} mood="puzzled" seed={i + k + 5} />
+          <span key={t.id} aria-hidden className="absolute left-0" style={{ top: -Math.round(size * 0.15) * (k + 1) }}>
+            <PaintedCoin size={size} metal={PILE_METALS[(i + k + 1) % PILE_METALS.length]} mood="puzzled" seed={i + k + 5} />
           </span>
         ))
         .reverse()}
       <span className="relative block">
-        <PaintedCoin size={pileCoin} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "puzzled"} seed={i + 2} />
+        <PaintedCoin size={size} metal={PILE_METALS[i % PILE_METALS.length]} mood={isPicked ? "glad" : "puzzled"} seed={i + 2} />
       </span>
       {g.length > 1 ? (
         <span
@@ -612,7 +613,7 @@ export function CoinStage({
       ? `${g[0].name}, ${g.length} charges, ${eur.format(g.reduce((sum, t) => sum - t.amount, 0))}. Pick up to file them all`
       : `${g[0].name}, ${eur.format(Math.abs(g[0].amount))}, ${shortDate.format(new Date(g[0].date + "T00:00:00Z"))}${splitNote(g[0])}. Pick up to file`;
   const pileBox = (
-    <div className="relative size-[120px]" role="group" aria-label={`Loose change: ${loose.length} to file`}>
+    <div className="relative size-[168px]" role="group" aria-label={`Loose change: ${loose.length} to file`}>
       {piles.slice(0, PILE.length).map((g, i) => {
         const t = g[0];
         const spot = PILE[i];
@@ -642,7 +643,7 @@ export function CoinStage({
             transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : reduce ? { duration: 0 } : { ...SPRING, delay: 0.2 + i * 0.05 }}
             whileHover={{ y: isPicked ? -18 : -4 }}
           >
-            {coinFace(g, i, isPicked)}
+            {coinFace(g, i, isPicked, pileCoin)}
           </motion.button>
         );
       })}
@@ -653,26 +654,37 @@ export function CoinStage({
           </motion.div>
         </div>
       )}
-      {celebrating && !reduce && <ConfettiBurst marks={PILE_BURST} origin={[60, 102]} colours={partyColours} />}
+      {celebrating && !reduce && <ConfettiBurst marks={PILE_BURST} origin={[84, 150]} colours={partyColours} />}
     </div>
   );
-  const elsewhereNote = elsewhereMonth && (
-    <div className={cn("text-[13px]", MUTED)}>
-      <div>
-        {elsewhere.length} in {oneMonth ? label(elsewhereMonth) : "other months"}
+  // Coins on show, a stack counting all its charges: the pile shows `shown` stacks at most.
+  const onShow = (shown: number) => piles.slice(0, shown).reduce((n, g) => n + g.length, 0);
+  // Under the count: how the backlog splits, this month's (and how many of them the pile shows)
+  // and the rest, with the way to the newest month of the rest.
+  const backlogNote = (shown: number) => {
+    const here = loose.length > 0 && (elsewhere.length > 0 || loose.length > onShow(shown));
+    if (!here && !elsewhereMonth) return null;
+    return (
+      <div className={cn("text-[13px]", MUTED)}>
+        <div>
+          {here && `${loose.length} in ${label(month)}${loose.length > onShow(shown) ? `, ${onShow(shown)} shown` : ""}${elsewhere.length > 0 ? " · " : ""}`}
+          {elsewhereMonth && `${elsewhere.length} in ${oneMonth ? label(elsewhereMonth) : "other months"}`}
+        </div>
+        {elsewhereMonth && (
+          <button
+            type="button"
+            onClick={() => onMonthChange(elsewhereMonth)}
+            className={cn("relative underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3.5 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
+          >
+            {oneMonth ? "Go there" : `Go to ${label(elsewhereMonth)}`}
+          </button>
+        )}
       </div>
-      <button
-        type="button"
-        onClick={() => onMonthChange(elsewhereMonth)}
-        className={cn("relative underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3.5 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
-      >
-        {oneMonth ? "Go there" : `Go to ${label(elsewhereMonth)}`}
-      </button>
-    </div>
-  );
+    );
+  };
   // The label and the hint each sit in the slot of what they replace, the slot as tall as the taller
   // of the two, so the pile's block never changes height and the floor never moves under the pointer.
-  // Under the pile, whose column is only 120px, the label may be wider than it: centred while it
+  // Under the pile, whose column is only 168px, the label may be wider than it: centred while it
   // fits the column plus the panel's padding either side, else held at the padding's right edge and
   // grown leftwards into the air, never clipped (right-to-left with "safe" centring does that).
   const countSlot = (count: ReactNode, under: boolean) => (
@@ -688,24 +700,22 @@ export function CoinStage({
       )}
     </div>
   );
-  // What the count says: how many wait, or, the month sorted, that it is, in Ink.
-  const countText = (shown: number) => {
-    // Coins on show, a stack counting all its charges.
-    const onShow = piles.slice(0, shown).reduce((n, g) => n + g.length, 0);
-    return loose.length > 0 ? (
-      `${loose.length} to file${loose.length > onShow ? ` · ${onShow} shown` : ""}`
+  // What the count says: while coins wait, how many wait in every month, in Ink Fredoka, the call to
+  // action (the note under it splits them); the month sorted, that it is, in Ink.
+  const countText = () =>
+    loose.length > 0 ? (
+      <span className={cn(DISPLAY, "text-[22px] font-semibold leading-none text-ink dark:text-chalk")}>{loose.length + elsewhere.length} to file</span>
     ) : sorted ? (
       <span className="font-medium text-ink dark:text-chalk">All sorted for {label(month)}</span>
     ) : (
       "nothing to file"
     );
-  };
   // Under the pile it grows leftwards like the count's slot, so the switch never leaves the panel;
   // on the phone it wraps instead, and the slot keeps room for the hint's line and two of what
   // Always takes, so picking a coin or switching Always on never moves the rolls under a thumb.
   const hintSlot = (hint: string, under: boolean) => (
     <div className={cn("grid min-h-[30px] grid-cols-1", under ? "-mx-7 [direction:rtl] [justify-items:safe_center]" : "min-h-[70px] justify-items-start")}>
-      <div className={cn("col-start-1 row-start-1 [direction:ltr]", pickedTx && "invisible")}>{elsewhereNote}</div>
+      <div className={cn("col-start-1 row-start-1 [direction:ltr]", pickedTx && "invisible")}>{backlogNote(under ? PILE.length : 6)}</div>
       {pickedTx && (
         <div className={cn("relative col-start-1 row-start-1 flex items-center gap-x-3 gap-y-1 text-[13px] text-ink [direction:ltr] dark:text-chalk", under ? "w-max" : "flex-wrap")}>
           <span aria-hidden>{hint}</span>
@@ -741,7 +751,7 @@ export function CoinStage({
   const pileLabel = (
     <div className="mt-3 text-center">
       <div className={cn(DISPLAY, "text-[16px] font-semibold")}>Loose change</div>
-      {countSlot(countText(PILE.length), true)}
+      {countSlot(countText(), true)}
       {hintSlot(typedHint ?? "Pick its roll, or type its name", true)}
     </div>
   );
@@ -919,7 +929,7 @@ export function CoinStage({
     const a = src.getBoundingClientRect();
     const b = target.getBoundingClientRect();
     // The coin flies over the page, outside the stage, so it takes the stage's zoom itself.
-    const size = 40 * (parseFloat(getComputedStyle(target.closest("section") ?? target).zoom) || 1);
+    const size = (from || narrow ? 40 : pileCoin) * (parseFloat(getComputedStyle(target.closest("section") ?? target).zoom) || 1);
     setFlight({
       tx,
       to,
@@ -1034,7 +1044,7 @@ export function CoinStage({
                     <div className="mt-3 text-center">{jar.caption}</div>
                   </div>
                 )}
-                <div className="relative flex w-[120px] flex-col items-center">
+                <div className="relative flex w-[168px] flex-col items-center">
                   {AIR.map((f, i) => (
                     <Floater key={i} f={f} />
                   ))}
@@ -1083,7 +1093,7 @@ export function CoinStage({
                         animate={isPicked ? { y: -5, scale: 1.15, rotate: [0, -10, 10, 0] } : { y: 0, scale: 1, rotate: 0 }}
                         transition={isPicked ? { ...SPRING, rotate: { duration: 0.5 } } : SPRING}
                       >
-                        {coinFace(g, i, isPicked)}
+                        {coinFace(g, i, isPicked, 40)}
                       </motion.button>
                     );
                   })
@@ -1094,7 +1104,7 @@ export function CoinStage({
             {/* The count (a picked coin's label in its place) and the hint, under the coins: there they
                 have the panel's width, not what the coins leave beside them. */}
             <div className="-mt-2">
-              {countSlot(countText(6), false)}
+              {countSlot(countText(), false)}
               {hintSlot(typedHint ?? "Tap its roll below", false)}
             </div>
             <div className="h-px bg-ink/10 dark:bg-white/10" aria-hidden />
