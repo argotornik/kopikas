@@ -72,8 +72,11 @@ export function CoinBoard({
   const [board, setBoard] = useState(initial);
   const [month, setMonth] = useState(() => {
     if (view?.month && /^\d{4}-(0[1-9]|1[0-2])$/.test(view.month) && view.month <= initial.month) return view.month;
-    // The backlog opens on the newest month that still has loose coins.
-    const newest = view?.cat === "To file" ? looseCoins(initial.txs, null)[0] : undefined;
+    // The backlog opens on the newest month that still has loose coins, and so does the board itself
+    // while this month has none of its own: filing is the task, and this month is a step away. A view
+    // the address asks for (a category, a search) keeps this month.
+    const waitingElsewhere = !view?.cat && !view?.q && looseCoins(initial.txs, initial.month).length === 0;
+    const newest = view?.cat === "To file" || waitingElsewhere ? looseCoins(initial.txs, null)[0] : undefined;
     return newest ? monthOf(newest.date) : initial.month;
   });
   // The phone has two tabs: To file, the backlog one coin at a time, and Month, the tray
