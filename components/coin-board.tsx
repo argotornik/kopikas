@@ -10,7 +10,7 @@ import { announce, announceError, announceUndoable } from "@/components/toaster"
 import { PaintedCoin } from "@/components/painted";
 import { CoinStage, eur, label, looseCoins, monthOf, rollOnScreen, shortDate, usuallyOf, type CoinStageHandle } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, OAT, PAGE, PANEL } from "@/components/coin-look";
-import { CoinLedger, FileChip } from "@/components/coin-ledger";
+import { CoinLedger, FileChip, followChip } from "@/components/coin-ledger";
 import { CoinQueue, type Said } from "@/components/coin-queue";
 import { CoinSubscriptions } from "@/components/coin-subscriptions";
 import { CoinYear } from "@/components/coin-year";
@@ -32,7 +32,8 @@ const TO_FILE = "to-file";
 // A skip link: hidden until Tab reaches it, then an Ink pill top left.
 const SKIP = cn("sr-only rounded-full bg-ink text-[15px] font-medium text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:px-4 focus:py-3 dark:bg-chalk dark:text-ink", FOCUS);
 // Notices sit above the phone's tab bar. The editors' new look is `.coins-panel`, in globals.css.
-const PANEL_CSS = `@media (max-width: 639px) { :root { --bottom-bar: 4.5rem; } }`;
+// On a phone the inbox bar sits over the page's foot: a control that takes focus scrolls clear of it.
+const PANEL_CSS = `@media (max-width: 639px) { :root { --bottom-bar: 4.5rem; scroll-padding-bottom: var(--bottom-bar); } }`;
 // A row starts to drag only once the mouse has moved, so a click stays a click.
 const MOUSE_DRAG = { activationConstraint: { distance: 5 } };
 
@@ -231,10 +232,16 @@ export function CoinBoard({
     retry();
   };
 
-  // A Try again files through the stage, as a first try does: the coin flies from the pile, the roll
-  // gulps and a month it sorts is cheered. From the phone's queue (`say`), the queue files it itself.
-  const refile = (txs: BoardTx[], category: string, always: boolean, say?: (s: Said) => void) => {
-    if (!say && stage.current?.file(txs[0], category, null, always, txs.length > 1 ? txs : undefined)) return;
+  // A Try again files through the stage, as a first try does: the coin flies, the roll gulps and a
+  // month it sorts is cheered. A filing made from the list (`fromList`: focus was there when it
+  // failed) flies from its row, and focus goes back to its chip there, on to the chip that takes its
+  // place if the row leaves the list, never to the stage. From the phone's queue (`say`), the queue
+  // files it itself.
+  const refile = (txs: BoardTx[], category: string, always: boolean, say?: (s: Said) => void, fromList = false) => {
+    const chip = fromList ? followChip(txs.length > 1 ? `shop:${txs[0].rulePattern}` : txs[0].id, txs.map((t) => t.id), category) : null;
+    chip?.focus();
+    const from = chip ? (chip.closest("[data-row]") ?? chip) : null;
+    if (!say && stage.current?.file(txs[0], category, from, always, txs.length > 1 ? txs : undefined)) return;
     void (txs.length > 1 ? onFileMany(txs, category, always) : onFile(txs[0], category, always, say));
   };
 
@@ -263,10 +270,11 @@ export function CoinBoard({
     const saving = run(subscription ? { type: "subscribe", txId: tx.id } : { type: "override", txId: tx.id, category, ...(wide && { always: true }) });
     void saving.then((r) => {
       if (!r.ok) {
+        const fromList = !!document.activeElement?.closest("#charges");
         putBack(before, (tx.category ? 0 : 1) + alike.size);
         announceError(
           `${subscription ? `Couldn't track ${tx.name} as a subscription.` : `Couldn't file ${alike.size ? `${alike.size + 1} from ` : ""}${tx.name} under ${category}.`} ${r.error}`,
-          retryUnlessChanged(before, () => refile([tx], category, always, say))
+          retryUnlessChanged(before, () => refile([tx], category, always, say, fromList))
         );
         return;
       }
@@ -305,8 +313,9 @@ export function CoinBoard({
     const saving = run({ type: "override-many", txIds: [...ids], category });
     void saving.then((r) => {
       if (!r.ok) {
+        const fromList = !!document.activeElement?.closest("#charges");
         putBack(before, txs.filter((t) => !t.category).length);
-        announceError(`Couldn't file ${txs.length} from ${txs[0].name} under ${category}. ${r.error}`, retryUnlessChanged(before, () => refile(txs, category, always)));
+        announceError(`Couldn't file ${txs.length} from ${txs[0].name} under ${category}. ${r.error}`, retryUnlessChanged(before, () => refile(txs, category, always, undefined, fromList)));
         return;
       }
       announceUndoable(`Filed ${txs.length} from ${txs[0].name} under ${category}.`, r.undo, refetch, {

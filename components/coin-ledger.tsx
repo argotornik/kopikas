@@ -26,6 +26,16 @@ const day = (d: string) => dayMonth.format(new Date(d + "T00:00:00Z"));
 const fileMenu = Menu.createHandle<string>();
 // The list's File chips, in order (the To file card's are its own).
 const fileChips = () => [...document.querySelectorAll<HTMLElement>("[data-file]")].filter((el) => el.getBoundingClientRect().width > 0);
+// The list's chip a filing came from (`file`: its data-file), followed in case its row leaves the
+// list: set by the File menu, and by a Try again of a filing made from the list (coin-board.tsx).
+let left: { chip: HTMLElement; i: number; ids: string[]; category: string } | null = null;
+export const followChip = (file: string, ids: string[], category: string) => {
+  const chips = fileChips();
+  const i = chips.findIndex((el) => el.dataset.file === file);
+  if (i < 0) return null;
+  left = { chip: chips[i], i, ids, category };
+  return chips[i];
+};
 const CHIP = "relative inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-medium pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-2.5 pointer-coarse:after:absolute pointer-coarse:after:content-['']";
 // The board's menus: a white card of rows, as here and on Subscriptions. As tall as the window
 // allows, so the File menu's thirteen categories only scroll on a short screen.
@@ -337,15 +347,14 @@ function FileMenu({
   // A filing can take its row out of the list (a loose charge in To file, one moved out of the
   // roll the list shows) while its chip has focus: focus goes on to the chip that took its
   // place, or to the list once nothing is left in it. A row still listed keeps it.
-  const left = useRef<{ chip: HTMLElement; i: number; ids: string[]; category: string } | null>(null);
   useEffect(() => {
-    const was = left.current;
+    const was = left;
     if (!was) return;
     if (was.chip.isConnected) {
-      if (txs.some((t) => was.ids.includes(t.id) && t.category === was.category)) left.current = null;
+      if (txs.some((t) => was.ids.includes(t.id) && t.category === was.category)) left = null;
       return;
     }
-    left.current = null;
+    left = null;
     if (document.activeElement && document.activeElement !== document.body) return;
     const chips = fileChips();
     (chips[Math.min(was.i, chips.length - 1)] ?? document.getElementById("charges"))?.focus();
@@ -461,11 +470,7 @@ function FileMenu({
         // The row the coin hops from: the card's, or the list's.
         const rowOf = (t: BoardTx) => document.querySelector(card ? `[data-queue="${t.id}"]` : `[data-row="${t.id}"]`);
         // The list's chip that opened the menu, followed in case its row leaves the list.
-        const follow = (ids: string[], category: string) => {
-          const chips = fileChips();
-          const i = chips.findIndex((el) => el.dataset.file === payload);
-          if (i >= 0) left.current = { chip: chips[i], i, ids, category };
-        };
+        const follow = (ids: string[], category: string) => void followChip(payload!, ids, category);
         const pickShop = (v: string) => {
           if (!shop) return;
           follow(shop.txs.map((t) => t.id), v);

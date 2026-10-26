@@ -285,7 +285,7 @@ export function CoinQueue({
                 {c.name !== SAVINGS && <span className={cn("block text-[12px] tabular-nums", MUTED)}>{eur.format(total)}</span>}
               </span>
               {c.name === last && (
-                <span aria-hidden className="absolute -top-2 right-2.5 whitespace-nowrap rounded-full bg-ink px-1.5 text-[11px] font-medium leading-[16px] text-white dark:bg-chalk dark:text-ink">
+                <span aria-hidden className="absolute -top-2 right-2.5 whitespace-nowrap rounded-full bg-ink px-1.5 text-[12px] font-medium leading-[16px] text-white dark:bg-chalk dark:text-ink">
                   Last time
                 </span>
               )}
