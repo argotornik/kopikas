@@ -98,11 +98,16 @@ function tidy(raw: string): string {
 // Who the merchant is, from the counterparty and, when the counterparty is
 // just a merchant id ("3902611"), from the statement description that names
 // the place. Returns a favicon domain (or null) and a statement-legible name.
+// A counterparty that tidies to no letter or digit (blank, "-", only a card
+// tail) is named from the statement text instead, as the bank import does, or "Unknown".
 export function identifyMerchant(counterparty: string, description = ""): { domain: string | null; name: string } {
   const hit = known(counterparty) ?? (!/\p{L}/u.test(counterparty) ? known(description) : undefined);
   if (hit) return { domain: hit[1], name: hit[2] };
   const m = counterparty.toLowerCase().match(DOMAIN_TOKEN);
-  return { domain: m ? m[1] : null, name: tidy(counterparty) };
+  const own = tidy(counterparty);
+  const card = merchantFromDescription(description);
+  const name = (/[\p{L}\p{N}]/u.test(own) ? own : "") || (card ? tidy(card) : description.trim().slice(0, 60)) || "Unknown";
+  return { domain: m ? m[1] : null, name };
 }
 
 // Who the merchant is on this board: the owner's own identity when one of

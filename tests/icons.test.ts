@@ -10,6 +10,14 @@ test("identifyMerchant: known merchants by token, id-only counterparties by desc
   assert.equal(identifyMerchant("someshop.ee tallinn").domain, "someshop.ee");
 });
 
+test("identifyMerchant: a counterparty that tidies to nothing is named from the statement text, or Unknown", () => {
+  assert.equal(identifyMerchant("", "Makse 09.09.2026").name, "Makse 09.09.2026");
+  assert.equal(identifyMerchant("(..3696)", "Turult ostetud õunad").name, "Turult ostetud õunad");
+  assert.equal(identifyMerchant("-", "Turult").name, "Turult");
+  assert.equal(identifyMerchant("  ", "(..3696) 2026-08-30 17:39 PESUMAJA PUHAS \\TALLINN").name, "Pesumaja Puhas");
+  assert.equal(identifyMerchant("").name, "Unknown");
+});
+
 test("displayName tidies shouting strings and keeps names someone already wrote", () => {
   assert.equal(displayName("SOLARISE TOIDUPOOD OÜ"), "Solarise Toidupood OÜ");
   assert.equal(displayName("MON*Natty"), "MON*Natty");
