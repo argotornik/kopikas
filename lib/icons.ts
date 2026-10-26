@@ -60,19 +60,25 @@ function known(s: string) {
 // counterparty names at 60 characters, so the closing paren may be missing.
 const TRAILING_REFERENCE = /\s*\([^()]*\d[^()]*\)?\s*$/;
 
+// Shorter than this, a pattern names no one merchant: matching is a substring
+// test, so "" matches every charge and "as" most Estonian ones.
+const MIN_PATTERN = 3;
+
 // What a rule should match on when this transaction is filed with "always".
 // Known merchants use their match token, which by construction sits in the
 // bank string; anything else is the counterparty with the per-charge noise
 // (card-payment prefix, billing period, trailing reference) cut off. Each
 // candidate is checked against the transaction itself, so a rule is never
-// taught that would not even match the charge it came from.
+// taught that would not even match the charge it came from. A charge with
+// nothing that long to match on (a blank counterparty) gets "": there is
+// nothing to teach, and every caller takes "" to mean so.
 export function rulePattern(tx: Tx): string {
   const idOnly = !/\p{L}/u.test(tx.counterparty);
   const hit = known(tx.counterparty) ?? (idOnly ? known(tx.description) : undefined);
   const merchant = merchantFromDescription(tx.counterparty) ?? tx.counterparty;
   const trimmed = stripPeriod(merchant.replace(/^PAYPAL\s*\*\s*/i, "").replace(TRAILING_REFERENCE, "")).trim();
-  const candidates = [hit?.[0], trimmed.toLowerCase(), merchant.trim().toLowerCase()];
-  return candidates.find((c): c is string => !!c && matches(tx, c)) ?? tx.counterparty.trim().toLowerCase();
+  const candidates = [hit?.[0], trimmed.toLowerCase(), merchant.trim().toLowerCase(), tx.counterparty.trim().toLowerCase()];
+  return candidates.find((c): c is string => !!c && c.length >= MIN_PATTERN && matches(tx, c)) ?? "";
 }
 
 // Bank strings shout: "VIIMSI DELICE ISETEENI", "PAYPAL *PATREON INC M".

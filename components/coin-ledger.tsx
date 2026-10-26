@@ -90,7 +90,11 @@ export function CoinLedger({
   const shown = useInSteps(txs.length, showing);
   if (byShop) {
     const shops = new Map<string, BoardTx[]>();
-    for (const t of txs) shops.set(t.rulePattern, [...(shops.get(t.rulePattern) ?? []), t]);
+    // A charge with no name to match others on (rulePattern "") is a shop of its own.
+    for (const t of txs) {
+      const key = t.rulePattern || t.id;
+      shops.set(key, [...(shops.get(key) ?? []), t]);
+    }
     const list: Shop[] = [...shops]
       .map(([key, group]) => ({ key, txs: group, total: group.reduce((sum, t) => sum - t.amount, 0) }))
       .sort((a, b) => b.txs.length - a.txs.length || b.total - a.total);
@@ -277,15 +281,17 @@ function Row({
       )}
     >
       {/* The icon is the handle for the merchant's name and icon. Its click must not start a drag;
-          the keyboard reaches the same editor through the File menu, so only money in keeps a tab stop here. */}
+          the keyboard reaches the same editor through the File menu, so only money in keeps a tab stop here.
+          A charge with no pattern to give an identity can't have one, so its icon is only an icon. */}
       <button
         type="button"
+        disabled={!t.merchantPattern}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={() => onEditMerchant(t)}
         tabIndex={t.amount < 0 ? -1 : undefined}
         aria-label={`Change the name or icon of ${t.name}`}
         title="Change name or icon"
-        className={cn("relative rounded-full hover:ring-2 hover:ring-ink/20 dark:hover:ring-white/25 pointer-coarse:after:-inset-2 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
+        className={cn("relative rounded-full hover:ring-2 hover:ring-ink/20 disabled:pointer-events-none dark:hover:ring-white/25 pointer-coarse:after:-inset-2 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
       >
         <MerchantIcon name={t.name} domain={t.domain} emoji={t.emoji} />
       </button>
@@ -549,7 +555,7 @@ function FileMenu({
                       <span className="ml-auto shrink-0 tabular-nums">{eur.format(Math.abs(tx.amount))}</span>
                     </Menu.GroupLabel>
                     {findField(pickTx, target)}
-                    {!tx.category && (
+                    {!tx.category && !!tx.rulePattern && (
                       <>
                         <AlwaysItem checked={on} onChange={setAlways} takes={alwaysTakes(1, alike)} />
                         <Menu.Separator className={MENU_SEPARATOR} />
@@ -608,7 +614,7 @@ function FileMenu({
                     </Menu.SubmenuRoot>
                   </>
                 )}
-                {tx && (
+                {tx?.merchantPattern && (
                   <>
                     <Menu.Separator className={MENU_SEPARATOR} />
                     <Menu.Item className={MENU_ITEM} onClick={() => onEditMerchant(tx)}>

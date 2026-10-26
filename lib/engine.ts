@@ -25,9 +25,10 @@ export const DEFAULT_CATEGORIES = [
 
 const norm = (s: string) => s.toLowerCase();
 
+// An empty pattern names no one, so it matches nothing rather than every charge.
 export function matches(tx: Pick<Tx, "counterparty" | "description">, pattern: string): boolean {
   const hay = norm(tx.counterparty + " " + tx.description);
-  return hay.includes(norm(pattern));
+  return !!pattern && hay.includes(norm(pattern));
 }
 
 // Precedence: override > newest matching rule > null.

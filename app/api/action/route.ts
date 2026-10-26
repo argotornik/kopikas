@@ -80,6 +80,7 @@ export async function POST(req: Request) {
     case "rule": {
       const tx = db.transactions.find((t) => t.id === action.txId);
       if (!tx || !action.category) return bad("txId and category required");
+      if (!rulePattern(tx)) return bad("This charge's name is too short to match others on, so Always can't be taught.");
       const ruleId = await teachRule(db, tx, action.category, now);
       if (ruleId) undo = { type: "unrule", ruleId };
       break;
@@ -174,10 +175,11 @@ export async function POST(req: Request) {
         existing.partnerShare = fraction;
         await writeCollection("shares", db.shares);
       }
-      if (action.always) {
-        // From now on: every new charge matching this merchant lands on
-        // Pooleks at this split. Teaching again with another split updates it.
-        const match = rulePattern(tx);
+      // From now on: every new charge matching this merchant lands on
+      // Pooleks at this split. Teaching again with another split updates it.
+      // A charge with nothing to match on is split by itself and teaches nothing.
+      const match = action.always ? rulePattern(tx) : "";
+      if (match) {
         const rule = db.shareRules.find((r) => r.match === match);
         if (rule) rule.partnerShare = fraction;
         else {
@@ -260,6 +262,8 @@ export async function POST(req: Request) {
       if (!tx) return bad("unknown tx");
       const cleanName = merchantOf(tx, db.merchants).name;
       const match = rulePattern(tx);
+      // A subscription and its rule are their pattern: without one they would claim every charge.
+      if (!match) return bad("This charge's name is too short to track as a subscription. File it under another roll.");
       // Aggregators bill many subscriptions under one merchant string —
       // amount-match those so each stays a distinct record.
       const raw = tx.counterparty.toLowerCase();
@@ -444,6 +448,8 @@ export async function POST(req: Request) {
       const fields = { name, domain: domain || undefined, emoji: emoji || undefined };
       const existing = db.merchants.findLast(scope.covers);
       if (existing) Object.assign(existing, fields);
+      // A new identity without a pattern would rename every charge.
+      else if (!scope.pattern) return bad("This charge's name is too short to match others on, so it can't have a name or icon of its own.");
       else db.merchants.push({ id: newId("mer"), match: scope.pattern, ...fields, createdAt: now });
       await writeCollection("merchants", db.merchants);
       break;
@@ -529,10 +535,11 @@ function categoryName(raw: unknown): string | null {
 // "Always": a rule that files every charge like this one under `category`.
 // The pattern comes from the transaction, never from the client: the merchant
 // token for known merchants, the counterparty minus per-charge noise otherwise
-// (see rulePattern). Returns the new rule's id, or nothing when it already exists.
+// (see rulePattern). Returns the new rule's id, or nothing when it already
+// exists or the charge has nothing to match on.
 async function teachRule(db: Db, tx: Tx, category: string, now: string): Promise<string | undefined> {
   const match = rulePattern(tx);
-  if (db.rules.some((r) => r.match === match && r.category === category)) return undefined;
+  if (!match || db.rules.some((r) => r.match === match && r.category === category)) return undefined;
   const id = newId("rule");
   db.rules.push({ id, match, category, createdAt: now });
   await writeCollection("rules", db.rules);

@@ -231,9 +231,11 @@ export function CoinQueue({
       </div>
       <div className="mt-5 flex items-center justify-between gap-2 px-1">
         <p className="text-[15px] font-medium">Where do I go?</p>
-        {/* Set before the tap, beside the choices it changes: file the whole shop and teach the rule. */}
+        {/* Set before the tap, beside the choices it changes: file the whole shop and teach the rule.
+            A coin with no name to match others on has nothing to teach, so it has no switch. */}
         <button
           type="button"
+          hidden={!tx.rulePattern}
           aria-pressed={always}
           onClick={() => setAlwaysFor(always ? null : tx.id)}
           aria-label={`Always: ${alwaysTakes(1, alikeTxs)}`}
@@ -256,9 +258,11 @@ export function CoinQueue({
         {said ? (
           <div className={cn("text-[13px]", MUTED)}>{saidLine(said)}</div>
         ) : (
-          <p aria-hidden className={cn("text-[12px] text-pretty", MUTED)}>
-            {always ? alwaysTakes(1, alikeTxs) : alwaysOffer(alwaysTakes(1, alikeTxs))}
-          </p>
+          !!tx.rulePattern && (
+            <p aria-hidden className={cn("text-[12px] text-pretty", MUTED)}>
+              {always ? alwaysTakes(1, alikeTxs) : alwaysOffer(alwaysTakes(1, alikeTxs))}
+            </p>
+          )
         )}
       </div>
       <div role="group" aria-label={`Categories for ${tx.name}`} className="mt-2 grid grid-cols-2 gap-2">

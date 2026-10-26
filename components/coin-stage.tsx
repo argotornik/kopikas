@@ -228,6 +228,10 @@ export const looseCoins = (txs: BoardTx[], month: string | null) =>
     .filter((t) => t.amount < 0 && !t.category && !t.micro && (month === null || monthOf(t.date) === month))
     .sort((a, b) => b.date.localeCompare(a.date));
 
+// Whether two charges are from one shop. A charge whose name is too short to match others on
+// (rulePattern "") is a shop of its own.
+const sameShop = (a: BoardTx, b: BoardTx) => !!a.rulePattern && a.rulePattern === b.rulePattern;
+
 // Where a shop's charges went last time: the category of its most recent filing, so a backlog
 // filed out of order follows what was just decided; filings from before their times were kept
 // count as older, and among them the latest charge wins. Null for a shop never filed, which gets
@@ -236,7 +240,7 @@ export const lastTimeOf = (txs: BoardTx[], tx: BoardTx) => {
   let latest: BoardTx | null = null;
   const later = (a: BoardTx, b: BoardTx) => ((a.filedAt ?? "") !== (b.filedAt ?? "") ? (a.filedAt ?? "") > (b.filedAt ?? "") : a.date > b.date);
   for (const t of txs)
-    if (t.category && t.amount < 0 && !t.micro && t.id !== tx.id && t.rulePattern === tx.rulePattern && (!latest || later(t, latest))) latest = t;
+    if (t.category && t.amount < 0 && !t.micro && t.id !== tx.id && sameShop(t, tx) && (!latest || later(t, latest))) latest = t;
   return latest?.category ?? null;
 };
 
@@ -246,7 +250,7 @@ export const lastTimeOf = (txs: BoardTx[], tx: BoardTx) => {
 export const usuallyOf = (txs: BoardTx[], tx: BoardTx) => {
   const counts = new Map<string, number>();
   for (const t of txs)
-    if (t.category && t.amount < 0 && !t.micro && t.id !== tx.id && t.rulePattern === tx.rulePattern) counts.set(t.category, (counts.get(t.category) ?? 0) + 1);
+    if (t.category && t.amount < 0 && !t.micro && t.id !== tx.id && sameShop(t, tx)) counts.set(t.category, (counts.get(t.category) ?? 0) + 1);
   const last = lastTimeOf(txs, tx);
   return [...counts]
     .sort(([a, n], [b, m]) => m - n || Number(b === last) - Number(a === last))
@@ -466,7 +470,7 @@ export function CoinStage({
   // This month's coins by shop: one shop's charges stand as one stack, picked by its top coin.
   const piles: BoardTx[][] = [];
   for (const t of loose) {
-    const pile = piles.find((g) => g[0].rulePattern === t.rulePattern);
+    const pile = piles.find((g) => sameShop(g[0], t));
     if (pile) pile.push(t);
     else piles.push([t]);
   }
@@ -735,9 +739,11 @@ export function CoinStage({
       {pickedTx && (
         <div className={cn("relative col-start-1 row-start-1 flex items-center gap-x-3 gap-y-1 text-[13px] text-ink [direction:ltr] dark:text-chalk", under ? "w-max" : "flex-wrap")}>
           <span aria-hidden>{hint}</span>
-          {/* The queue's switch: set before the roll is tapped, it files the shop's every coin and teaches the rule. */}
+          {/* The queue's switch: set before the roll is tapped, it files the shop's every coin and teaches the rule.
+              A coin with no name to match others on has nothing to teach, so it has no switch. */}
           <button
             type="button"
+            hidden={!pickedTx.rulePattern}
             aria-pressed={always}
             onClick={() => setAlways((a) => !a)}
             aria-label={`Always: ${takes}`}
@@ -755,7 +761,7 @@ export function CoinStage({
           {/* What it takes. Under the pile it hangs below the switch while it's on, clear of the slot,
               so the floor never moves; on the phone the line stays, saying while it's off what
               switching on would take, so it never appears under a thumb. */}
-          {(always || !under) && (
+          {!!pickedTx.rulePattern && (always || !under) && (
             <span aria-hidden className={cn("text-[12px]", MUTED, under ? "absolute right-0 top-full mt-1 whitespace-nowrap" : "basis-full text-pretty")}>
               {always ? takes : alwaysOffer(takes)}
             </span>

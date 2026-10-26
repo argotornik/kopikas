@@ -21,6 +21,9 @@ test("matches is a case-insensitive substring over counterparty and description"
   assert.equal(matches(t, "bolt.eu"), true);
   assert.equal(matches(t, "ride"), true);
   assert.equal(matches(t, "wolt"), false);
+  // An empty pattern names no one: it would otherwise file, share or rename every charge.
+  assert.equal(matches(t, ""), false);
+  assert.equal(categoryOf(t, [rule("", "Groceries", "2026-01-01")], []), null);
 });
 
 test("categoryOf: override beats rules, newest rule beats older, nothing gives null", () => {

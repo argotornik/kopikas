@@ -20,7 +20,7 @@ export interface BoardTx {
   amount: number;
   counterparty: string; // raw bank string: rules match on it
   name: string; // statement-legible merchant name
-  rulePattern: string; // what "always" would teach a rule to match on
+  rulePattern: string; // what "always" would teach a rule to match on; "" when nothing can be taught
   description: string;
   // What the second line says. Card payments carry the raw statement string
   // the merchant name was cut from (card tail, timestamp, address) — noise
@@ -28,7 +28,7 @@ export interface BoardTx {
   note: string;
   domain: string | null;
   emoji: string | null; // the owner's stand-in when there is no favicon
-  // The pattern an identity set from this tile applies to; true when one already does.
+  // The pattern an identity set from this tile applies to ("" when none can be); true when one already does.
   merchantPattern: string;
   customMerchant: boolean;
   category: string | null;

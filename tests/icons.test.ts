@@ -25,6 +25,19 @@ test("rulePattern: the merchant token when known, the counterparty minus per-cha
   assert.equal(rulePattern(t), "pesumaja puhas oü");
 });
 
+test("rulePattern: nothing to teach when the name is too short to match others on", () => {
+  // Matching is a substring test: "" would file every charge, "as" most Estonian ones.
+  for (const counterparty of ["", "   ", "-", "as", " AS "]) {
+    assert.equal(rulePattern(tx("2026-09-01", -5, counterparty, "Makse 01.09.2026")), "", JSON.stringify(counterparty));
+  }
+  // A blank counterparty still finds a known merchant in the statement text.
+  assert.equal(rulePattern(tx("2026-09-01", -5, "", "(..3696) 2026-08-30 17:39 SELVER TALLINN \\ESTONIA")), "selver");
+  // Three characters are enough.
+  assert.equal(rulePattern(tx("2026-09-01", -20, "H&M")), "h&m");
+  // A short name with a reference falls back to the longer string, which matches only this charge.
+  assert.equal(rulePattern(tx("2026-09-01", -20, "AB (arve 1234)")), "ab (arve 1234)");
+});
+
 test("subscriptionLabel keeps a chosen name and treats a raw bank string as a merchant", () => {
   assert.equal(subscriptionLabel("Infuse Pro"), "Infuse Pro");
   assert.equal(subscriptionLabel("Kaardi (..3696) kuutasu 06-2026"), "Kaardi kuutasu");

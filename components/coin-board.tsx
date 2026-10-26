@@ -300,9 +300,14 @@ export function CoinBoard({
   // before the tap (the phone queue's toggle), the shop's other loose charges go in too
   // and the rule is taught in the same request, so one Undo takes back all of it. It answers
   // whether the filing saved, so a celebration can wait for that; one that didn't is put back.
+  // A charge whose name is too short to match others on (tx.rulePattern is "") gets neither.
   const onFile = (tx: BoardTx, category: string, always = false, say?: (s: Said) => void): Promise<boolean> => {
     const subscription = category === SUBSCRIPTIONS;
-    const wide = always && !subscription;
+    if (subscription && !tx.rulePattern) {
+      announceError("This charge's name is too short to track as a subscription. File it under another roll.");
+      return Promise.resolve(false);
+    }
+    const wide = always && !subscription && !!tx.rulePattern;
     const alike = new Set(wide ? looseCoins(board.txs, null).filter((t) => t.id !== tx.id && matches(t, tx.rulePattern)).map((t) => t.id) : []);
     const before = board.txs.filter((t) => t.id === tx.id || alike.has(t.id));
     setBoard((b) => ({
@@ -332,17 +337,15 @@ export function CoinBoard({
           ? say({ lead: `Tracking ${tx.name}`, tail: " as a subscription", undo: takeBack(r.undo) })
           : announceUndoable(`Now tracking ${tx.name} as a subscription.`, r.undo, refetch);
       if (wide && say) return say({ lead: alike.size ? `Filed ${alike.size + 1} from ${tx.name}` : `Filed ${tx.name}`, tail: ` under ${category}, always`, undo: takeBack(r.undo) });
-      if (say) return say({ lead: `Filed ${tx.name}`, tail: ` under ${category}`, undo: takeBack(r.undo), also: { label: "Always", onClick: () => void teachAlways(tx, category, say) } });
+      const offer = tx.rulePattern ? { label: "Always", onClick: () => void teachAlways(tx, category, say) } : undefined;
+      if (say) return say({ lead: `Filed ${tx.name}`, tail: ` under ${category}`, undo: takeBack(r.undo), also: offer });
       if (wide)
         return announceUndoable(
           alike.size ? `Filed ${alike.size + 1} from ${tx.name} under ${category}, and every one to come.` : `Filed ${tx.name} under ${category}, and every one to come.`,
           r.undo,
           refetch
         );
-      announceUndoable(`Filed ${tx.name} under ${category}.`, r.undo, refetch, {
-        label: "Always",
-        onClick: () => void teachAlways(tx, category),
-      });
+      announceUndoable(`Filed ${tx.name} under ${category}.`, r.undo, refetch, offer);
     });
     return saving.then((r) => r.ok);
   };
@@ -397,7 +400,7 @@ export function CoinBoard({
         putBack(before);
         return announceError(`Couldn't split ${tx.name} with ${partner}. ${r.error}`, retryUnlessChanged(before, () => onSplit(tx, share, say)));
       }
-      const always = { label: "Always", onClick: () => void splitAlways(tx, share, say) };
+      const always = tx.rulePattern ? { label: "Always", onClick: () => void splitAlways(tx, share, say) } : undefined;
       if (say) return say({ lead: `Split with ${partner}`, tail: `, who pays ${shareLabel(share)}`, undo: takeBack(r.undo), also: always });
       announceUndoable(`Split ${tx.name} with ${partner}, who pays ${shareLabel(share)}.`, r.undo, refetch, always);
     });
