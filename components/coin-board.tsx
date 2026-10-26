@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentProps } from "react";
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentProps } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 import { DndContext, DragOverlay, MouseSensor, pointerWithin, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import type { Board, BoardTx } from "@/lib/board";
@@ -985,7 +985,20 @@ function Charges({
     }, 200);
     return () => clearTimeout(t);
   }, [only, month, query, currentMonth]);
-  const q = useDeferredValue(query).trim().toLowerCase();
+  // The rows follow the search a frame late, in the background, so the typed letter is on screen
+  // first: on a phone, clearing a long list of matches can take longer than a frame.
+  const [settled, setSettled] = useState(query);
+  useEffect(() => {
+    let t = 0;
+    const frame = requestAnimationFrame(() => {
+      t = window.setTimeout(() => startTransition(() => setSettled(query)));
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(t);
+    };
+  }, [query]);
+  const q = settled.trim().toLowerCase();
   const rows = useMemo(() => listRows(txs, only, month, q), [txs, only, month, q]);
   // What the list is showing: its rows draw in two steps each time this changes.
   const listed = [only, q, q || only === TO_FILE ? "" : month].join("|");
