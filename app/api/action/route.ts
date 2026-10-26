@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { Db, Merchant, Tx } from "@/lib/types";
 import { getAccounts, newId, readDb, saveLhvTokens, writeCollection } from "@/lib/storage";
-import { buildBoard } from "@/lib/board";
+import { buildBoard, packBoard } from "@/lib/board";
 import { sharedView } from "@/lib/shared-view";
 import {
   FIXED_CATEGORIES,
@@ -483,7 +483,7 @@ export async function POST(req: Request) {
   let fresh: { board?: unknown; shared?: unknown } = {};
   if (view === "board" && role === "owner") {
     const [after, { accounts }] = await Promise.all([readDb(), getAccounts()]);
-    fresh = { board: buildBoard(after, new Date(), accounts) };
+    fresh = { board: packBoard(buildBoard(after, new Date(), accounts)) };
   } else if (view === "shared" && role) {
     fresh = { shared: sharedView(await readDb(), role) };
   }

@@ -201,3 +201,37 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
 
 export type Board = ReturnType<typeof buildBoard>;
 export { monthKey };
+
+// The board as it travels to the page: a charge leaves out what it would say anyway (no category,
+// not shared, no emoji, an empty note…), and its merchant pattern when that is its rule pattern.
+// At 2,000 charges that is about a third of the data. unpackBoard puts it all back.
+const SAYS_ANYWAY = {
+  note: "",
+  domain: null,
+  emoji: null,
+  customMerchant: false,
+  category: null,
+  categorySource: null,
+  filedAt: null,
+  shared: false,
+  micro: false,
+} satisfies Partial<BoardTx>;
+type PackedTx = Omit<BoardTx, keyof typeof SAYS_ANYWAY | "merchantPattern"> &
+  Partial<Pick<BoardTx, keyof typeof SAYS_ANYWAY | "merchantPattern">>;
+export type PackedBoard = Omit<Board, "txs"> & { txs: PackedTx[] };
+
+export function packBoard(board: Board): PackedBoard {
+  const txs = board.txs.map((t) => {
+    const packed: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(t)) {
+      const anyway = key in SAYS_ANYWAY && SAYS_ANYWAY[key as keyof typeof SAYS_ANYWAY] === value;
+      if (value !== undefined && !anyway && !(key === "merchantPattern" && value === t.rulePattern)) packed[key] = value;
+    }
+    return packed as PackedTx;
+  });
+  return { ...board, txs };
+}
+
+export function unpackBoard(packed: PackedBoard): Board {
+  return { ...packed, txs: packed.txs.map((t) => ({ ...SAYS_ANYWAY, merchantPattern: t.rulePattern, ...t })) };
+}

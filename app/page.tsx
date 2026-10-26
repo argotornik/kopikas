@@ -3,7 +3,7 @@ import { CoinBoard } from "@/components/coin-board";
 import { coinFonts } from "@/components/coin-fonts";
 import { getAccounts, getLhvTokens, readDb } from "@/lib/storage";
 import { FirstRun } from "@/components/first-run";
-import { buildBoard } from "@/lib/board";
+import { buildBoard, packBoard } from "@/lib/board";
 import { currentEmail, ownerConfigured, pageRole } from "@/lib/auth";
 import { PARTNER_NAME } from "@/lib/names";
 import { NotOnBoard, SetupOwner } from "@/components/setup-owner";
@@ -37,7 +37,7 @@ export default async function Home({
     );
   return (
     <CoinBoard
-      initial={buildBoard(db, new Date(), accounts)}
+      initial={packBoard(buildBoard(db, new Date(), accounts))}
       syncedAt={fetchedAt}
       view={view}
       fontClass={coinFonts}

@@ -3,7 +3,7 @@
 import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentProps } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 import { DndContext, DragOverlay, MouseSensor, pointerWithin, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
-import type { Board, BoardTx } from "@/lib/board";
+import { unpackBoard, type Board, type BoardTx, type PackedBoard } from "@/lib/board";
 import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
 import { act, type Undo } from "@/lib/act";
 import { announce, announceError, announceUndoable } from "@/components/toaster";
@@ -98,13 +98,14 @@ function sinceLabel(iso: string | null | undefined): { ago: string; stale: boole
 }
 
 export function CoinBoard({
-  initial,
+  initial: sent,
   syncedAt,
   fontClass,
   partner,
   view,
 }: {
-  initial: Board;
+  // The board as the server sent it, packed (lib/board.ts).
+  initial: PackedBoard;
   syncedAt?: string | null;
   // The view from the address: a month, a category (or Incoming for money in) and a search.
   view?: { cat?: string; month?: string; q?: string };
@@ -112,6 +113,7 @@ export function CoinBoard({
   // Who shared costs are split with; null for a household of one.
   partner: string | null;
 }) {
+  const [initial] = useState(() => unpackBoard(sent));
   const [board, setBoard] = useState(initial);
   const [month, setMonth] = useState(() => {
     if (view?.month && /^\d{4}-(0[1-9]|1[0-2])$/.test(view.month) && view.month <= initial.month) return view.month;
@@ -224,16 +226,16 @@ export function CoinBoard({
     try {
       const res = await fetch("/api/board", { cache: "no-store" });
       if (!res.ok) throw new Error(String(res.status));
-      setBoard(await res.json());
+      setBoard(unpackBoard(await res.json()));
     } catch {
       if (!quiet) announceError("The board couldn't refresh. Reload to see the latest.", () => window.location.reload());
     }
   }, []);
   const run = useCallback(
     async (action: object) => {
-      const result = await act<Board>(action, "board");
+      const result = await act<PackedBoard>(action, "board");
       if (result.ok) {
-        if (result.fresh) setBoard(result.fresh);
+        if (result.fresh) setBoard(unpackBoard(result.fresh));
         else await refetch();
       }
       return result;
