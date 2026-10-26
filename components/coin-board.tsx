@@ -10,7 +10,7 @@ import { announce, announceError, announceUndoable } from "@/components/toaster"
 import { PaintedCoin } from "@/components/painted";
 import { CoinStage, eur, label, looseCoins, monthOf, rollOnScreen, shortDate, usuallyOf, type CoinStageHandle } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, OAT, PAGE, PANEL } from "@/components/coin-look";
-import { CoinLedger, FileChip, followChip } from "@/components/coin-ledger";
+import { CoinLedger, FileChip, followChip, useInSteps } from "@/components/coin-ledger";
 import { CoinQueue, type Said } from "@/components/coin-queue";
 import { CoinSubscriptions } from "@/components/coin-subscriptions";
 import { CoinYear } from "@/components/coin-year";
@@ -170,6 +170,7 @@ export function CoinBoard({
   const categories = board.categories;
   // One month at a time, as on the tray; the rest wait in their own months.
   const loose = looseCoins(board.txs, month);
+  const looseShown = useInSteps(loose.length, month);
   const looseElsewhere = looseCoins(board.txs, null).filter((t) => monthOf(t.date) !== month);
   const elsewhereMonth = looseElsewhere.map((t) => monthOf(t.date)).sort().at(-1);
 
@@ -496,6 +497,8 @@ export function CoinBoard({
         (!q || [t.name, t.counterparty, t.description, t.note, t.category].join(" ").toLowerCase().includes(q))
     )
     .sort((a, b) => b.date.localeCompare(a.date));
+  // What the list is showing: its rows draw in two steps each time this changes.
+  const listed = [only, q, q || only === TO_FILE ? "" : month].join("|");
   const out = rows.filter((t) => t.amount < 0 && !t.micro);
   const spent = out.reduce((s, t) => s - t.amount, 0);
   const received = rows.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
@@ -746,7 +749,7 @@ export function CoinBoard({
                 <p className={cn("pt-3 text-[15px]", MUTED)}>Nothing loose in {label(month)}.</p>
               ) : (
                 <ul className="mt-3 flex flex-col gap-2">
-                  {loose.map((t, i) => (
+                  {loose.slice(0, looseShown).map((t, i) => (
                     <li key={t.id} data-queue={t.id} className="rounded-2xl bg-white p-3 dark:bg-card-night">
                       <div className="flex items-center gap-3">
                         <MerchantIcon name={t.name} domain={t.domain} emoji={t.emoji} />
@@ -858,6 +861,7 @@ export function CoinBoard({
                 categories={categories}
                 backlog={backlog}
                 byShop={only === TO_FILE}
+                list={listed}
                 usually={(tx) => usuallyOf(board.txs, tx)}
                 onFile={(tx, category, from, always) =>
                   inItsMonth(monthOf(tx.date), () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useId, useRef, useState, type Ref } from "react";
+import { Fragment, startTransition, useEffect, useId, useRef, useState, type Ref } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { Menu } from "@base-ui/react/menu";
 import { CheckIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
@@ -64,15 +64,30 @@ type Actions = {
 
 type Shop = { key: string; txs: BoardTx[]; total: number };
 
+// A long list draws its first rows at once and the rest just after, in the background, so a busy
+// month or a search through every month paints in a frame or two, and typing on cancels the rest.
+// `list` names what is showing: the rows start over when it changes, not when one is filed away.
+const FIRST = 50;
+export function useInSteps(count: number, list: string) {
+  // The list whose rows are all drawn.
+  const [all, setAll] = useState<string | null>(null);
+  useEffect(() => {
+    if (all !== list && count > FIRST) startTransition(() => setAll(list));
+  }, [all, list, count]);
+  return all === list ? count : Math.min(count, FIRST);
+}
+
 export function CoinLedger({
   txs,
   categories,
   backlog,
   byShop = false,
+  list: showing,
   ...actions
-}: { txs: BoardTx[]; categories: Category[]; backlog: BoardTx[]; byShop?: boolean } & Actions) {
+}: { txs: BoardTx[]; categories: Category[]; backlog: BoardTx[]; byShop?: boolean; list: string } & Actions) {
   // The shops whose charges are showing under their row.
   const [open, setOpen] = useState<string[]>([]);
+  const shown = useInSteps(txs.length, showing);
   if (byShop) {
     const shops = new Map<string, BoardTx[]>();
     for (const t of txs) shops.set(t.rulePattern, [...(shops.get(t.rulePattern) ?? []), t]);
@@ -85,7 +100,7 @@ export function CoinLedger({
     return (
       <>
         <ul className="flex flex-col pt-3">
-          {list.map((shop) =>
+          {list.slice(0, shown).map((shop) =>
             shop.txs.length === 1 ? (
               row(shop.txs[0])
             ) : (
@@ -105,7 +120,7 @@ export function CoinLedger({
     );
   }
   const days: { day: string; rows: BoardTx[]; micro: BoardTx[] }[] = [];
-  for (const t of txs) {
+  for (const t of txs.slice(0, shown)) {
     let d = days.at(-1);
     if (d?.day !== t.date) days.push((d = { day: t.date, rows: [], micro: [] }));
     (t.micro ? d.micro : d.rows).push(t);
