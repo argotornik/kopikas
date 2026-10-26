@@ -20,7 +20,7 @@ export function useRollingNumber(value: number | null, duration = 0.6): number {
     }
     const controls = animate(current.current, value, {
       duration,
-      ease: "easeOut",
+      ease: [0.23, 1, 0.32, 1],
       onUpdate: (v) => {
         current.current = v;
         setShown(v);

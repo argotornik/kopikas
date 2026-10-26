@@ -43,7 +43,7 @@ const LINK = cn(
 );
 const pill = (on: boolean) =>
   cn(
-    "h-10 rounded-full px-4 text-[15px] font-medium pointer-coarse:h-11",
+    "h-10 rounded-full px-4 text-[15px] font-medium transition-transform motion-safe:active:scale-[0.96] pointer-coarse:h-11",
     on ? "bg-ink text-white dark:bg-chalk dark:text-ink" : "bg-white hover:bg-mist dark:bg-card-night dark:hover:bg-card-night-hover",
     FOCUS
   );
@@ -717,7 +717,7 @@ export function CoinBoard({
                 <button
                   type="button"
                   onClick={() => setCatsOpen(true)}
-                  className={cn("relative rounded-full px-3.5 py-2 text-[15px] font-medium hover:bg-white dark:hover:bg-card-night pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-1 pointer-coarse:after:content-['']", FOCUS)}
+                  className={cn("relative rounded-full px-3.5 py-2 text-[15px] font-medium transition-transform hover:bg-white motion-safe:active:scale-[0.96] dark:hover:bg-card-night pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-1 pointer-coarse:after:content-['']", FOCUS)}
                 >
                   Edit categories
                 </button>

@@ -116,7 +116,7 @@ function ToastList() {
         "data-expanded:h-[var(--toast-height)] data-expanded:[transform:translateX(var(--toast-swipe-movement-x))_translateY(var(--offset-y))]",
         "data-starting-style:[transform:translateY(120%)] data-ending-style:opacity-0 data-limited:opacity-0 [&[data-ending-style]:not([data-limited]):not([data-swipe-direction])]:[transform:translateY(120%)]",
         "data-ending-style:data-[swipe-direction=down]:[transform:translateY(calc(var(--toast-swipe-movement-y)+120%))] data-ending-style:data-[swipe-direction=left]:[transform:translateX(calc(var(--toast-swipe-movement-x)-120%))_translateY(var(--offset-y))] data-ending-style:data-[swipe-direction=right]:[transform:translateX(calc(var(--toast-swipe-movement-x)+120%))_translateY(var(--offset-y))]",
-        "[transition:transform_0.4s_cubic-bezier(0.22,1,0.36,1),opacity_0.3s,height_0.15s] motion-reduce:[transition:opacity_0.2s]",
+        "[transition:transform_0.4s_cubic-bezier(0.22,1,0.36,1),opacity_0.3s,height_0.15s] data-ending-style:[transition-duration:0.2s] motion-reduce:[transition:opacity_0.2s]",
         "after:absolute after:left-0 after:top-full after:h-[calc(var(--gap)+1px)] after:w-full after:content-['']",
         FOCUS
       )}

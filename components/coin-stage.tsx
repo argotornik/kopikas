@@ -33,6 +33,8 @@ const SPRING = { type: "spring" as const, stiffness: 260, damping: 18 };
 // back on SPRING. With reduced motion the press does nothing; what it does
 // (choosing the roll, filing the coin) shows at once anyway.
 const PRESS = { duration: 0.16, ease: [0.16, 1, 0.3, 1] as const };
+// Where a flying coin is on its hop: how far it has gone, how far it has turned and how big it is.
+const hop = (x: number, y: number, turn: number, size: number) => `translate(${x}px, ${y}px) rotate(${turn}deg) scale(${size})`;
 // Where a default name may break when its roll's column is too narrow for it on one
 // line: a soft hyphen, so the break is the same in every browser. Other names rely on
 // the browser's own hyphenation, and past that break anywhere rather than overflow.
@@ -1282,12 +1284,11 @@ export function CoinStage({
           aria-hidden
           className="pointer-events-none fixed z-50"
           style={{ left: flight.from.x, top: flight.from.y }}
-          initial={{ x: 0, y: 0, rotate: 0, scale: 1 }}
+          // One transform, not x, y, rotate and scale apart, so the flight runs off the main thread
+          // and keeps its frames while the stage redraws around it.
+          initial={{ transform: hop(0, 0, 0, 1) }}
           animate={{
-            x: [0, flight.dx * 0.55, flight.dx],
-            y: [0, Math.min(flight.dy, 0) - 110, flight.dy],
-            rotate: [0, 200, 360],
-            scale: [1, 1.15, 0.75],
+            transform: [hop(0, 0, 0, 1), hop(flight.dx * 0.55, Math.min(flight.dy, 0) - 110, 200, 1.15), hop(flight.dx, flight.dy, 360, 0.75)],
           }}
           transition={{ duration: 0.7, times: [0, 0.45, 1], ease: ["easeOut", "easeIn"] }}
           onAnimationComplete={() => {
