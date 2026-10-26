@@ -204,13 +204,13 @@ export function PaintedKopikas({ pose, ex, ey, reduce }: { pose: PaintedPose; ex
             </Fragment>
           ))
         ) : s.look ? (
-          <g className="goofy-blink" style={{ animationDelay: "-1.4s" }}>
+          <g className="goofy-blink">
             {EYE_DOTS.map((e) => (
               <ellipse key={e.cx} cx={e.cx + s.look![0]} cy={e.cy + s.look![1]} rx={e.rx} ry={e.ry} fill={FACE} />
             ))}
           </g>
         ) : (
-          <g className="goofy-blink" style={{ animationDelay: "-1.4s" }}>
+          <g className="goofy-blink">
             {EYE_DOTS.map((e) => (
               <motion.ellipse key={e.cx} cx={e.cx} cy={e.cy} rx={e.rx} ry={e.ry} fill={FACE} style={{ x: ex, y: ey }} />
             ))}

@@ -115,7 +115,7 @@ function useCrossing(value: MotionValue<number>, line: number, reduce: boolean |
 
 // The two eyes of every painted face, in a 40 by 28 box.
 // Shut with joy, the eyes curve up into arcs, and they don't blink.
-export function PaintedEyes({ ink, blink = 0, joy = false }: { ink: string; blink?: number; joy?: boolean }) {
+export function PaintedEyes({ ink, joy = false }: { ink: string; joy?: boolean }) {
   if (joy)
     return (
       <g fill="none" strokeWidth="2.4" strokeLinecap="round" style={{ stroke: ink }}>
@@ -124,7 +124,7 @@ export function PaintedEyes({ ink, blink = 0, joy = false }: { ink: string; blin
       </g>
     );
   return (
-    <g className="goofy-blink" style={{ animationDelay: `${-blink}s` }}>
+    <g className="goofy-blink">
       <ellipse cx="14" cy="10.4" rx="2.6" ry="3" style={{ fill: ink }} />
       <ellipse cx="26" cy="9.8" rx="2.4" ry="2.8" style={{ fill: ink }} />
     </g>
@@ -144,14 +144,15 @@ export function PaintedSleep({ ink }: { ink: string }) {
 
 // Two dots and a curve in a 40 by 28 box. Glad opens the smile, wow rounds it. Puzzled, a
 // coin still looking for its roll, raises one eye and tilts the curve; `flip` raises the
-// other, so a pile isn't one face repeated. Each eye blinks on its own there, about its own
-// middle, since the blink squashes a group about its centre and these eyes sit apart. The
-// raised eye and the flat curve pull the face up, so it sits 2.4 lower than the smile's
-// marks: its middle then lands where the smile's does, a little above the coin's centre.
-export function PaintedFace({ ink, mood = "happy", blink = 0, flip = false }: { ink: string; mood?: Mood; blink?: number; flip?: boolean }) {
+// other, so a pile isn't one face repeated. Each eye is its own blink group there, so it
+// shuts about its own middle, since the blink squashes a group about its centre and these
+// eyes sit apart. The raised eye and the flat curve pull the face up, so it sits 2.4 lower
+// than the smile's marks: its middle then lands where the smile's does, a little above the
+// coin's centre.
+export function PaintedFace({ ink, mood = "happy", flip = false }: { ink: string; mood?: Mood; flip?: boolean }) {
   if (mood === "puzzled") {
     const eye = (cx: number, cy: number, rx: number, ry: number) => (
-      <g className="goofy-blink" style={{ animationDelay: `${-blink}s` }}>
+      <g className="goofy-blink">
         <ellipse cx={cx} cy={cy} rx={rx} ry={ry} style={{ fill: ink }} />
       </g>
     );
@@ -165,7 +166,7 @@ export function PaintedFace({ ink, mood = "happy", blink = 0, flip = false }: { 
   }
   return (
     <g>
-      <PaintedEyes ink={ink} blink={blink} joy={mood === "joy"} />
+      <PaintedEyes ink={ink} joy={mood === "joy"} />
       {mood === "wow" ? (
         <ellipse cx="20" cy="20" rx="2.6" ry="3.2" fill={ink} />
       ) : mood === "glad" || mood === "joy" ? (
@@ -226,7 +227,7 @@ export function PaintedCoin({
       </g>
       {face && (
         <g transform="translate(8.6 10.5) scale(0.55)">
-          <PaintedFace ink={metal === "copper" ? "#2E3A8C" : BROWN} mood={mood} blink={seed * 1.37} flip={seed % 2 === 1} />
+          <PaintedFace ink={metal === "copper" ? "#2E3A8C" : BROWN} mood={mood} flip={seed % 2 === 1} />
         </g>
       )}
     </svg>
@@ -328,7 +329,6 @@ export function PaintedRoll({
   const ink = faceInk(colour);
   const mood: Mood = joy ? "joy" : gulping ? "glad" : over ? "wow" : "happy";
   const faceX = PAD + RW / 2 - 20;
-  const blink = index * 0.83 + 0.4;
   return (
     <svg width={RW + PAD * 2} height={H} viewBox={`0 0 ${RW + PAD * 2} ${H}`} aria-hidden className="block overflow-visible">
       {budget != null && !over && !asleep && (
@@ -389,10 +389,10 @@ export function PaintedRoll({
                   animate={{ scaleX: 1, scaleY: 1 }}
                   transition={swap}
                 >
-                  <PaintedEyes ink={STAGE_INK} blink={blink} joy={joy} />
+                  <PaintedEyes ink={STAGE_INK} joy={joy} />
                 </motion.g>
                 <motion.g style={{ opacity: faceIn }}>
-                  <PaintedFace ink={ink} mood={mood} blink={blink} />
+                  <PaintedFace ink={ink} mood={mood} />
                 </motion.g>
               </g>
             </motion.g>
@@ -416,7 +416,7 @@ export function PaintedMini({ index, colour, awake = false }: { index: number; c
       <path d={d} fill={colour} />
       {awake ? (
         <g transform="translate(4 5) scale(0.55)">
-          <PaintedFace ink={ink} blink={index * 0.83 + 0.4} />
+          <PaintedFace ink={ink} />
         </g>
       ) : (
         <g fill="none" strokeLinecap="round" strokeLinejoin="round">
@@ -503,7 +503,6 @@ export function PaintedBar({
   const faceX = useTransform(lv, (v) => Math.max(v - 28, 2 + v / 2 - 13.6));
   const faceIn = useTransform(face, arrive);
   const mood: Mood = joy ? "joy" : gulping ? "glad" : over ? "wow" : "happy";
-  const blink = index * 0.83 + 0.4;
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden className="block overflow-visible">
       {budget != null && !over && (
@@ -531,12 +530,12 @@ export function PaintedBar({
           </g>
           <motion.g style={{ x: eyesX, y: eyesY, opacity: eyesIn }}>
             <g transform="scale(0.68)">
-              <PaintedEyes ink={faceInk(colour)} blink={blink} joy={joy} />
+              <PaintedEyes ink={faceInk(colour)} joy={joy} />
             </g>
           </motion.g>
           <motion.g style={{ x: faceX, opacity: faceIn }}>
             <g transform="translate(0 7) scale(0.68)">
-              <PaintedFace ink={faceInk(colour)} mood={mood} blink={blink} />
+              <PaintedFace ink={faceInk(colour)} mood={mood} />
             </g>
           </motion.g>
         </motion.g>

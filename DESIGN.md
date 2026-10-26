@@ -300,7 +300,7 @@ Coins are discs turned a touch so their darker rim shows below and to the right;
 The month as one picture.
 - **Shape:** an Oat Paper panel with 28px corners, 32px padding on desktop (24px on a phone), clipping its floaters.
 - **Contents:** in the head, month and stepper and the total in Display on the left, the loose-change pile and its count on the right; below, the floor of rolls across the full width.
-- **Motion:** rolls rise on load, floaters drift slowly, faces blink on their own clocks.
+- **Motion:** rolls rise on load, floaters drift slowly, and one face on screen blinks every second or two, both eyes shut for a moment, so nothing runs between blinks; a hidden tab and reduced motion skip them.
 
 ### Rolls
 A category as a character, at one of four stages. It grows as coins go in.

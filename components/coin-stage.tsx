@@ -8,7 +8,7 @@ import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { Board, BoardTx } from "@/lib/board";
 import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
-// The hand both looks share: the painted faces blink with its keyframes.
+// The hand both looks share.
 import type { Mood } from "@/components/goofy";
 import { FACE_FROM, PAINTED_CONFETTI, PAINTED_WRAPPERS, PaintedBar, PaintedCoin, PaintedDefs, PaintedMini, PaintedRoll } from "@/components/painted";
 import { RollingNumber } from "@/components/rolling-number";

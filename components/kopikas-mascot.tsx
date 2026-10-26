@@ -164,13 +164,13 @@ export function KopikasMascot({
           <path d={K} fill="#FBD2AC" transform="translate(45 55.6) scale(0.95)" />
           <path d={K} fill="#8E4220" transform="translate(44.36 54.7) scale(0.95)" />
 
-          {/* Googly eyes popping up over the rim, each blinking on its own. */}
-          <g className="goofy-blink" style={{ animationDelay: "-0.6s" }}>
+          {/* Googly eyes popping up over the rim, shutting together when Blinker picks it. */}
+          <g className="goofy-blink">
             <circle cx="45" cy="38" r="12.5" fill="#fff" stroke={INK} strokeWidth="2.4" />
             <motion.circle cx="45" cy="39" r="5.6" fill={INK} style={{ x: ex, y: ey }} />
             <motion.circle cx="47" cy="37" r="1.8" fill="#fff" style={{ x: ex, y: ey }} />
           </g>
-          <g className="goofy-blink" style={{ animationDelay: "-2.9s" }}>
+          <g className="goofy-blink">
             <circle cx="74" cy="41" r="9.5" fill="#fff" stroke={INK} strokeWidth="2.4" />
             <motion.circle cx="74" cy="42" r="4.5" fill={INK} style={{ x: ex, y: ey }} />
             <motion.circle cx="75.6" cy="40.4" r="1.5" fill="#fff" style={{ x: ex, y: ey }} />
