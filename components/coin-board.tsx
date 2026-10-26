@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ComponentProps } from "react";
 import { SearchIcon, XIcon } from "lucide-react";
 import { DndContext, DragOverlay, MouseSensor, pointerWithin, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import type { Board, BoardTx } from "@/lib/board";
@@ -36,6 +36,49 @@ const SKIP = cn("sr-only rounded-full bg-ink text-[15px] font-medium text-white 
 const PANEL_CSS = `@media (max-width: 639px) { :root { --bottom-bar: 4.5rem; scroll-padding-bottom: var(--bottom-bar); } }`;
 // A row starts to drag only once the mouse has moved, so a click stays a click.
 const MOUSE_DRAG = { activationConstraint: { distance: 5 } };
+// The board's links: a 44px tap area on a touch screen.
+const LINK = cn(
+  "relative underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:absolute pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3.5 pointer-coarse:after:content-['']",
+  FOCUS
+);
+const pill = (on: boolean) =>
+  cn(
+    "h-10 rounded-full px-4 text-[15px] font-medium pointer-coarse:h-11",
+    on ? "bg-ink text-white dark:bg-chalk dark:text-ink" : "bg-white hover:bg-mist dark:bg-card-night dark:hover:bg-card-night-hover",
+    FOCUS
+  );
+
+// The search's text, held outside the board's state: typing redraws only what reads it (the
+// charges, and a picked roll's line on the stage), not the whole board.
+type Search = { get: () => string; set: (text: string) => void; subscribe: (redraw: () => void) => () => void };
+function createSearch(text: string): Search {
+  const readers = new Set<() => void>();
+  return {
+    get: () => text,
+    set: (next) => {
+      text = next;
+      readers.forEach((redraw) => redraw());
+    },
+    subscribe: (redraw) => {
+      readers.add(redraw);
+      return () => void readers.delete(redraw);
+    },
+  };
+}
+const useSearch = (search: Search) => useSyncExternalStore(search.subscribe, search.get, search.get);
+
+// What the list shows: the month's charges, or one category's (picked on its roll), or the money
+// that came in, or the backlog from every month. A search looks through every month.
+function listRows(txs: BoardTx[], only: string | null, month: string, q: string) {
+  return txs
+    .filter(
+      (t) =>
+        (q || only === TO_FILE ? true : monthOf(t.date) === month) &&
+        (only === MONEY_IN ? t.amount > 0 : only === TO_FILE ? t.amount < 0 && !t.category && !t.micro : only ? t.category === only : true) &&
+        (!q || [t.name, t.counterparty, t.description, t.note, t.category].join(" ").toLowerCase().includes(q))
+    )
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
 
 // When the last sync was, and whether it is late: a day and two hours without one
 // means the bank connection wants a look.
@@ -468,40 +511,12 @@ export function CoinBoard({
     </>
   );
 
-  // What the list shows: the month's charges, or one category's (picked on its
-  // roll), or the money that came in. A search looks through every month.
-  const [query, setQuery] = useState(view?.q ?? "");
+  // What the list shows (listRows): the filter here, the search in its store.
+  const [search] = useState(() => createSearch(view?.q ?? ""));
   const [only, setOnly] = useState<string | null>(() => {
     const cat = view?.cat;
     return cat === "Incoming" ? MONEY_IN : cat === "To file" ? TO_FILE : cat && initial.categories.some((c) => c.name === cat) ? cat : null;
   });
-  // The view goes into the address without a round trip; a moment late, so typing in
-  // the search does not hit the browser's limit on address changes.
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const p = new URLSearchParams();
-      if (only) p.set("cat", only === MONEY_IN ? "Incoming" : only === TO_FILE ? "To file" : only);
-      if (month !== initial.month) p.set("month", month);
-      if (query.trim()) p.set("q", query.trim());
-      const qs = p.toString();
-      window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
-    }, 200);
-    return () => clearTimeout(t);
-  }, [only, month, query, initial.month]);
-  const q = useDeferredValue(query).trim().toLowerCase();
-  const rows = board.txs
-    .filter(
-      (t) =>
-        (q || only === TO_FILE ? true : monthOf(t.date) === month) &&
-        (only === MONEY_IN ? t.amount > 0 : only === TO_FILE ? t.amount < 0 && !t.category && !t.micro : only ? t.category === only : true) &&
-        (!q || [t.name, t.counterparty, t.description, t.note, t.category].join(" ").toLowerCase().includes(q))
-    )
-    .sort((a, b) => b.date.localeCompare(a.date));
-  // What the list is showing: its rows draw in two steps each time this changes.
-  const listed = [only, q, q || only === TO_FILE ? "" : month].join("|");
-  const out = rows.filter((t) => t.amount < 0 && !t.micro);
-  const spent = out.reduce((s, t) => s - t.amount, 0);
-  const received = rows.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const toggle = (v: string) => setOnly((o) => (o === v ? null : v));
   // In the backlog the stage follows the charges, so every coin lands in a roll you can see grow:
   // it opens on the newest month that still has loose coins, steps to a row's month as the row is
@@ -539,28 +554,17 @@ export function CoinBoard({
     const t = setTimeout(() => setMonth(next), 2800);
     return () => clearTimeout(t);
   }, [only, month, loose.length]);
-  // The way from the stage down to the charges, and its links: a 44px tap area on a touch screen.
+  // The way from the stage down to the charges.
   const toCharges = () => {
     const list = document.getElementById("charges");
     list?.focus({ preventScroll: true });
     list?.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   };
-  const LINK = cn(
-    "relative underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:absolute pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3.5 pointer-coarse:after:content-['']",
-    FOCUS
-  );
   // Every loose charge, for the menus' "All N, always", and what's filed so far.
   const backlog = looseCoins(board.txs, null);
   const filed = board.txs.filter((t) => t.amount < 0 && !t.micro && t.category).length;
-  const showing = only === MONEY_IN ? "Money in" : only === TO_FILE ? "To file" : only;
   // The roll the list is showing, if it is one: money in and the backlog are not rolls.
   const picked = only === MONEY_IN || only === TO_FILE ? null : only;
-  const pill = (on: boolean) =>
-    cn(
-      "h-10 rounded-full px-4 text-[15px] font-medium pointer-coarse:h-11",
-      on ? "bg-ink text-white dark:bg-chalk dark:text-ink" : "bg-white hover:bg-mist dark:bg-card-night dark:hover:bg-card-night-hover",
-      FOCUS
-    );
 
   // A ledger row dragged onto a roll files there, the same as a coin. Mouse only:
   // the keyboard and a finger file through the row's File menu.
@@ -705,19 +709,8 @@ export function CoinBoard({
             }
             actions={
               <>
-                {/* With a roll chosen, the stage says what the charges below are showing, the way down
-                    to them, and the way to let it go: on a laptop the list starts under the fold. */}
                 {picked && (
-                  <p className={cn("mr-auto text-[13px]", MUTED)} aria-live="polite">
-                    <span className="font-medium text-ink dark:text-chalk">Showing {picked}</span> ·{" "}
-                    <button type="button" onClick={toCharges} className={cn(LINK, "no-underline hover:underline")}>
-                      {rows.length} {rows.length === 1 ? "charge" : "charges"} in {q ? "every month" : label(month)} <span aria-hidden>↓</span>
-                    </button>{" "}
-                    ·{" "}
-                    <button type="button" onClick={() => (setQuery(""), setOnly(null))} className={LINK}>
-                      Show all
-                    </button>
-                  </p>
+                  <PickedLine search={search} txs={board.txs} picked={picked} month={month} onCharges={toCharges} onShowAll={() => (search.set(""), setOnly(null))} />
                 )}
                 <button
                   type="button"
@@ -787,108 +780,32 @@ export function CoinBoard({
                 </p>
               )}
             </section>
-            <section
-              id="charges"
-              tabIndex={-1}
-              aria-labelledby="ledger-heading"
-              className={cn(PANEL, OAT, "min-w-0 scroll-mt-4 p-5 outline-none sm:p-6 lg:col-start-1 lg:row-start-1 wide:col-start-2 wide:row-span-2 wide:row-start-1")}
-            >
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-                {/* The list's name follows its filter: the backlog and the money in are not every charge. */}
-                <h2 id="ledger-heading" className={cn(DISPLAY, "mr-auto text-[20px] font-semibold")}>
-                  {only === TO_FILE ? "To file" : only === MONEY_IN ? "Money in" : "Every charge"}
-                </h2>
-                {/* The phone has its To file tab for the backlog, so the pill shows there only when a link turned it on. */}
-                {(toFile > 0 || only === TO_FILE) && (
-                  <button type="button" aria-pressed={only === TO_FILE} onClick={openBacklog} className={cn(pill(only === TO_FILE), only !== TO_FILE && "max-sm:hidden")}>
-                    To file <span className="tabular-nums">· {toFile}</span>
-                  </button>
-                )}
-                <button type="button" aria-pressed={only === MONEY_IN} onClick={() => toggle(MONEY_IN)} className={pill(only === MONEY_IN)}>
-                  Money in
-                </button>
-                <div className="relative w-full sm:w-64">
-                  <SearchIcon aria-hidden className={cn("pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2", MUTED)} />
-                  <input
-                    type="search"
-                    name="search"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search every month"
-                    aria-label="Search charges in every month"
-                    className={cn(
-                      "h-10 w-full rounded-full border-2 border-transparent bg-white pl-10 pr-10 text-[16px] pointer-coarse:h-11 placeholder:text-muted-text focus:border-ink/20 dark:bg-card-night dark:placeholder:text-muted-text-night dark:focus:border-white/25 [&::-webkit-search-cancel-button]:hidden",
-                      FOCUS
-                    )}
-                  />
-                  {query && (
-                    <button
-                      type="button"
-                      onClick={() => setQuery("")}
-                      aria-label="Clear the search"
-                      className={cn("absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full hover:bg-mist dark:hover:bg-card-night-hover pointer-coarse:after:-inset-1.5 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
-                    >
-                      <XIcon aria-hidden className="size-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-              {(q || showing) && (
-                <p className={cn("pt-3 text-[13px]", MUTED)} aria-live="polite">
-                  {q
-                    ? `${rows.length} ${rows.length === 1 ? "match" : "matches"}${showing ? ` in ${showing}` : ""}, every month`
-                    : only === TO_FILE
-                      ? (
-                          // Progress first, as on the phone: what's done, then what's left.
-                          <>
-                            <span className="font-medium text-ink dark:text-chalk">{filed} filed</span> · {rows.length} to go, every month
-                          </>
-                        )
-                      : `${showing}, ${label(month)}`}
-                  {" · "}
-                  <span className="tabular-nums">
-                    {only === MONEY_IN ? `+${eur.format(received)}` : only === TO_FILE && !q ? eur.format(spent) : `${eur.format(spent)} spent`}
-                  </span>
-                  {" · "}
-                  {/* Its tap area stops short of the search field above it. */}
-                  <button type="button" onClick={() => (setQuery(""), setOnly(null))} className={cn(LINK, "pointer-coarse:after:-inset-y-3")}>
-                    Show all
-                  </button>
-                </p>
-              )}
-              <CoinLedger
-                txs={rows}
-                categories={categories}
-                backlog={backlog}
-                byShop={only === TO_FILE}
-                list={listed}
-                usually={(tx) => usuallyOf(board.txs, tx)}
-                onFile={(tx, category, from, always) =>
+            <Charges
+              search={search}
+              txs={board.txs}
+              only={only}
+              setOnly={setOnly}
+              month={month}
+              currentMonth={initial.month}
+              categories={categories}
+              backlog={backlog}
+              filed={filed}
+              toFile={toFile}
+              onBacklog={openBacklog}
+              ledger={{
+                usually: (tx) => usuallyOf(board.txs, tx),
+                onFile: (tx, category, from, always) =>
                   inItsMonth(monthOf(tx.date), () => {
                     if (!stage.current?.file(tx, category, from, always)) onFile(tx, category, always);
                     else if (from?.hasAttribute("data-queue")) refocus.current = loose.findIndex((t) => t.id === tx.id);
-                  })
-                }
-                onFileShop={(group, category, always) => inItsMonth(monthOf(group[0].date), () => onFileMany(group, category, always))}
-                partner={partner}
-                onSplit={(tx, share) => onSplit(tx, share)}
-                onUnshare={onUnshare}
-                onEditMerchant={editMerchant}
-              />
-              {rows.length === 0 && (
-                <p className={cn("pt-4 text-[15px]", MUTED)}>
-                  {q
-                    ? `No charges match “${query.trim()}”.`
-                    : only === MONEY_IN
-                      ? `No money came in during ${label(month)}.`
-                      : only === TO_FILE
-                        ? "Every charge is filed."
-                        : only
-                          ? `Nothing in ${only} in ${label(month)} yet.`
-                          : "No charges in this month yet."}
-                </p>
-              )}
-            </section>
+                  }),
+                onFileShop: (group, category, always) => inItsMonth(monthOf(group[0].date), () => onFileMany(group, category, always)),
+                partner,
+                onSplit: (tx, share) => onSplit(tx, share),
+                onUnshare,
+                onEditMerchant: editMerchant,
+              }}
+            />
             <aside
               ref={cardsBox}
               className={cn(
@@ -1019,5 +936,185 @@ export function CoinBoard({
         />
       </div>
     </div>
+  );
+}
+
+// What a list row's File menu, split and name editing hand back to the board.
+type Ledger = Omit<ComponentProps<typeof CoinLedger>, "txs" | "categories" | "backlog" | "byShop" | "list">;
+
+// The charges: the list's filters, its search and its rows. It reads the search itself, so a
+// typed letter redraws only the list; while the search catches up the rows stay as they were.
+function Charges({
+  search,
+  txs,
+  only,
+  setOnly,
+  month,
+  currentMonth,
+  categories,
+  backlog,
+  filed,
+  toFile,
+  onBacklog,
+  ledger,
+}: {
+  search: Search;
+  txs: BoardTx[];
+  only: string | null;
+  setOnly: (only: string | null | ((was: string | null) => string | null)) => void;
+  month: string;
+  currentMonth: string;
+  categories: Board["categories"];
+  backlog: BoardTx[];
+  filed: number;
+  toFile: number;
+  onBacklog: () => void;
+  ledger: Ledger;
+}) {
+  const query = useSearch(search);
+  // The view goes into the address without a round trip; a moment late, so typing in
+  // the search does not hit the browser's limit on address changes.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const p = new URLSearchParams();
+      if (only) p.set("cat", only === MONEY_IN ? "Incoming" : only === TO_FILE ? "To file" : only);
+      if (month !== currentMonth) p.set("month", month);
+      if (query.trim()) p.set("q", query.trim());
+      const qs = p.toString();
+      window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [only, month, query, currentMonth]);
+  const q = useDeferredValue(query).trim().toLowerCase();
+  const rows = useMemo(() => listRows(txs, only, month, q), [txs, only, month, q]);
+  // What the list is showing: its rows draw in two steps each time this changes.
+  const listed = [only, q, q || only === TO_FILE ? "" : month].join("|");
+  const list = useMemo(
+    () => <CoinLedger txs={rows} categories={categories} backlog={backlog} byShop={only === TO_FILE} list={listed} {...ledger} />,
+    [rows, categories, backlog, only, listed, ledger]
+  );
+  const out = rows.filter((t) => t.amount < 0 && !t.micro);
+  const spent = out.reduce((s, t) => s - t.amount, 0);
+  const received = rows.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
+  const showing = only === MONEY_IN ? "Money in" : only === TO_FILE ? "To file" : only;
+  return (
+    <section
+      id="charges"
+      tabIndex={-1}
+      aria-labelledby="ledger-heading"
+      className={cn(PANEL, OAT, "min-w-0 scroll-mt-4 p-5 outline-none sm:p-6 lg:col-start-1 lg:row-start-1 wide:col-start-2 wide:row-span-2 wide:row-start-1")}
+    >
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        {/* The list's name follows its filter: the backlog and the money in are not every charge. */}
+        <h2 id="ledger-heading" className={cn(DISPLAY, "mr-auto text-[20px] font-semibold")}>
+          {only === TO_FILE ? "To file" : only === MONEY_IN ? "Money in" : "Every charge"}
+        </h2>
+        {/* The phone has its To file tab for the backlog, so the pill shows there only when a link turned it on. */}
+        {(toFile > 0 || only === TO_FILE) && (
+          <button type="button" aria-pressed={only === TO_FILE} onClick={onBacklog} className={cn(pill(only === TO_FILE), only !== TO_FILE && "max-sm:hidden")}>
+            To file <span className="tabular-nums">· {toFile}</span>
+          </button>
+        )}
+        <button type="button" aria-pressed={only === MONEY_IN} onClick={() => setOnly((o) => (o === MONEY_IN ? null : MONEY_IN))} className={pill(only === MONEY_IN)}>
+          Money in
+        </button>
+        <div className="relative w-full sm:w-64">
+          <SearchIcon aria-hidden className={cn("pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2", MUTED)} />
+          <input
+            type="search"
+            name="search"
+            value={query}
+            onChange={(e) => search.set(e.target.value)}
+            placeholder="Search every month"
+            aria-label="Search charges in every month"
+            className={cn(
+              "h-10 w-full rounded-full border-2 border-transparent bg-white pl-10 pr-10 text-[16px] pointer-coarse:h-11 placeholder:text-muted-text focus:border-ink/20 dark:bg-card-night dark:placeholder:text-muted-text-night dark:focus:border-white/25 [&::-webkit-search-cancel-button]:hidden",
+              FOCUS
+            )}
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => search.set("")}
+              aria-label="Clear the search"
+              className={cn("absolute right-1 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full hover:bg-mist dark:hover:bg-card-night-hover pointer-coarse:after:-inset-1.5 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
+            >
+              <XIcon aria-hidden className="size-4" />
+            </button>
+          )}
+        </div>
+      </div>
+      {(q || showing) && (
+        <p className={cn("pt-3 text-[13px]", MUTED)} aria-live="polite">
+          {q
+            ? `${rows.length} ${rows.length === 1 ? "match" : "matches"}${showing ? ` in ${showing}` : ""}, every month`
+            : only === TO_FILE
+              ? (
+                  // Progress first, as on the phone: what's done, then what's left.
+                  <>
+                    <span className="font-medium text-ink dark:text-chalk">{filed} filed</span> · {rows.length} to go, every month
+                  </>
+                )
+              : `${showing}, ${label(month)}`}
+          {" · "}
+          <span className="tabular-nums">
+            {only === MONEY_IN ? `+${eur.format(received)}` : only === TO_FILE && !q ? eur.format(spent) : `${eur.format(spent)} spent`}
+          </span>
+          {" · "}
+          {/* Its tap area stops short of the search field above it. */}
+          <button type="button" onClick={() => (search.set(""), setOnly(null))} className={cn(LINK, "pointer-coarse:after:-inset-y-3")}>
+            Show all
+          </button>
+        </p>
+      )}
+      {list}
+      {rows.length === 0 && (
+        <p className={cn("pt-4 text-[15px]", MUTED)}>
+          {q
+            ? `No charges match “${query.trim()}”.`
+            : only === MONEY_IN
+              ? `No money came in during ${label(month)}.`
+              : only === TO_FILE
+                ? "Every charge is filed."
+                : only
+                  ? `Nothing in ${only} in ${label(month)} yet.`
+                  : "No charges in this month yet."}
+        </p>
+      )}
+    </section>
+  );
+}
+
+// With a roll chosen, the stage says what the charges below are showing, the way down to them,
+// and the way to let it go: on a laptop the list starts under the fold. It reads the search
+// itself, so typing doesn't redraw the stage.
+function PickedLine({
+  search,
+  txs,
+  picked,
+  month,
+  onCharges,
+  onShowAll,
+}: {
+  search: Search;
+  txs: BoardTx[];
+  picked: string;
+  month: string;
+  onCharges: () => void;
+  onShowAll: () => void;
+}) {
+  const q = useDeferredValue(useSearch(search)).trim().toLowerCase();
+  const n = useMemo(() => listRows(txs, picked, month, q).length, [txs, picked, month, q]);
+  return (
+    <p className={cn("mr-auto text-[13px]", MUTED)} aria-live="polite">
+      <span className="font-medium text-ink dark:text-chalk">Showing {picked}</span> ·{" "}
+      <button type="button" onClick={onCharges} className={cn(LINK, "no-underline hover:underline")}>
+        {n} {n === 1 ? "charge" : "charges"} in {q ? "every month" : label(month)} <span aria-hidden>↓</span>
+      </button>{" "}
+      ·{" "}
+      <button type="button" onClick={onShowAll} className={LINK}>
+        Show all
+      </button>
+    </p>
   );
 }
