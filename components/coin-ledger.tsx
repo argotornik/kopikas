@@ -55,6 +55,8 @@ type Actions = {
   // Where the charge's shop usually goes, most often first, last time marked; offered first.
   // Empty for a shop never filed.
   usually: (tx: BoardTx) => { category: string; count: number; last: boolean }[];
+  // The category names in the order filing offers them, the household's habit (byUse).
+  order: string[];
   // Split with the partner, the household has one; null when it has none.
   partner: string | null;
   onSplit: (tx: BoardTx, share: number, from: Element | null) => void;
@@ -346,6 +348,7 @@ function FileMenu({
   backlog,
   categories,
   usually,
+  order,
   onFile,
   onFileShop,
   partner,
@@ -381,7 +384,9 @@ function FileMenu({
     (chips[Math.min(was.i, chips.length - 1)] ?? document.getElementById("charges"))?.focus();
   });
   const q = query.trim().toLowerCase();
-  const shown = q ? categories.filter((c) => nameMatches(c.name, q)) : categories;
+  // Offered in the household's order; each keeps its colour from the list.
+  const offered = order.map((name) => ({ name }));
+  const shown = q ? offered.filter((c) => nameMatches(c.name, q)) : offered;
   // A category's row; Enter's (`target`) is lit with the stage's Ink ↵ tag.
   const item = (name: string, note?: string, target = false) => (
     <Menu.RadioItem key={name} value={name} closeOnClick className={cn(MENU_ITEM, target && inField && "bg-mist! dark:bg-card-night-hover!")}>
@@ -405,7 +410,7 @@ function FileMenu({
   // the stage's order (typedOrder) and Enter files the first. Never where the charge is already.
   const plan = (subject: BoardTx, current: string | null) => {
     const often = usually(subject).filter((o) => categories.some((c) => c.name === o.category));
-    const list = q ? typedOrder(categories, q, often) : shown.filter((c) => !often.some((o) => o.category === c.name));
+    const list = q ? typedOrder(offered, q, often) : shown.filter((c) => !often.some((o) => o.category === c.name));
     const target = (q ? list.find((c) => c.name !== current)?.name : often.find((o) => o.last && o.category !== current)?.category) ?? null;
     return { often, list, target };
   };

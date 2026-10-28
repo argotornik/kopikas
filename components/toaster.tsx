@@ -18,11 +18,19 @@ let latestUndo: { id: string; run: () => void } | null = null;
 // A second thing a notice offers beside Undo, such as Always after a filing.
 type Also = { label: string; onClick: () => void };
 
+// One notice at a time: each says the latest thing that happened and takes the place of the one
+// showing, so two identical lines never stack and an error never sits beside an older success.
+// The one it replaces takes its Undo with it, as ⌘Z only ever takes back the latest change.
+function show(options: Parameters<typeof toasts.add>[0]) {
+  toasts.close();
+  return toasts.add(options);
+}
+
 // After a change that can be taken back: say what happened and offer Undo
 // for a while. `after` brings the page up to date once the undo has landed.
 export function announceUndoable(message: string, undo: Undo | undefined, after: () => unknown, also?: Also) {
   if (!undo) {
-    toasts.add({ title: message, timeout: 4000, data: also ? { also } : undefined });
+    show({ title: message, timeout: 4000, data: also ? { also } : undefined });
     return;
   }
   const run = async () => {
@@ -30,9 +38,9 @@ export function announceUndoable(message: string, undo: Undo | undefined, after:
     const result = await act(undo);
     if (!result.ok) return announceError(`Couldn't undo that. ${result.error}`);
     await after();
-    toasts.add({ title: "Undone.", timeout: 2500, priority: "low" });
+    show({ title: "Undone.", timeout: 2500, priority: "low" });
   };
-  const id = toasts.add({
+  const id = show({
     title: message,
     timeout: 8000,
     actionProps: { children: "Undo", onClick: () => void run() },
@@ -46,13 +54,13 @@ export function announceUndoable(message: string, undo: Undo | undefined, after:
 
 // A plain line that offers nothing, such as a Try again that had nothing left to do.
 export function announce(message: string) {
-  toasts.add({ title: message, timeout: 4000 });
+  show({ title: message, timeout: 4000 });
 }
 
 // A failure that has no dialog of its own to show in. High priority, so a
 // screen reader hears it straight away. Try again closes it: the retry says how it went.
 export function announceError(message: string, retry?: () => void) {
-  const id = toasts.add({
+  const id = show({
     title: message,
     type: "error",
     priority: "high",
@@ -108,7 +116,7 @@ function ToastList() {
       key={toast.id}
       toast={toast}
       className={cn(
-        // Stacked like sheets, newest in front; fanned out on hover or focus.
+        // One at a time: the one going out sits behind the one coming in, as sheets stack.
         "[--gap:0.5rem] [--peek:0.5rem] [--scale:calc(max(0,1-(var(--toast-index)*0.06)))] [--shrink:calc(1-var(--scale))] [--height:var(--toast-frontmost-height,var(--toast-height))] [--offset-y:calc(var(--toast-offset-y)*-1+calc(var(--toast-index)*var(--gap)*-1)+var(--toast-swipe-movement-y))]",
         // Dressed as the board's menus: a white card with a hairline of Ink, and no shadow.
         "absolute inset-x-0 bottom-0 z-[calc(1000-var(--toast-index))] h-[var(--height)] origin-bottom select-none rounded-2xl bg-white text-ink ring-1 ring-ink/10 dark:bg-card-night dark:text-chalk dark:ring-white/10",

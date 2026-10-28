@@ -8,7 +8,7 @@ import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
 import { act, type Undo } from "@/lib/act";
 import { announce, announceError, announceUndoable } from "@/components/toaster";
 import { PaintedCoin } from "@/components/painted";
-import { CoinStage, eur, label, looseCoins, monthOf, rollOnScreen, shortDate, usuallyOf, type CoinStageHandle } from "@/components/coin-stage";
+import { CoinStage, byUse, eur, label, looseCoins, monthOf, rollOnScreen, shortDate, usuallyOf, type CoinStageHandle } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, OAT, PAGE, PANEL } from "@/components/coin-look";
 import { CoinLedger, FileChip, followChip, useInSteps } from "@/components/coin-ledger";
 import { CoinQueue, type Said } from "@/components/coin-queue";
@@ -213,6 +213,12 @@ export function CoinBoard({
     };
   }, []);
   const categories = board.categories;
+  // The order filing offers categories in (byUse), taken as the board opens, so the queue's tiles
+  // and the menu's rows stay put while filings change the counts. A renamed category keeps its
+  // place; one added since joins at the end, before Subscriptions.
+  const [habit, setHabit] = useState(() => byUse(initial.categories, initial.txs));
+  const at = (name: string) => (name === SUBSCRIPTIONS ? Infinity : habit.indexOf(name) + 1 || habit.length);
+  const order = categories.map((c) => c.name).sort((a, b) => at(a) - at(b));
   // One month at a time, as on the tray; the rest wait in their own months.
   const loose = looseCoins(board.txs, month);
   const looseShown = useInSteps(loose.length, month);
@@ -434,7 +440,10 @@ export function CoinBoard({
   // A renamed category the list is showing stays shown under its new name.
   const editCategories = async (action: CategoryAction) => {
     const err = await tryPost(action);
-    if (!err && action.type === "category-rename") setOnly((o) => (o === action.from ? action.to : o));
+    if (!err && action.type === "category-rename") {
+      setOnly((o) => (o === action.from ? action.to : o));
+      setHabit((h) => h.map((n) => (n === action.from ? action.to : n)));
+    }
     return err;
   };
   const editMerchant = (t: BoardTx) =>
@@ -671,7 +680,7 @@ export function CoinBoard({
         >
         <main>
           <div className={cn("sm:hidden", tab !== "queue" && "hidden")}>
-            <CoinQueue txs={board.txs} categories={categories} partner={partner} onFile={onFile} onSplit={onSplit} onDone={() => showTab("month")} />
+            <CoinQueue txs={board.txs} categories={categories} order={order} partner={partner} onFile={onFile} onSplit={onSplit} onDone={() => showTab("month")} />
           </div>
           {/* From 1900px the month spreads out: the tray with the cards under it on the left,
               every charge on the right, so any row can be dragged onto a roll without
@@ -687,6 +696,7 @@ export function CoinBoard({
             ref={stage}
             txs={board.txs}
             categories={categories}
+            order={order}
             month={month}
             months={months}
             currentMonth={initial.month}
@@ -799,6 +809,7 @@ export function CoinBoard({
               onBacklog={openBacklog}
               ledger={{
                 usually: (tx) => usuallyOf(board.txs, tx),
+                order,
                 onFile: (tx, category, from, always) =>
                   inItsMonth(monthOf(tx.date), () => {
                     if (!stage.current?.file(tx, category, from, always)) onFile(tx, category, always);

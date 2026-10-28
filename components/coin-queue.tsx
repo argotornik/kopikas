@@ -43,6 +43,7 @@ const BURST: BurstMark[] = [
 export function CoinQueue({
   txs,
   categories,
+  order,
   partner,
   onFile,
   onSplit,
@@ -50,6 +51,9 @@ export function CoinQueue({
 }: {
   txs: BoardTx[];
   categories: Board["categories"];
+  // The tiles' order, the household's habit (byUse): the likely categories first, so for a shop
+  // never filed the rare ones are the ones below the fold.
+  order: string[];
   partner: string | null;
   // `always` files the charge's whole shop and teaches the rule, as the notice's Always does.
   // `say` gets what happened, for the queue's own line.
@@ -266,29 +270,29 @@ export function CoinQueue({
         )}
       </div>
       <div role="group" aria-label={`Categories for ${tx.name}`} className="mt-2 grid grid-cols-2 gap-2">
-        {categories.map((c, i) => {
-          const total = totals.get(c.name) ?? 0;
+        {order.map((name) => {
+          const total = totals.get(name) ?? 0;
           return (
             <button
-              key={c.name}
+              key={name}
               type="button"
-              onClick={() => fileTo(c.name)}
-              aria-label={`File under ${c.name}${c.name === SAVINGS ? "" : `, ${eur.format(total)} in ${label(monthOf(tx.date))}`}${c.name === last ? `, where ${tx.name} went last time` : ""}`}
+              onClick={() => fileTo(name)}
+              aria-label={`File under ${name}${name === SAVINGS ? "" : `, ${eur.format(total)} in ${label(monthOf(tx.date))}`}${name === last ? `, where ${tx.name} went last time` : ""}`}
               className={cn(
                 "relative flex min-h-14 items-center gap-2.5 rounded-2xl bg-white py-2 pl-2.5 pr-3 text-left transition-transform hover:bg-mist motion-safe:active:scale-[0.96] dark:bg-card-night dark:hover:bg-card-night-hover",
                 // Where the shop went last time, marked in its own place (a ring, and a tag on its top
                 // edge, as a stack's count sits on its coin), so the grid never moves.
-                c.name === last && "ring-[1.5px] ring-ink/25 dark:ring-white/25",
+                name === last && "ring-[1.5px] ring-ink/25 dark:ring-white/25",
                 FOCUS
               )}
             >
               {/* The tile's roll in miniature: awake while it holds money in the coin's month, asleep with nothing. */}
-              <PaintedMini index={i} colour={wrapperOf(categories, c.name)} awake={c.name === SAVINGS || total > 0} />
+              <PaintedMini index={categories.findIndex((c) => c.name === name)} colour={wrapperOf(categories, name)} awake={name === SAVINGS || total > 0} />
               <span className="min-w-0">
-                <span className="line-clamp-2 break-words text-[13px] font-medium leading-tight hyphens-auto">{c.name}</span>
-                {c.name !== SAVINGS && <span className={cn("block text-[12px] tabular-nums", MUTED)}>{eur.format(total)}</span>}
+                <span className="line-clamp-2 break-words text-[13px] font-medium leading-tight hyphens-auto">{name}</span>
+                {name !== SAVINGS && <span className={cn("block text-[12px] tabular-nums", MUTED)}>{eur.format(total)}</span>}
               </span>
-              {c.name === last && (
+              {name === last && (
                 <span aria-hidden className="absolute -top-2 right-2.5 whitespace-nowrap rounded-full bg-ink px-1.5 text-[12px] font-medium leading-[16px] text-white dark:bg-chalk dark:text-ink">
                   Last time
                 </span>

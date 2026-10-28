@@ -79,8 +79,8 @@ type Mark = { kind: MarkKind; x: number; y: number; s: number; d: number; c?: nu
 const AIR: Mark[] = [
   { kind: "squiggle", x: -82, y: 4, s: 30, d: 9, c: 3, r: -8 },
   { kind: "squiggle", x: -63, y: 45, s: 30, d: 8, c: 0, r: 6 },
-  { kind: "dot", x: -18, y: 32, s: 8, d: 10, c: 1 },
-  { kind: "dot", x: 109, y: 43, s: 7, d: 9, c: 4 },
+  { kind: "dot", x: -22, y: 32, s: 18, d: 10, c: 1 },
+  { kind: "dot", x: 100, y: 43, s: 16, d: 9, c: 4 },
 ];
 
 function Floater({ f }: { f: Mark }) {
@@ -275,6 +275,18 @@ export const typedOrder = <T extends { name: string }>(items: T[], typed: string
   return items.filter((c) => nameMatches(c.name, typed)).sort((a, b) => weight(a.name) - weight(b.name) || late(a.name) - late(b.name));
 };
 
+// The household's habit: category names by how many of its shops have gone to each, most first,
+// so a shop never filed meets the likely ones first and the rare ones last; Subscriptions, which
+// also tracks the charge, last of all. The queue's tiles, the File menu and typed letters offer
+// categories in this order; the rolls keep the list's.
+export const byUse = (categories: { name: string }[], txs: BoardTx[]) => {
+  const shops = new Map<string, Set<string>>();
+  for (const t of txs)
+    if (t.category && t.amount < 0 && !t.micro) shops.set(t.category, (shops.get(t.category) ?? new Set()).add(t.rulePattern || t.id));
+  const weight = (name: string) => (name === SUBSCRIPTIONS ? -1 : (shops.get(name)?.size ?? 0));
+  return categories.map((c) => c.name).sort((a, b) => weight(b) - weight(a));
+};
+
 // What Always takes, said under its switch while it is on, the same on the stage, in the queue
 // and in the menus: the charges in hand, the shop's other loose ones and where they wait, and
 // the ones to come.
@@ -315,6 +327,7 @@ export type CoinStageHandle = {
 export function CoinStage({
   txs,
   categories,
+  order,
   month,
   months,
   currentMonth,
@@ -331,6 +344,8 @@ export function CoinStage({
 }: {
   txs: BoardTx[];
   categories: Board["categories"];
+  // The order typed letters pick categories in, the household's habit (byUse), as in the File menu.
+  order: string[];
   month: string;
   months: string[];
   currentMonth: string;
@@ -509,7 +524,7 @@ export function CoinStage({
     setTypedFor(picked);
     setTyped("");
   }
-  const typedMatch = pickedTx && typed ? (typedOrder(rolls, typed, usuallyOf(txs, pickedTx))[0]?.name ?? null) : null;
+  const typedMatch = pickedTx && typed ? (typedOrder(order.map((name) => ({ name })), typed, usuallyOf(txs, pickedTx))[0]?.name ?? null) : null;
   const typedHint =
     pickedTx && typed
       ? typedMatch
@@ -733,9 +748,13 @@ export function CoinStage({
   // Under the pile it grows leftwards like the count's slot, so the switch never leaves the panel;
   // on the phone it wraps instead, and the slot keeps room for the hint's line and two of what
   // Always takes, so picking a coin or switching Always on never moves the rolls under a thumb.
+  // Until a coin is picked, that room says how: tap a coin, then its roll.
   const hintSlot = (hint: string, under: boolean) => (
     <div className={cn("grid min-h-[30px] grid-cols-1", under ? "-mx-7 [direction:rtl] [justify-items:safe_center]" : "min-h-[70px] justify-items-start")}>
-      <div className={cn("col-start-1 row-start-1 [direction:ltr]", pickedTx && "invisible")}>{backlogNote(under ? PILE.length : 6)}</div>
+      <div className={cn("col-start-1 row-start-1 [direction:ltr]", pickedTx && "invisible")}>
+        {backlogNote(under ? PILE.length : 6)}
+        {!under && loose.length > 0 && <p className="mt-1.5 text-[13px] text-ink dark:text-chalk">Tap a coin, then its roll</p>}
+      </div>
       {pickedTx && (
         <div className={cn("relative col-start-1 row-start-1 flex items-center gap-x-3 gap-y-1 text-[13px] text-ink [direction:ltr] dark:text-chalk", under ? "w-max" : "flex-wrap")}>
           <span aria-hidden>{hint}</span>
@@ -821,9 +840,15 @@ export function CoinStage({
   // does. Drawn at the end of the render, with the helpers it shares declared.
   const sidePanel = () => (
     <>
-      <h2 className={cn(DISPLAY, "text-[20px] font-semibold")}>{label(month)}&rsquo;s rolls</h2>
-      {/* Rows are dragged with a mouse only: a finger files from a row's File… chip. */}
-      <p className={cn("mt-0.5 text-[13px] pointer-coarse:hidden", MUTED)}>Drop a row on a roll</p>
+      {/* The page's controls for the rolls (Edit categories) sit with them here while the floor is folded. */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className={cn(DISPLAY, "text-[20px] font-semibold")}>{label(month)}&rsquo;s rolls</h2>
+          {/* Rows are dragged with a mouse only: a finger files from a row's File… chip. */}
+          <p className={cn("mt-0.5 text-[13px] pointer-coarse:hidden", MUTED)}>Drop a row on a roll</p>
+        </div>
+        {actions && <div className="-mr-3.5 -mt-1.5 shrink-0">{actions}</div>}
+      </div>
       <div ref={sideRef} role="group" aria-label={`Where ${label(month)}'s money went`} className="mt-4 flex flex-col gap-2">
         {rolls
           .filter((r) => r.total > 0)
@@ -1282,7 +1307,7 @@ export function CoinStage({
         </div>
         </>
         )}
-        {actions && <div className="relative mt-4 flex flex-wrap items-center justify-end gap-x-4 gap-y-2">{actions}</div>}
+        {actions && !side && <div className="relative mt-4 flex flex-wrap items-center justify-end gap-x-4 gap-y-2">{actions}</div>}
       </section>
 
       {flight && (
