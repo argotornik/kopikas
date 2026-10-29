@@ -110,6 +110,14 @@ node -e 'const b = require(process.argv[1]); delete b.takenAt; for (const k in b
 
 Putting a copy back into the database isn't built yet.
 
+## Your data
+
+A Kopikas you deploy is yours alone. Everything it keeps lives in your own accounts: your charges, filings, rules, splits and repayments in your Neon database, with the LHV token sealed by your `ENCRYPTION_KEY`; the sign-ins in your Clerk application; the app and its logs in your Vercel project; the daily copies in your Blob store, if you make one. Nothing goes to the author of Kopikas or to anyone else running it.
+
+Two things leave your deployment, both from the server: requests to LHV's API with your token, for your accounts, statements and investments; and the web addresses of the shops on your board (`selver.ee`, never an amount or a name) to Google's favicon service, for their logos. Every page asks search engines not to list it.
+
+To delete everything, delete the Vercel project, the Neon project (its history and snapshots go with it), the Clerk application and the Blob store. The LHV token stops working on its own 30 days after its last use.
+
 ## Things to know
 
 The two investment pots and the two sign-in roles are hard-coded to one household's life. Making them configurable is a small change, it just has not been needed. Categories can be renamed, added and reordered from the board, but not deleted yet.
