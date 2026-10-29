@@ -46,3 +46,9 @@ jobs:
             cat /tmp/sync.json >&2
             exit 1
           fi
+          # A failed daily backup (lib/backup.ts) fails the run too, so GitHub says so; only its
+          # error is printed.
+          if jq -e '.backup | type == "object" and has("error")' /tmp/sync.json > /dev/null; then
+            echo "Backup failed: $(jq -r '.backup.error' /tmp/sync.json)" >&2
+            exit 1
+          fi

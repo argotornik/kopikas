@@ -91,7 +91,7 @@ export async function POST(req: Request) {
       const removed = db.rules.find((r) => r.id === action.ruleId);
       if (!removed) break;
       db.rules = db.rules.filter((r) => r.id !== action.ruleId);
-      await writeCollection("rules", db.rules);
+      await writeCollection(db, "rules");
       undo = { type: "restore", collection: "rules", record: removed };
       break;
     }
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
       const previous = old?.category ?? null;
       db.overrides = db.overrides.filter((o) => o.txId !== action.txId);
       db.overrides.push({ txId: action.txId, category: action.category, at: now });
-      await writeCollection("overrides", db.overrides);
+      await writeCollection(db, "overrides");
       undo = { type: "unoverride", txId: action.txId, previous, ...(old?.at ? { previousAt: old.at } : {}), ...(ruleId ? { ruleId } : {}) };
       break;
     }
@@ -118,10 +118,10 @@ export async function POST(req: Request) {
       if (typeof action.previous === "string" && db.categories.some((c) => c.name === action.previous)) {
         db.overrides.push({ txId: action.txId, category: action.previous, ...(typeof action.previousAt === "string" ? { at: action.previousAt } : {}) });
       }
-      await writeCollection("overrides", db.overrides);
+      await writeCollection(db, "overrides");
       if (action.ruleId) {
         db.rules = db.rules.filter((r) => r.id !== action.ruleId);
-        await writeCollection("rules", db.rules);
+        await writeCollection(db, "rules");
       }
       break;
     }
@@ -135,7 +135,7 @@ export async function POST(req: Request) {
         return { txId, previous: old?.category ?? null, ...(old?.at ? { previousAt: old.at } : {}) };
       });
       db.overrides = [...db.overrides.filter((o) => !ids.has(o.txId)), ...[...ids].map((txId) => ({ txId, category: action.category, at: now }))];
-      await writeCollection("overrides", db.overrides);
+      await writeCollection(db, "overrides");
       undo = { type: "unoverride-many", items };
       break;
     }
@@ -147,7 +147,7 @@ export async function POST(req: Request) {
         if (typeof i.previous === "string" && db.categories.some((c) => c.name === i.previous))
           db.overrides.push({ txId: i.txId, category: i.previous, ...(typeof i.previousAt === "string" ? { at: i.previousAt } : {}) });
       }
-      await writeCollection("overrides", db.overrides);
+      await writeCollection(db, "overrides");
       break;
     }
     case "share": {
@@ -167,13 +167,13 @@ export async function POST(req: Request) {
           partnerShare: fraction,
           createdAt: now,
         });
-        await writeCollection("shares", db.shares);
+        await writeCollection(db, "shares");
         undo = { type: "unshare", shareId: id };
       } else if (partnerShareOf(existing) !== fraction) {
         // Re-dropping with a different toggle just changes the split.
         undo = { type: "share", txId: action.txId, partnerShare: partnerShareOf(existing) };
         existing.partnerShare = fraction;
-        await writeCollection("shares", db.shares);
+        await writeCollection(db, "shares");
       }
       // From now on: every new charge matching this merchant lands on
       // Pooleks at this split. Teaching again with another split updates it.
@@ -188,7 +188,7 @@ export async function POST(req: Request) {
           // A split made and taught in one go is taken back in one go.
           undo = undo?.type === "unshare" ? { ...undo, ruleId: id } : { type: "unshare-rule", ruleId: id };
         }
-        await writeCollection("shareRules", db.shareRules);
+        await writeCollection(db, "shareRules");
       }
       break;
     }
@@ -196,7 +196,7 @@ export async function POST(req: Request) {
       const removed = db.shareRules.find((r) => r.id === action.ruleId);
       if (!removed) break;
       db.shareRules = db.shareRules.filter((r) => r.id !== action.ruleId);
-      await writeCollection("shareRules", db.shareRules);
+      await writeCollection(db, "shareRules");
       undo = { type: "restore", collection: "shareRules", record: removed };
       break;
     }
@@ -204,11 +204,11 @@ export async function POST(req: Request) {
       const removed = db.shares.find((s) => s.id === action.shareId);
       if (action.ruleId) {
         db.shareRules = db.shareRules.filter((r) => r.id !== action.ruleId);
-        await writeCollection("shareRules", db.shareRules);
+        await writeCollection(db, "shareRules");
       }
       if (!removed) break;
       db.shares = db.shares.filter((s) => s.id !== action.shareId);
-      await writeCollection("shares", db.shares);
+      await writeCollection(db, "shares");
       undo = { type: "restore", collection: "shares", record: removed };
       break;
     }
@@ -227,7 +227,7 @@ export async function POST(req: Request) {
         partnerShare: fraction,
         createdAt: now,
       });
-      await writeCollection("shares", db.shares);
+      await writeCollection(db, "shares");
       break;
     }
     case "settle": {
@@ -244,7 +244,7 @@ export async function POST(req: Request) {
         note: action.note?.trim() || undefined,
         recordedBy: role === "partner" ? "partner" : "owner",
       });
-      await writeCollection("settlements", db.settlements);
+      await writeCollection(db, "settlements");
       undo = { type: "unsettle", settlementId: id };
       break;
     }
@@ -253,7 +253,7 @@ export async function POST(req: Request) {
       const removed = db.settlements.find((s) => s.id === action.settlementId);
       if (!removed) break;
       db.settlements = db.settlements.filter((s) => s.id !== action.settlementId);
-      await writeCollection("settlements", db.settlements);
+      await writeCollection(db, "settlements");
       undo = { type: "restore", collection: "settlements", record: removed };
       break;
     }
@@ -292,12 +292,12 @@ export async function POST(req: Request) {
           active: true,
           createdAt: now,
         });
-        await writeCollection("subscriptions", db.subscriptions);
+        await writeCollection(db, "subscriptions");
       }
       if (!db.rules.some((r) => r.match === match)) {
         ruleId = newId("rule");
         db.rules.push({ id: ruleId, match, category: SUBSCRIPTIONS, createdAt: now });
-        await writeCollection("rules", db.rules);
+        await writeCollection(db, "rules");
       }
       if (subId || ruleId) undo = { type: "unsubscribe-new", ...(subId ? { subId } : {}), ...(ruleId ? { ruleId } : {}) };
       break;
@@ -306,11 +306,11 @@ export async function POST(req: Request) {
       // Takes back a subscription made a moment ago, rule and all, so its charges are loose again.
       if (action.subId) {
         db.subscriptions = db.subscriptions.filter((s) => s.id !== action.subId);
-        await writeCollection("subscriptions", db.subscriptions);
+        await writeCollection(db, "subscriptions");
       }
       if (action.ruleId) {
         db.rules = db.rules.filter((r) => r.id !== action.ruleId);
-        await writeCollection("rules", db.rules);
+        await writeCollection(db, "rules");
       }
       break;
     }
@@ -323,7 +323,7 @@ export async function POST(req: Request) {
       if (!status.lastCharge) return bad("There is no charge to take the new price from.");
       const previous = sub.expectedAmount;
       sub.expectedAmount = status.lastCharge.amount;
-      await writeCollection("subscriptions", db.subscriptions);
+      await writeCollection(db, "subscriptions");
       undo = { type: "set-price", subId: sub.id, expectedAmount: previous };
       break;
     }
@@ -334,7 +334,7 @@ export async function POST(req: Request) {
       const amount = Number(action.expectedAmount);
       if (!(amount > 0 && amount < 1e6)) return bad("A positive price is needed.");
       sub.expectedAmount = amount;
-      await writeCollection("subscriptions", db.subscriptions);
+      await writeCollection(db, "subscriptions");
       break;
     }
     case "cadence": {
@@ -344,14 +344,14 @@ export async function POST(req: Request) {
       if (action.cadence !== "monthly" && action.cadence !== "yearly") return bad("cadence must be monthly or yearly");
       sub.cadence = action.cadence;
       sub.cadenceByHand = true;
-      await writeCollection("subscriptions", db.subscriptions);
+      await writeCollection(db, "subscriptions");
       break;
     }
     case "unsubscribe": {
       const sub = db.subscriptions.find((s) => s.id === action.subId);
       if (sub?.active) {
         sub.active = false;
-        await writeCollection("subscriptions", db.subscriptions);
+        await writeCollection(db, "subscriptions");
         undo = { type: "resubscribe", subId: sub.id };
       }
       break;
@@ -362,7 +362,7 @@ export async function POST(req: Request) {
       if (!sub) return bad("That subscription is gone. Reload to see the latest.");
       if (!sub.active) {
         sub.active = true;
-        await writeCollection("subscriptions", db.subscriptions);
+        await writeCollection(db, "subscriptions");
       }
       break;
     }
@@ -370,7 +370,7 @@ export async function POST(req: Request) {
       if (!RESTORABLE.includes(action.collection)) return bad("That can't be put back.");
       const err = restoreRecord(db, action.collection, action.record);
       if (err) return bad(`Couldn't put it back: ${err}.`);
-      await writeCollection(action.collection, db[action.collection]);
+      await writeCollection(db, action.collection);
       break;
     }
     case "snapshot": {
@@ -380,7 +380,7 @@ export async function POST(req: Request) {
       const returnPct = Number.isFinite(Number(action.returnPct)) ? Number(action.returnPct) : undefined;
       const source = action.source === "lhv" ? "lhv" : "lightyear";
       db.snapshots.push({ id: newId("snap"), source, total, holdings, returnPct, at: now });
-      await writeCollection("snapshots", db.snapshots);
+      await writeCollection(db, "snapshots");
       break;
     }
     case "category-add": {
@@ -388,7 +388,7 @@ export async function POST(req: Request) {
       if (!name) return bad("a short name is required");
       if (db.categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) return bad("that category already exists");
       db.categories.push({ name });
-      await writeCollection("categories", db.categories);
+      await writeCollection(db, "categories");
       break;
     }
     case "category-rename": {
@@ -404,10 +404,10 @@ export async function POST(req: Request) {
         return bad("that category already exists");
       }
       renameCategory(db, action.from, to);
-      await writeCollection("categories", db.categories);
-      await writeCollection("rules", db.rules);
-      await writeCollection("overrides", db.overrides);
-      await writeCollection("shares", db.shares);
+      await writeCollection(db, "categories");
+      await writeCollection(db, "rules");
+      await writeCollection(db, "overrides");
+      await writeCollection(db, "shares");
       break;
     }
     case "category-order": {
@@ -419,7 +419,7 @@ export async function POST(req: Request) {
         order.every((n) => db.categories.some((c) => c.name === n));
       if (!complete) return bad("order must list every category once");
       db.categories = order.map((n) => db.categories.find((c) => c.name === n)!);
-      await writeCollection("categories", db.categories);
+      await writeCollection(db, "categories");
       break;
     }
     case "category-budget": {
@@ -430,7 +430,7 @@ export async function POST(req: Request) {
       const budget = action.budget == null ? undefined : Number(action.budget);
       if (budget !== undefined && !(budget > 0 && budget < 1e7)) return bad("a positive amount, or empty for no limit");
       cat.budget = budget === undefined ? undefined : Math.round(budget * 100) / 100;
-      await writeCollection("categories", db.categories);
+      await writeCollection(db, "categories");
       break;
     }
     case "merchant": {
@@ -451,7 +451,7 @@ export async function POST(req: Request) {
       // A new identity without a pattern would rename every charge.
       else if (!scope.pattern) return bad("This charge's name is too short to match others on, so it can't have a name or icon of its own.");
       else db.merchants.push({ id: newId("mer"), match: scope.pattern, ...fields, createdAt: now });
-      await writeCollection("merchants", db.merchants);
+      await writeCollection(db, "merchants");
       break;
     }
     case "merchant-reset": {
@@ -459,7 +459,7 @@ export async function POST(req: Request) {
       const scope = merchantScope(db, action);
       if (!scope) return bad("unknown tx or subscription");
       db.merchants = db.merchants.filter((m) => !scope.covers(m));
-      await writeCollection("merchants", db.merchants);
+      await writeCollection(db, "merchants");
       break;
     }
     case "set-lhv-token": {
@@ -542,7 +542,7 @@ async function teachRule(db: Db, tx: Tx, category: string, now: string): Promise
   if (!match || db.rules.some((r) => r.match === match && r.category === category)) return undefined;
   const id = newId("rule");
   db.rules.push({ id, match, category, createdAt: now });
-  await writeCollection("rules", db.rules);
+  await writeCollection(db, "rules");
   return id;
 }
 

@@ -7,12 +7,14 @@ import {
   readDb,
   saveAccounts,
   saveLhvTokens,
+  upsertTransactions,
   writeCollection,
 } from "@/lib/storage";
 import { fetchAccounts, fetchInvestments, fetchStatement, refreshAccessToken } from "@/lib/lhv";
 import { applyShareRules, recheckCadences, recordInvestments } from "@/lib/engine";
 import { currentRole } from "@/lib/auth";
 import { sameSecret } from "@/lib/crypto";
+import { backUpOnceADay } from "@/lib/backup";
 
 export const dynamic = "force-dynamic";
 // A year-long backfill is several statement calls per account; Hobby allows 60s.
@@ -37,10 +39,13 @@ function isoMinusDays(date: string, days: number): string {
 async function run(req: Request) {
   if (!(await isAuthorized(req))) return new NextResponse(null, { status: 401 });
 
+  // The day's copy of the board comes first, so a sync that fails on LHV still leaves one.
+  const backup = await backUpOnceADay();
+
   const tokens = await getLhvTokens();
   if (!tokens) {
     return NextResponse.json(
-      { ok: false, error: "No LHV token stored. Paste a refresh token in Settings (api.lhv.ai/api-access)." },
+      { ok: false, error: "No LHV token stored. Paste a refresh token in Settings (api.lhv.ai/api-access).", backup },
       { status: 400 }
     );
   }
@@ -116,7 +121,7 @@ async function run(req: Request) {
     // to those alone, never to the past.
     const known = new Set(db.transactions.map((t) => t.id));
     const fresh = txs.filter((t) => !known.has(t.id));
-    if (txs.length > 0) await writeCollection("transactions", txs);
+    await upsertTransactions(txs);
 
     // A second charge settles a cadence that was guessed from one. The new
     // rows are merged in memory rather than read back: same data, one less trip.
@@ -126,7 +131,7 @@ async function run(req: Request) {
       for (const t of txs) byId.set(t.id, t);
       db.transactions = [...byId.values()];
       cadencesChanged = recheckCadences(db);
-      if (cadencesChanged > 0) await writeCollection("subscriptions", db.subscriptions);
+      if (cadencesChanged > 0) await writeCollection(db, "subscriptions");
     }
 
     const mockCleaned = txs.length > 0 ? await cleanupMockData() : false;
@@ -141,7 +146,7 @@ async function run(req: Request) {
     let sharedByRule = 0;
     if (fresh.length > 0 && store.shareRules.length > 0) {
       sharedByRule = applyShareRules(store, fresh, new Date().toISOString(), () => newId("share"));
-      if (sharedByRule > 0) await writeCollection("shares", store.shares);
+      if (sharedByRule > 0) await writeCollection(store, "shares");
     }
 
     let investments: { positions: number; updated: boolean } | { error: string } | null = null;
@@ -149,7 +154,7 @@ async function run(req: Request) {
       const portfolio = await fetchInvestments(accessToken);
       if (portfolio) {
         const updated = recordInvestments(store, portfolio, new Date().toISOString(), () => newId("snap"));
-        if (updated) await writeCollection("snapshots", store.snapshots);
+        if (updated) await writeCollection(store, "snapshots");
         investments = { positions: portfolio.positions, updated };
       }
     } catch (e) {
@@ -173,6 +178,7 @@ async function run(req: Request) {
       paymentDataKeySamples: paymentDataKeySamples.slice(0, 3),
       directionValues: [...directionValues],
       unmappedTypeSample: unmappedTypeSample ?? undefined,
+      backup,
     });
   } catch (e) {
     return NextResponse.json(
@@ -181,6 +187,7 @@ async function run(req: Request) {
         error: e instanceof Error ? e.message : String(e),
         tokenMode: tokenModeReport,
         refreshGrant: refreshFailure ?? undefined,
+        backup,
       },
       { status: 502 }
     );

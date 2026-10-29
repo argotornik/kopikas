@@ -7,6 +7,7 @@ import { SCHEMA } from "./schema";
 import { DEFAULT_CATEGORIES } from "./engine";
 import { stripPeriod } from "./utils";
 import { seal, unseal } from "./crypto";
+import { KEY, ORDER, applyChanges, changes, statements, type Changes, type RowCollection } from "./rows";
 import type { LhvAccount, LhvTokens } from "./lhv";
 
 // The single storage module, two adapters behind one interface:
@@ -34,8 +35,14 @@ export function newId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+// What each request read, as stored (before the repairs below), so a save sends only what the
+// request changed, the repairs included.
+const asRead = new WeakMap<Db, Db>();
+
 export async function readDb(): Promise<Db> {
-  const db = normalizePatterns(normalizeCategories(await (process.env.DATABASE_URL ? pgReadDb() : jsonReadDb())));
+  const stored = await (process.env.DATABASE_URL ? pgReadDb() : jsonReadDb());
+  const db = normalizePatterns(normalizeCategories(structuredClone(stored)));
+  asRead.set(db, stored);
   // categories.json from before limits existed holds bare names.
   db.categories = (db.categories as unknown as (string | Category)[]).map((c) => (typeof c === "string" ? { name: c } : c));
   // A board that has never edited its categories stores none and shows the defaults.
@@ -79,8 +86,28 @@ function normalizeCategories(db: Db): Db {
   return db;
 }
 
-export async function writeCollection<K extends keyof Db>(name: K, value: Db[K]): Promise<void> {
-  return process.env.DATABASE_URL ? pgWriteCollection(name, value) : jsonWriteCollection(name, value);
+// Saves a collection of a board read with readDb: only the rows this request added, changed or
+// took out, in one step, so a save cut off halfway leaves nothing half-written and two saves at
+// once to different rows both stand (see lib/rows.ts). Categories go whole, in one step.
+export async function writeCollection(db: Db, name: RowCollection | "categories"): Promise<void> {
+  const read = asRead.get(db);
+  if (!read) throw new Error("writeCollection saves a board read with readDb");
+  const pg = !!process.env.DATABASE_URL;
+  if (name === "categories") {
+    await (pg ? pgWriteCategories(db.categories) : jsonWriteCategories(db.categories));
+  } else {
+    const change = changes<object>(read[name], db[name], KEY[name] as (row: object) => string);
+    if (change.put.length === 0 && change.drop.length === 0) return;
+    await (pg ? pgSave(name, change) : jsonSave(name, change));
+  }
+  // A second save of the same collection in this request sends only what changed since.
+  (read as unknown as Record<string, unknown>)[name] = structuredClone(db[name]);
+}
+
+// New and refreshed charges from the bank: added, or their names refreshed, never removed.
+export async function upsertTransactions(txs: Db["transactions"]): Promise<void> {
+  if (txs.length === 0) return;
+  return process.env.DATABASE_URL ? pgUpsertTransactions(txs) : jsonUpsertTransactions(txs);
 }
 
 /* ---------------- JSON dev adapter ---------------- */
@@ -129,9 +156,54 @@ async function jsonReadDb(): Promise<Db> {
   return Object.fromEntries(entries) as unknown as Db;
 }
 
-async function jsonWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Promise<void> {
-  await ensureSeeded();
-  await fs.writeFile(path.join(DATA_DIR, `${name}.json`), JSON.stringify(value, null, 2));
+// One write at a time: each reads its file afresh and makes its changes to that, as Postgres does
+// row by row.
+let writing: Promise<unknown> = Promise.resolve();
+function oneAtATime<T>(write: () => Promise<T>): Promise<T> {
+  const run = writing.then(write, write);
+  writing = run.catch(() => {});
+  return run;
+}
+
+async function jsonReadFile<T>(name: keyof Db): Promise<T[]> {
+  try {
+    return JSON.parse(await fs.readFile(path.join(DATA_DIR, `${name}.json`), "utf8")) as T[];
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw e;
+  }
+}
+
+function jsonWriteFile(name: keyof Db, value: unknown): Promise<void> {
+  return fs.writeFile(path.join(DATA_DIR, `${name}.json`), JSON.stringify(value, null, 2));
+}
+
+function jsonSave(name: RowCollection, change: Changes<object>): Promise<void> {
+  return oneAtATime(async () => {
+    await ensureSeeded();
+    const key = KEY[name] as (row: object) => string;
+    const order = ORDER[name] as ((a: object, b: object) => number) | undefined;
+    await jsonWriteFile(name, applyChanges(await jsonReadFile<object>(name), change, key, order));
+  });
+}
+
+function jsonWriteCategories(categories: Db["categories"]): Promise<void> {
+  return oneAtATime(async () => {
+    await ensureSeeded();
+    await jsonWriteFile("categories", categories);
+  });
+}
+
+function jsonUpsertTransactions(txs: Db["transactions"]): Promise<void> {
+  return oneAtATime(async () => {
+    await ensureSeeded();
+    const byId = new Map((await jsonReadFile<Db["transactions"][number]>("transactions")).map((t) => [t.id, t]));
+    for (const t of txs) {
+      const old = byId.get(t.id);
+      byId.set(t.id, old ? { ...old, counterparty: t.counterparty, description: t.description } : t);
+    }
+    await jsonWriteFile("transactions", [...byId.values()].sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id)));
+  });
 }
 
 /* ---------------- Postgres adapter (Neon) ---------------- */
@@ -255,133 +327,38 @@ async function pgReadDb(): Promise<Db> {
   } as Db;
 }
 
-async function pgWriteCollection<K extends keyof Db>(name: K, value: Db[K]): Promise<void> {
+// A collection's changes as one transaction: a save cut off halfway changes nothing.
+async function pgSave(name: RowCollection, change: Changes<object>): Promise<void> {
   const sql = db();
-  switch (name) {
-    case "categories": {
-      await ensureSchema(sql);
-      await sql`delete from categories`;
-      for (const [i, c] of (value as Db["categories"]).entries()) {
-        await sql.query(`insert into categories (name, position, budget) values ($1, $2, $3)`, [c.name, i, c.budget ?? null]);
-      }
-      return;
-    }
-    case "transactions": {
-      // Append-only facts: upsert, never delete (shares/overrides hold FKs).
-      // Display fields refresh on conflict so mapper improvements reach
-      // already-stored rows on re-sync; date/amount stay immutable facts.
-      for (const t of value as Db["transactions"]) {
-        await sql.query(
-          `insert into transactions (id, date, amount, currency, counterparty, description, iban)
-           values ($1, $2, $3, $4, $5, $6, $7)
-           on conflict (id) do update set counterparty = excluded.counterparty, description = excluded.description`,
-          [t.id, t.date, t.amount, t.currency, t.counterparty, t.description, t.iban]
-        );
-      }
-      return;
-    }
-    case "rules": {
-      await sql`delete from rules`;
-      for (const r of value as Db["rules"]) {
-        await sql.query(`insert into rules (id, match, category, created_at) values ($1, $2, $3, $4)`, [
-          r.id,
-          r.match,
-          r.category,
-          r.createdAt,
-        ]);
-      }
-      return;
-    }
-    case "overrides": {
-      await sql`delete from overrides`;
-      for (const o of value as Db["overrides"]) {
-        await sql.query(`insert into overrides (tx_id, category, filed_at) values ($1, $2, $3)`, [o.txId, o.category, o.at ?? null]);
-      }
-      return;
-    }
-    case "shares": {
-      await ensureSchema(sql);
-      await sql`alter table shares add column if not exists manual_category text`;
-      await sql`delete from shares`;
-      for (const s of value as Db["shares"]) {
-        await sql.query(
-          `insert into shares (id, paid_by, tx_id, manual_date, manual_description, manual_amount, manual_category, partner_share, created_at)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [
-            s.id,
-            s.paidBy,
-            s.txId ?? null,
-            s.manual?.date ?? null,
-            s.manual?.description ?? null,
-            s.manual?.amount ?? null,
-            s.manual?.category ?? null,
-            s.partnerShare ?? null,
-            s.createdAt,
-          ]
-        );
-      }
-      return;
-    }
-    case "shareRules": {
-      await ensureSchema(sql);
-      await sql`delete from share_rules`;
-      for (const r of value as Db["shareRules"]) {
-        await sql.query(`insert into share_rules (id, match, partner_share, created_at) values ($1, $2, $3, $4)`, [
-          r.id,
-          r.match,
-          r.partnerShare,
-          r.createdAt,
-        ]);
-      }
-      return;
-    }
-    case "settlements": {
-      await sql`delete from settlements`;
-      for (const s of value as Db["settlements"]) {
-        await sql.query(
-          `insert into settlements (id, amount, date, tx_id, note, recorded_by) values ($1, $2, $3, $4, $5, $6)`,
-          [s.id, s.amount, s.date, s.txId ?? null, s.note ?? null, s.recordedBy ?? null]
-        );
-      }
-      return;
-    }
-    case "subscriptions": {
-      await ensureSchema(sql);
-      await sql`delete from subscriptions`;
-      for (const s of value as Db["subscriptions"]) {
-        await sql.query(
-          `insert into subscriptions (id, name, match, expected_amount, cadence, cadence_by_hand, active, match_amount, created_at)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [s.id, s.name, s.match, s.expectedAmount, s.cadence, s.cadenceByHand ?? false, s.active, s.matchAmount ?? false, s.createdAt]
-        );
-      }
-      return;
-    }
-    case "merchants": {
-      await ensureSchema(sql);
-      await sql`delete from merchants`;
-      for (const m of value as Db["merchants"]) {
-        await sql.query(
-          `insert into merchants (id, match, name, domain, emoji, created_at) values ($1, $2, $3, $4, $5, $6)`,
-          [m.id, m.match, m.name, m.domain ?? null, m.emoji ?? null, m.createdAt]
-        );
-      }
-      return;
-    }
-    case "snapshots": {
-      await sql`alter table snapshots add column if not exists return_pct numeric(6,2)`;
-      await sql`alter table snapshots add column if not exists source text`;
-      await sql`alter table snapshots add column if not exists auto boolean not null default false`;
-      await sql`delete from snapshots`;
-      for (const s of value as Db["snapshots"]) {
-        await sql.query(
-          `insert into snapshots (id, source, auto, total, holdings, return_pct, at) values ($1, $2, $3, $4, $5::jsonb, $6, $7)`,
-          [s.id, s.source ?? null, s.auto ?? false, s.total, JSON.stringify(s.holdings), s.returnPct ?? null, s.at]
-        );
-      }
-      return;
-    }
-  }
+  await ensureSchema(sql);
+  await sql.transaction((txn) => statements(name, change as Changes<never>).map((q) => txn.query(q.text, q.params)));
+}
+
+async function pgWriteCategories(categories: Db["categories"]): Promise<void> {
+  const sql = db();
+  await ensureSchema(sql);
+  await sql.transaction((txn) => [
+    txn`delete from categories`,
+    ...categories.map((c, i) => txn.query(`insert into categories (name, position, budget) values ($1, $2, $3)`, [c.name, i, c.budget ?? null])),
+  ]);
+}
+
+// Append-only facts: upsert, never delete (shares/overrides hold FKs). Display fields refresh on
+// conflict so mapper improvements reach already-stored rows on re-sync; date/amount stay
+// immutable facts.
+async function pgUpsertTransactions(txs: Db["transactions"]): Promise<void> {
+  const sql = db();
+  await ensureSchema(sql);
+  await sql.transaction((txn) =>
+    txs.map((t) =>
+      txn.query(
+        `insert into transactions (id, date, amount, currency, counterparty, description, iban)
+         values ($1, $2, $3, $4, $5, $6, $7)
+         on conflict (id) do update set counterparty = excluded.counterparty, description = excluded.description`,
+        [t.id, t.date, t.amount, t.currency, t.counterparty, t.description, t.iban]
+      )
+    )
+  );
 }
 
 /* ---------------- LHV tokens (encrypted at rest in prod) ---------------- */

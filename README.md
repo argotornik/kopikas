@@ -98,8 +98,17 @@ You need a Vercel project pointed at the repo, a Neon database, and a Clerk appl
 | `NEXT_PUBLIC_OWNER_NAME` | How the owner is named on the partner's screens. Optional, defaults to Owner. |
 | `PARTNER_EMAIL` | The partner's sign-in email. Pooleks and adding shared expenses only. |
 | `NEXT_PUBLIC_PARTNER_NAME` | How the partner is named on screen. Optional, defaults to Partner. |
+| `BLOB_READ_WRITE_TOKEN` | Set for you when a private Blob store is connected to the project. Optional; the daily backups need it. |
 
 In Clerk, turn sign-up off and create the two users by hand; the app trusts the email on the session and nothing else. For the hourly sync, add `CRON_SECRET` as a repository secret and `SYNC_URL`, your deployment's `/api/sync` address, as a repository variable. `/api/version` is public and returns the deployed commit, which is the quickest way to see whether a push has landed.
+
+For backups, create a private Blob store under Storage in the Vercel project and connect it to the project. Every sync then makes sure the day has a copy of the board, `backups/YYYY-MM-DD.json`, and lets go of copies older than 30 days; without a store it skips this, and if a copy fails, the hourly workflow fails, so GitHub tells you. Neon's free plan keeps six hours of history, so these copies are what a mistake is undone from. A copy holds everything decided on the board and the charges it points at, one key per file of the local `data/` folder, so with your own `data/` moved aside you can open one locally with `npm run dev` after:
+
+```bash
+node -e 'const b = require(process.argv[1]); delete b.takenAt; for (const k in b) require("fs").writeFileSync(`data/${k}.json`, JSON.stringify(b[k], null, 2))' ./2026-10-29.json
+```
+
+Putting a copy back into the database isn't built yet.
 
 ## Things to know
 
