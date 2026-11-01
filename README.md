@@ -128,6 +128,12 @@ Only LHV is supported. Another bank means implementing the two fetch functions i
 
 The LHV API is in beta and changed during the build. If the sync starts returning empty, check `lhv.ai` before checking the code.
 
+## How it was made
+
+Kopikas was written with Claude Code, Anthropic's coding agent, and most commits carry its co-author line. The agent wrote most of the code and ran the checks; its author chose what to build, how it looks and what ships, and uses it on a real household's bank data to find what comes next.
+
+The brief is part of the repo: `PRODUCT.md` says who it is for and what it must do, `DESIGN.md` how it looks. A new screen is designed before it is coded: two to four concepts drawn in Figma through the Figma MCP connector, one picked, and that one built. After that, Figma follows the code: `scripts/figma-kit` rebuilds the Figma kit from the running app, so the next design starts from what ships. Design reviews ran on the Impeccable skill, which scores an interface against ten usability heuristics; its snapshots are in `.impeccable/critique/`. Performance work starts from a measurement, taken on a production build with 2,081 synthetic charges and a throttled CPU.
+
 ## Credits
 
 The painted look of the board and of Kopikas, with flat colour, soft round shapes and faces of two dots and a curve, follows the tufted characters of KAIA ([@saiakuubik](https://www.instagram.com/saiakuubik/)), and is used with her permission.
