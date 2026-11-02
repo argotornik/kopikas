@@ -72,11 +72,11 @@
   "Caption": "S:b5114f6624bdd6221b700b6081785992e0661565,"
  },
  "frames": {
-  "Stage · 1440 · light": "100:1081",
-  "Stage · 1440 · dark": "100:1137",
-  "Phone · 375 · light": "100:1193",
-  "To file · 390 · light": "108:1074",
-  "To file · 390 · dark": "108:1167"
+  "Stage · 1440 · light": "298:98",
+  "Stage · 1440 · dark": "298:157",
+  "Phone · 375 · light": "298:216",
+  "To file · 390 · light": "299:172",
+  "To file · 390 · dark": "299:255"
  },
  "componentSets": {
   "Roll": "9:85",
