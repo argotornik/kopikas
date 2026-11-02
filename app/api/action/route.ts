@@ -5,10 +5,13 @@ import { sharedView } from "@/lib/shared-view";
 import { currentRole, refusalStatus } from "@/lib/auth";
 import { checkRefreshToken } from "@/lib/lhv";
 import { applyAction, type Action } from "@/lib/apply";
+import { DEMO } from "@/lib/demo-flag";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  // The demo makes its changes in each visitor's browser; its server keeps nothing.
+  if (DEMO) return NextResponse.json({ ok: false, error: "The demo keeps its changes in your browser." }, { status: 403 });
   const action = (await req.json()) as Action;
 
   // The owner: everything. The partner: adding what they paid and recording,

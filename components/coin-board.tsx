@@ -5,7 +5,8 @@ import { SearchIcon, XIcon } from "lucide-react";
 import { DndContext, DragOverlay, MouseSensor, pointerWithin, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { unpackBoard, type Board, type BoardTx, type PackedBoard } from "@/lib/board";
 import { SAVINGS, SUBSCRIPTIONS, matches } from "@/lib/engine";
-import { act, type Undo } from "@/lib/act";
+import { act, readFresh, type Undo } from "@/lib/act";
+import { DEMO } from "@/lib/demo-flag";
 import { announce, announceError, announceUndoable } from "@/components/toaster";
 import { PaintedCoin } from "@/components/painted";
 import { CoinStage, byUse, eur, label, looseCoins, monthOf, rollOnScreen, shortDate, usuallyOf, type CoinStageHandle } from "@/components/coin-stage";
@@ -230,13 +231,16 @@ export function CoinBoard({
   // `quiet` after a change that failed: its own notice has said so already.
   const refetch = useCallback(async (quiet = false) => {
     try {
-      const res = await fetch("/api/board", { cache: "no-store" });
-      if (!res.ok) throw new Error(String(res.status));
-      setBoard(unpackBoard(await res.json()));
+      setBoard(unpackBoard(await readFresh<PackedBoard>("board")));
     } catch {
       if (!quiet) announceError("The board couldn't refresh. Reload to see the latest.", () => window.location.reload());
     }
   }, []);
+  // The demo's server draws the household as it arrives; a visitor back for more gets the board
+  // as they left it in this browser.
+  useEffect(() => {
+    if (DEMO) void refetch(true);
+  }, [refetch]);
   const run = useCallback(
     async (action: object) => {
       const result = await act<PackedBoard>(action, "board");

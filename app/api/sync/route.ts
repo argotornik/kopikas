@@ -14,6 +14,7 @@ import { applyShareRules, recheckCadences, recordInvestments } from "@/lib/engin
 import { currentRole } from "@/lib/auth";
 import { sameSecret } from "@/lib/crypto";
 import { newId } from "@/lib/ids";
+import { DEMO } from "@/lib/demo-flag";
 import { backUpOnceADay } from "@/lib/backup";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,8 @@ export const maxDuration = 60;
 // only, never transaction values.
 
 async function isAuthorized(req: Request): Promise<boolean> {
+  // The demo has no bank behind it, and everyone is its owner.
+  if (DEMO) return false;
   const secret = process.env.CRON_SECRET;
   if (secret && sameSecret(req.headers.get("authorization") ?? "", `Bearer ${secret}`)) return true;
   return (await currentRole()) === "owner";

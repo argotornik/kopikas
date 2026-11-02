@@ -23,6 +23,20 @@
         "3001"
       ],
       "port": 3001
+    },
+    {
+      "name": "kopikas-demo",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "NEXT_PUBLIC_KOPIKAS_DEMO=1",
+        "npm",
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3002"
+      ],
+      "port": 3002
     }
   ]
 }

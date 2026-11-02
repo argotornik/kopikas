@@ -9,6 +9,8 @@ import { stripPeriod } from "./utils";
 import { seal, unseal } from "./crypto";
 import { KEY, ORDER, applyChanges, changes, statements, type Changes, type RowCollection } from "./rows";
 import type { LhvAccount, LhvTokens } from "./lhv";
+import { DEMO } from "./demo-flag";
+import { DEMO_ACCOUNTS, demoDb } from "./demo";
 
 // The single storage module, two adapters behind one interface:
 //   - DATABASE_URL set (Vercel + Neon): Postgres, tables from db/schema.sql
@@ -36,6 +38,13 @@ const FILES: (keyof Db)[] = [
 const asRead = new WeakMap<Db, Db>();
 
 export async function readDb(): Promise<Db> {
+  // The demo's server only ever draws the made-up household as it arrives; changes are made in
+  // each visitor's browser (lib/demo-browser.ts).
+  if (DEMO) {
+    const demo = demoDb();
+    asRead.set(demo, structuredClone(demo));
+    return demo;
+  }
   const stored = await (process.env.DATABASE_URL ? pgReadDb() : jsonReadDb());
   const db = normalizePatterns(normalizeCategories(structuredClone(stored)));
   asRead.set(db, stored);
@@ -86,6 +95,7 @@ function normalizeCategories(db: Db): Db {
 // took out, in one step, so a save cut off halfway leaves nothing half-written and two saves at
 // once to different rows both stand (see lib/rows.ts). Categories go whole, in one step.
 export async function writeCollection(db: Db, name: RowCollection | "categories"): Promise<void> {
+  if (DEMO) return;
   const read = asRead.get(db);
   if (!read) throw new Error("writeCollection saves a board read with readDb");
   const pg = !!process.env.DATABASE_URL;
@@ -360,6 +370,7 @@ async function pgUpsertTransactions(txs: Db["transactions"]): Promise<void> {
 /* ---------------- LHV tokens (encrypted at rest in prod) ---------------- */
 
 export async function getLhvTokens(): Promise<LhvTokens | null> {
+  if (DEMO) return null;
   if (process.env.DATABASE_URL) {
     const sql = db();
     await sql`create table if not exists tokens (id text primary key, encrypted text not null, updated_at timestamptz not null)`;
@@ -395,6 +406,8 @@ export async function saveLhvTokens(refreshToken: string): Promise<void> {
 /* ---------------- LHV account balances ---------------- */
 
 export async function getAccounts(): Promise<{ accounts: LhvAccount[]; fetchedAt: string | null }> {
+  // No sync time in the demo: the board says nothing about when LHV was last heard from.
+  if (DEMO) return { accounts: DEMO_ACCOUNTS, fetchedAt: null };
   if (process.env.DATABASE_URL) {
     const sql = db();
     await sql`create table if not exists accounts (iban text primary key, name text not null, currency text not null, balance numeric(14,2) not null, fetched_at timestamptz not null)`;
