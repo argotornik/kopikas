@@ -6,8 +6,9 @@ import { useSyncExternalStore } from "react";
 //   pick → drop → always → (month, on a phone) → year → pooleks → end, or off once skipped.
 
 export type TipStep = "pick" | "drop" | "always" | "month" | "year" | "pooleks" | "end" | "off";
-// What the filing that ended the first tips did: Always tells it, or asks for it.
-export type Filing = { shop: string; category: string; others: number; always: boolean };
+// What the filing that ended the first tips did: Always tells it, or asks for it. `total` is how
+// many of the shop's charges are filed now, the coin's own among them.
+export type Filing = { shop: string; category: string; total: number; always: boolean };
 export type Tour = { step: TipStep; filing?: Filing };
 
 const KEY = "kopikas-demo-tips";

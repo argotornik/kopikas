@@ -68,8 +68,10 @@ function tell(d: Db, action: Action, taught: boolean) {
   if (!tx) return;
   const pattern = rulePattern(tx);
   const always = taught || (action.type === "override" && !!action.always);
-  const others = always && pattern ? d.transactions.filter((t) => t.amount < 0 && matches(t, pattern)).length - ids.length : 0;
-  tips.filed({ shop: merchantOf(tx, d.merchants).name, category: action.category, others: Math.max(0, others), always });
+  // Counted whole, not as "more": a coin on the stage holds its month's charges from the shop, one
+  // in the phone's queue holds one, so only the whole count reads the same as the notice.
+  const total = always && pattern ? d.transactions.filter((t) => t.amount < 0 && matches(t, pattern)).length : ids.length;
+  tips.filed({ shop: merchantOf(tx, d.merchants).name, category: action.category, total, always });
 }
 
 // Start over: the made-up household as it arrived.

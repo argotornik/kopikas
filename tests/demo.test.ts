@@ -11,6 +11,14 @@ test("the demo household is the same on every visit to the same day", () => {
 });
 
 for (const day of DAYS) {
+  test(`on ${day} the phone's queue opens on McDonald's: the newest loose charge, the last made of its day`, () => {
+    const db = demoDb(new Date(`${day}T12:00:00Z`));
+    const loose = db.transactions.filter((t) => t.amount < 0 && !categoryOf(t, db.rules, db.overrides));
+    const newest = loose.reduce((a, b) => (b.date >= a.date ? b : a));
+    assert.equal(newest.counterparty, "McDonald's");
+    assert.equal(loose.filter((t) => t.counterparty === "McDonald's").length, 4);
+  });
+
   test(`on ${day} nothing is dated after today, and the month on show has loose change, the dry cleaner's among it`, () => {
     const today = new Date(`${day}T12:00:00Z`);
     const db = demoDb(today);
