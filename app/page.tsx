@@ -4,7 +4,7 @@ import { coinFonts } from "@/components/coin-fonts";
 import { getAccounts, getLhvTokens, readDb } from "@/lib/storage";
 import { FirstRun } from "@/components/first-run";
 import { buildBoard, packBoard } from "@/lib/board";
-import { currentEmail, ownerConfigured, pageRole } from "@/lib/auth";
+import { currentEmail, hasPartner, ownerConfigured, pageRole } from "@/lib/auth";
 import { PARTNER_NAME } from "@/lib/names";
 import { NotOnBoard, SetupOwner } from "@/components/setup-owner";
 
@@ -41,8 +41,7 @@ export default async function Home({
       syncedAt={fetchedAt}
       view={view}
       fontClass={coinFonts}
-      // A household with a partner splits costs with them: one is configured, or something was split.
-      partner={process.env.PARTNER_EMAIL || db.shares.length > 0 ? PARTNER_NAME : null}
+      partner={hasPartner(db) ? PARTNER_NAME : null}
     />
   );
 }

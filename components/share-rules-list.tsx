@@ -53,7 +53,7 @@ export function ShareRulesList({ initial }: { initial: ShareRuleRow[] }) {
         </h2>
         <span className={cn("text-[15px] tabular-nums", MUTED)}>{rules.length}</span>
       </div>
-      <p className={cn("mt-1 max-w-[80ch] px-1 text-[13px]", MUTED)}>
+      <p className={cn("mt-1 max-w-[52ch] px-1 text-[13px]", MUTED)}>
         Made when you choose Always while splitting a charge with {PARTNER_NAME}. New charges that match go on Pooleks at
         that split. Charges already there stay, even if you remove the rule.
       </p>

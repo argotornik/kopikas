@@ -324,9 +324,9 @@ export function CoinBoard({
       ...b,
       txs: b.txs.map((t) =>
         t.id === tx.id
-          ? { ...t, category, categorySource: "override" as const, filedAt: new Date().toISOString() }
+          ? { ...t, category, categorySource: "override" as const, handFiled: !wide && !subscription && (t.handFiled || !t.category), filedAt: new Date().toISOString() }
           : alike.has(t.id)
-            ? { ...t, category, categorySource: "rule" as const, filedAt: new Date().toISOString() }
+            ? { ...t, category, categorySource: "rule" as const, handFiled: false, filedAt: new Date().toISOString() }
             : t
       ),
       uncategorizedCount: b.uncategorizedCount - (tx.category ? 0 : 1) - alike.size,
@@ -369,7 +369,7 @@ export function CoinBoard({
     const before = board.txs.filter((t) => ids.has(t.id));
     setBoard((b) => ({
       ...b,
-      txs: b.txs.map((t) => (ids.has(t.id) ? { ...t, category, categorySource: "override" as const, filedAt: new Date().toISOString() } : t)),
+      txs: b.txs.map((t) => (ids.has(t.id) ? { ...t, category, categorySource: "override" as const, handFiled: t.handFiled || !t.category, filedAt: new Date().toISOString() } : t)),
       uncategorizedCount: b.uncategorizedCount - txs.filter((t) => !t.category).length,
     }));
     const saving = run({ type: "override-many", txIds: [...ids], category });
@@ -430,6 +430,23 @@ export function CoinBoard({
     void run({ type: "unshare", shareId: tx.shareId }).then((r) => {
       if (!r.ok) return announceError(r.error);
       announceUndoable(`Took ${tx.name} off Pooleks.`, r.undo, refetch);
+    });
+  };
+  // A charge filed by hand, with no rule for its shop, goes back to the loose change: its coin is
+  // in the pile again before the server answers.
+  const onUnfile = (tx: BoardTx) => {
+    const before = board.txs.filter((t) => t.id === tx.id);
+    setBoard((b) => ({
+      ...b,
+      txs: b.txs.map((t) => (t.id === tx.id ? { ...t, category: null, categorySource: null, filedAt: null, handFiled: false } : t)),
+      uncategorizedCount: b.uncategorizedCount + 1,
+    }));
+    void run({ type: "unoverride", txId: tx.id, previous: null }).then((r) => {
+      if (!r.ok) {
+        putBack(before, -1);
+        return announceError(`Couldn't take ${tx.name} back to To file. ${r.error}`, retryUnlessChanged(before, () => onUnfile(tx)));
+      }
+      announceUndoable(`Took ${tx.name} back to To file.`, r.undo, refetch);
     });
   };
   // The editors: categories (names, order, limits), a merchant's name and icon, and
@@ -656,8 +673,9 @@ export function CoinBoard({
         )}
         <CoinHeader
           heading
+          // Pooleks splits with a partner: a household of one has no use for it.
           links={[
-            { href: "/pooleks", label: "Pooleks", icon: PooleksIcon },
+            ...(partner ? [{ href: "/pooleks", label: "Pooleks", icon: PooleksIcon }] : []),
             { href: "/settings", label: "Settings", icon: SettingsIcon },
           ]}
           sub={stale ? <div className="mt-1 flex max-sm:hidden">{stale}</div> : synced && <p className={cn("mt-1 text-[13px]", MUTED)}>Synced {synced.ago}</p>}
@@ -710,20 +728,40 @@ export function CoinBoard({
             side={only === TO_FILE && listFirst && !travels ? sideEl : null}
             selected={picked}
             onSelect={toggle}
-            // A chosen roll's year takes the figures' place; they come back when it is let go.
+            // A chosen roll's year takes the figures' place; they come back when it is let go. The
+            // two share one cell, the figures keeping their room while hidden, and the cell keeps the
+            // year's room (54px: its title line and its strip) while the figures show, so choosing a
+            // roll moves nothing below it.
             figures={
-              picked ? (
-                <CoinYear
-                  txs={board.txs}
-                  categories={categories}
-                  category={picked}
-                  month={month}
-                  currentMonth={initial.month}
-                  earliest={months[0]}
-                  onMonth={setMonth}
-                />
+              figures ? (
+                <div className="grid min-h-[54px]">
+                  <div className={cn("col-start-1 row-start-1", picked && "invisible")}>{figures}</div>
+                  {picked && (
+                    <div className="col-start-1 row-start-1">
+                      <CoinYear
+                        txs={board.txs}
+                        categories={categories}
+                        category={picked}
+                        month={month}
+                        currentMonth={initial.month}
+                        earliest={months[0]}
+                        onMonth={setMonth}
+                      />
+                    </div>
+                  )}
+                </div>
               ) : (
-                figures
+                picked && (
+                  <CoinYear
+                    txs={board.txs}
+                    categories={categories}
+                    category={picked}
+                    month={month}
+                    currentMonth={initial.month}
+                    earliest={months[0]}
+                    onMonth={setMonth}
+                  />
+                )
               )
             }
             actions={
@@ -823,13 +861,16 @@ export function CoinBoard({
                 partner,
                 onSplit: (tx, share) => onSplit(tx, share),
                 onUnshare,
+                onUnfile,
                 onEditMerchant: editMerchant,
               }}
             />
             <aside
               ref={cardsBox}
               className={cn(
-                "flex flex-col gap-8 lg:col-start-2 lg:row-start-1 wide:col-start-1 wide:row-start-2 wide:grid wide:grid-cols-2 wide:items-start wide:sticky",
+                // Two cards side by side from 1900px; Subscriptions alone takes the width.
+                "flex flex-col gap-8 lg:col-start-2 lg:row-start-1 wide:col-start-1 wide:row-start-2 wide:grid wide:items-start wide:sticky",
+                partner && "wide:grid-cols-2",
                 // Under the list while the backlog's rolls take the side column.
                 only === TO_FILE && "lg:col-start-1 lg:row-start-2"
               )}

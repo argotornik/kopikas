@@ -61,6 +61,8 @@ type Actions = {
   partner: string | null;
   onSplit: (tx: BoardTx, share: number, from: Element | null) => void;
   onUnshare: (tx: BoardTx) => void;
+  // A charge filed by hand, with no rule for its shop, back to the loose change.
+  onUnfile: (tx: BoardTx) => void;
   onEditMerchant: (tx: BoardTx) => void;
 };
 
@@ -354,6 +356,7 @@ function FileMenu({
   partner,
   onSplit,
   onUnshare,
+  onUnfile,
   onEditMerchant,
 }: { txs: BoardTx[]; shops: Shop[]; backlog: BoardTx[]; categories: Category[] } & Actions) {
   // The switch for this opening of the menu; null is how it starts: on for a shop's charges,
@@ -572,6 +575,16 @@ function FileMenu({
                     </Menu.RadioGroup>
                     {q && shown.length === 0 && <div className={cn("px-2.5 py-2 text-[15px]", MUTED)}>No category matches &ldquo;{query.trim()}&rdquo;</div>}
                   </Menu.Group>
+                )}
+                {/* A filing by hand can be taken back to the loose change; one a rule made is the rule's. */}
+                {tx?.handFiled && !q && (
+                  <>
+                    <Menu.Separator className={MENU_SEPARATOR} />
+                    <Menu.Item className={MENU_ITEM} onClick={() => onUnfile(tx)}>
+                      <span aria-hidden className="w-3 shrink-0" />
+                      Back to To file
+                    </Menu.Item>
+                  </>
                 )}
                 {tx && partner && (
                   <>

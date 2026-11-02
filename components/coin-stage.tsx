@@ -710,7 +710,7 @@ export function CoinStage({
             onClick={() => onMonthChange(elsewhereMonth)}
             className={cn("relative underline decoration-1 underline-offset-2 hover:text-ink dark:hover:text-white pointer-coarse:after:-inset-x-1 pointer-coarse:after:-inset-y-3.5 pointer-coarse:after:absolute pointer-coarse:after:content-['']", FOCUS)}
           >
-            {oneMonth ? "Go there" : `Go to ${label(elsewhereMonth)}`}
+            Go to {label(elsewhereMonth)}
           </button>
         )}
       </div>
@@ -745,12 +745,13 @@ export function CoinStage({
     ) : (
       "nothing to file"
     );
-  // Under the pile it grows leftwards like the count's slot, so the switch never leaves the panel;
-  // on the phone it wraps instead, and the slot keeps room for the hint's line and two of what
-  // Always takes, so picking a coin or switching Always on never moves the rolls under a thumb.
-  // Until a coin is picked, that room says how: tap a coin, then its roll.
+  // Under the pile it grows leftwards like the count's slot, but from the column's own right edge,
+  // so the switch keeps the panel's padding as everything else does; on the phone it wraps instead,
+  // and the slot keeps room for the hint's line and two of what Always takes, so picking a coin or
+  // switching Always on never moves the rolls under a thumb. Until a coin is picked, that room says
+  // how: tap a coin, then its roll.
   const hintSlot = (hint: string, under: boolean) => (
-    <div className={cn("grid min-h-[30px] grid-cols-1", under ? "-mx-7 [direction:rtl] [justify-items:safe_center]" : "min-h-[70px] justify-items-start")}>
+    <div className={cn("grid min-h-[30px] grid-cols-1", under ? "[direction:rtl] [justify-items:safe_center]" : "min-h-[70px] justify-items-start")}>
       <div className={cn("col-start-1 row-start-1 [direction:ltr]", pickedTx && "invisible")}>
         {backlogNote(under ? PILE.length : 6)}
         {!under && loose.length > 0 && <p className="mt-1.5 text-[13px] text-ink dark:text-chalk">Tap a coin, then its roll</p>}
@@ -1047,7 +1048,9 @@ export function CoinStage({
               >
                 <ChevronLeftIcon className="size-5" aria-hidden />
               </button>
-              <h2 id="month-heading" ref={monthHeading} tabIndex={-1} className={cn(DISPLAY, "rounded-xl text-[34px] font-semibold leading-none sm:text-[40px]", FOCUS)}>
+              {/* As wide as the longest month's name, so the next month's chevron stays put under a
+                  pointer paging through them. */}
+              <h2 id="month-heading" ref={monthHeading} tabIndex={-1} className={cn(DISPLAY, "min-w-[5em] rounded-xl text-[34px] font-semibold leading-none sm:text-[40px]", FOCUS)}>
                 {label(month)}
               </h2>
               <button

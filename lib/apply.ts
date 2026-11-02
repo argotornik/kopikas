@@ -1,4 +1,4 @@
-import type { Db, Merchant, Tx } from "./types";
+import type { Db, Merchant, Override, Rule, Tx } from "./types";
 import type { RowCollection } from "./rows";
 import {
   FIXED_CATEGORIES,
@@ -38,7 +38,7 @@ export type Action =
   | { type: "resubscribe"; subId: string }
   | { type: "accept-price"; subId: string }
   | { type: "set-price"; subId: string; expectedAmount: number }
-  | { type: "restore"; collection: RestoreCollection; record: unknown }
+  | { type: "restore"; collection: RestoreCollection; record: unknown; refile?: Override[] }
   | { type: "cadence"; subId: string; cadence: "monthly" | "yearly" }
   | { type: "snapshot"; total: number; holdings: { name: string; pct: number }[]; returnPct?: number; source?: string }
   | { type: "category-add"; name: string }
@@ -73,13 +73,19 @@ export function applyAction(db: Db, action: Action, role: "owner" | "partner", n
       break;
     }
     case "unrule": {
-      // Forgetting a rule un-files everything it decided; overrides and
-      // other rules still apply. Already gone (a second click) is not an error.
+      // Forgetting a rule un-files everything it decided, the charge that taught it among them;
+      // other overrides and rules still apply. Undo brings both back. Already gone (a second
+      // click) is not an error.
       const removed = db.rules.find((r) => r.id === action.ruleId);
       if (!removed) break;
       db.rules = db.rules.filter((r) => r.id !== action.ruleId);
       changed.add("rules");
-      undo = { type: "restore", collection: "rules", record: removed };
+      const refile = taughtFrom(db, removed);
+      if (refile.length) {
+        db.overrides = db.overrides.filter((o) => !refile.includes(o));
+        changed.add("overrides");
+      }
+      undo = { type: "restore", collection: "rules", record: removed, ...(refile.length ? { refile } : {}) };
       break;
     }
     case "override": {
@@ -101,6 +107,10 @@ export function applyAction(db: Db, action: Action, role: "owner" | "partner", n
     case "unoverride": {
       // Puts back the hand-filing this one replaced, if any; without one the
       // charge goes back to what its rules say, or to the loose change.
+      const old = db.overrides.find((o) => o.txId === action.txId);
+      // Sent from a menu ("Back to To file"), it can be taken back itself: the filing returns as it was.
+      if (old && action.previous === null && !action.ruleId)
+        undo = { type: "unoverride", txId: action.txId, previous: old.category, ...(old.at ? { previousAt: old.at } : {}) };
       db.overrides = db.overrides.filter((o) => o.txId !== action.txId);
       if (typeof action.previous === "string" && db.categories.some((c) => c.name === action.previous)) {
         db.overrides.push({ txId: action.txId, category: action.previous, ...(typeof action.previousAt === "string" ? { at: action.previousAt } : {}) });
@@ -358,6 +368,16 @@ export function applyAction(db: Db, action: Action, role: "owner" | "partner", n
       const err = restoreRecord(db, action.collection, action.record);
       if (err) return bad(`Couldn't put it back: ${err}.`);
       changed.add(action.collection);
+      // A forgotten rule comes back with the hand-filing that taught it, filed when it was.
+      if (action.collection === "rules" && Array.isArray(action.refile)) {
+        for (const o of action.refile) {
+          if (typeof o?.txId !== "string" || typeof o.category !== "string") continue;
+          if (!db.transactions.some((t) => t.id === o.txId) || !db.categories.some((c) => c.name === o.category)) continue;
+          db.overrides = db.overrides.filter((x) => x.txId !== o.txId);
+          db.overrides.push({ txId: o.txId, category: o.category, ...(typeof o.at === "string" ? { at: o.at } : {}) });
+          changed.add("overrides");
+        }
+      }
       break;
     }
     case "snapshot": {
@@ -493,6 +513,19 @@ function categoryName(raw: unknown): string | null {
 // token for known merchants, the counterparty minus per-charge noise otherwise
 // (see rulePattern). Returns the new rule's id, or nothing when it already
 // exists or the charge has nothing to match on.
+// The hand-filing a rule was taught from: a charge it matches, filed under its category with the
+// rule (the switch, before the tap) or in the minute before it (Always in a notice, after the tap).
+function taughtFrom(db: Db, rule: Rule): Override[] {
+  const taught = Date.parse(rule.createdAt);
+  return db.overrides.filter((o) => {
+    if (o.category !== rule.category || !o.at) return false;
+    const gap = taught - Date.parse(o.at);
+    if (!(gap >= 0 && gap <= 60_000)) return false;
+    const tx = db.transactions.find((t) => t.id === o.txId);
+    return !!tx && matches(tx, rule.match);
+  });
+}
+
 function teachRule(db: Db, tx: Tx, category: string, now: string, changed: Set<Collection>): string | undefined {
   const match = rulePattern(tx);
   if (!match || db.rules.some((r) => r.match === match && r.category === category)) return undefined;

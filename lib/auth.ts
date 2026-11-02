@@ -1,4 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
+import type { Db } from "./types";
 
 // Auth mirrors the storage pattern: enabled exactly where the secrets live.
 // No CLERK_SECRET_KEY (local dev) -> auth off, everything acts as the owner.
@@ -10,6 +11,10 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 export type Role = "owner" | "partner" | null;
 
 export const authEnabled = !!process.env.CLERK_SECRET_KEY;
+
+// A household with a partner splits costs with them: one is configured, or something was split.
+// Without one there is no Pooleks to show.
+export const hasPartner = (db: Pick<Db, "shares">) => !!process.env.PARTNER_EMAIL || db.shares.length > 0;
 
 // A deployment with sign-in but no OWNER_EMAIL has not been told who owns
 // it yet; the board shows a setup screen instead of a locked door.
