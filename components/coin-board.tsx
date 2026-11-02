@@ -237,10 +237,20 @@ export function CoinBoard({
     }
   }, []);
   // The demo's server draws the household as it arrives; a visitor back for more gets the board
-  // as they left it in this browser.
+  // as they left it in this browser. The swap is blurred for a moment and clears, so two boards
+  // trading places read as one settling (not with reduced motion).
+  const [swapping, setSwapping] = useState(false);
   useEffect(() => {
-    if (DEMO) void refetch(true);
-  }, [refetch]);
+    if (!DEMO) return;
+    void import("@/lib/demo-browser").then(({ demoKept }) => {
+      const kept = demoKept();
+      if (!kept) return;
+      const blur = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (blur) setSwapping(true);
+      setBoard(unpackBoard(kept));
+      if (blur) requestAnimationFrame(() => requestAnimationFrame(() => setSwapping(false)));
+    });
+  }, []);
   const run = useCallback(
     async (action: object) => {
       const result = await act<PackedBoard>(action, "board");
@@ -682,7 +692,7 @@ export function CoinBoard({
             },
           }}
         >
-        <main>
+        <main style={swapping ? { filter: "blur(2px)", opacity: 0.6 } : DEMO ? { transition: "filter 200ms ease-out, opacity 200ms ease-out" } : undefined}>
           <div className={cn("sm:hidden", tab !== "queue" && "hidden")}>
             <CoinQueue txs={board.txs} categories={categories} order={order} partner={partner} onFile={onFile} onSplit={onSplit} onDone={() => showTab("month")} />
           </div>

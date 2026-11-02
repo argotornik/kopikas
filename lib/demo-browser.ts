@@ -4,7 +4,7 @@ import { sharedView } from "./shared-view";
 import { DEMO_ACCOUNTS, demoDb } from "./demo";
 import { matches } from "./engine";
 import { merchantOf, rulePattern } from "./icons";
-import { tips } from "./tips";
+import { settle, tips } from "./tips";
 import type { Db } from "./types";
 
 // The demo's household lives in this browser: changes are made here with the same function the
@@ -12,13 +12,18 @@ import type { Db } from "./types";
 // month starts over, since its loose change and dates belong to that month.
 const KEY = "kopikas-demo";
 let db: Db | null = null;
+// Whether this page found a board kept from an earlier visit.
+let found = false;
 const month = () => new Date().toISOString().slice(0, 7);
 
 function load(): Db {
   if (db) return db;
   try {
     const kept = JSON.parse(localStorage.getItem(KEY) ?? "null");
-    if (kept?.month === month()) db = kept.db as Db;
+    if (kept?.month === month()) {
+      db = kept.db as Db;
+      found = true;
+    }
   } catch {
     // No storage (a private window, blocked site data): the board lasts as long as the tab.
   }
@@ -35,7 +40,15 @@ function keep() {
 
 export function demoView(view: "board" | "shared") {
   const d = load();
+  settle();
   return view === "board" ? packBoard(buildBoard(d, new Date(), DEMO_ACCOUNTS)) : sharedView(d, "owner");
+}
+
+// The board as this browser left it, or nothing on a first visit (the server's board is right).
+export function demoKept() {
+  const d = load();
+  settle();
+  return found ? packBoard(buildBoard(d, new Date(), DEMO_ACCOUNTS)) : null;
 }
 
 export function demoAct(action: Action, view?: "board" | "shared"): { result: Applied; fresh?: unknown } {
@@ -55,8 +68,10 @@ function tell(d: Db, action: Action, taught: boolean) {
   if (!tx) return;
   const pattern = rulePattern(tx);
   const always = taught || (action.type === "override" && !!action.always);
-  const others = always && pattern ? d.transactions.filter((t) => t.amount < 0 && matches(t, pattern)).length - ids.length : 0;
-  tips.filed({ shop: merchantOf(tx, d.merchants).name, category: action.category, others: Math.max(0, others), always });
+  // Counted whole, not as "more": a coin on the stage holds its month's charges from the shop, one
+  // in the phone's queue holds one, so only the whole count reads the same as the notice.
+  const total = always && pattern ? d.transactions.filter((t) => t.amount < 0 && matches(t, pattern)).length : ids.length;
+  tips.filed({ shop: merchantOf(tx, d.merchants).name, category: action.category, total, always });
 }
 
 // Start over: the made-up household as it arrived.
