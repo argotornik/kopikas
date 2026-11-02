@@ -18,6 +18,7 @@ export const DEMO_DOMAINS = new Set([
   "spotify.com", "netflix.com", "icloud.com", "apple.com", "google.com", "wolt.com", "bolt.eu", "telia.ee", "rimi.ee",
   "selver.ee", "coop.ee", "prismamarket.ee", "circlek.ee", "lightyear.com", "kaubamaja.ee", "apotheka.ee", "energia.ee",
   "vapiano.ee", "lhv.ee", "ikea.com", "zooplus.ee", "tallinnavesi.ee", "1password.com", "apollo.ee", "benu.ee",
+  "mcdonalds.com",
 ]);
 
 // The same numbers on every visit and on both sides of the page (the server draws the first
@@ -33,7 +34,7 @@ function seeded(seed: number) {
 
 // About thirteen months of a two-person household, dated from `today` back. A charge has a day of
 // its month; in the month under way, the days so far hold the start of the month (never fewer
-// than twelve days' worth), so the board is never bare on the 2nd.
+// than three weeks' worth), so on the 2nd most rolls already stand, as they do later in a month.
 export function demoDb(today = new Date()): Db {
   const rnd = seeded(20261102);
   const between = (a: number, b: number) => Math.round((a + (b - a) * rnd()) * 100) / 100;
@@ -44,7 +45,7 @@ export function demoDb(today = new Date()): Db {
     const last = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();
     let dd = Math.min(day, last);
     if (ago === 0) {
-      const span = Math.max(d, 12);
+      const span = Math.max(d, 21);
       if (dd > span) return null;
       dd = Math.max(1, Math.ceil((dd * d) / span));
     }
@@ -92,9 +93,9 @@ export function demoDb(today = new Date()): Db {
   // Spotify counts back from today, 26 days and then every 30, so it is always due in four days.
   for (let k = 11; k >= 0; k--) addOn(new Date(today.getTime() - (26 + 30 * k) * 86400000).toISOString().slice(0, 10), -11.99, "Spotify AB", "Spotify Premium");
 
-  // The loose change: shops nobody has taught Kopikas yet. The dry cleaner has five, two of them
-  // this month, so Always files a handful at once; its newest is the newest of all (the latest day,
-  // the last made), so it leads the phone's queue.
+  // The loose change: shops nobody has taught Kopikas yet. McDonald's, which anyone can place in a
+  // second, has the newest of all (the latest day, the last made), so it leads the phone's queue;
+  // the dry cleaner comes next, with five, two of them this month, so Always files a handful at once.
   const loose: [ago: number, day: number, amount: number, counterparty: string, description?: string][] = [
     [0, 2, -6.8, "Kohvik Komeet"],
     [0, 8, -12.4, "Kohvik Komeet"],
@@ -111,6 +112,10 @@ export function demoDb(today = new Date()): Db {
     [1, 14, -18, "Pesumaja Puhas OÜ"],
     [0, 3, -18, "Pesumaja Puhas OÜ"],
     [0, 12, -24.5, "Pesumaja Puhas OÜ"],
+    [2, 26, -9.75, "McDonald's"],
+    [1, 9, -12.3, "McDonald's"],
+    [0, 6, -8.9, "McDonald's"],
+    [0, 14, -11.6, "McDonald's"],
   ];
   for (const [ago, day, amount, who, what] of loose) add(ago, day, amount, who, what);
 
@@ -202,6 +207,7 @@ export function demoDb(today = new Date()): Db {
       { id: "demo-mer-1password", match: "1password", name: "1Password", domain: "1password.com", createdAt: at(iso(12, 1)!) },
       { id: "demo-mer-youtube", match: "youtube", name: "YouTube Premium", domain: "google.com", createdAt: at(iso(12, 1)!) },
       { id: "demo-mer-lhv", match: "kodulaen", name: "LHV home loan", domain: "lhv.ee", createdAt: at(iso(12, 1)!) },
+      { id: "demo-mer-mcdonalds", match: "mcdonald", name: "McDonald's", domain: "mcdonalds.com", createdAt: at(iso(12, 1)!) },
     ],
     snapshots,
   };

@@ -11,10 +11,15 @@ type Point = [number, number];
 const d = (pts: Point[]) => "M" + pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" L");
 const DRAW = { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const };
 
-function Stroke({ path, box, delay = 0 }: { path: string; box: { x: number; y: number; w: number; h: number }; delay?: number }) {
+// Placed by transform, not left and top: a tip following a growing roll moves without a layout.
+function Stroke({ path, box, delay = 0, duration = DRAW.duration }: { path: string; box: { x: number; y: number; w: number; h: number }; delay?: number; duration?: number }) {
   const reduce = useReducedMotion();
   return (
-    <svg aria-hidden className="pointer-events-none absolute overflow-visible" style={{ left: box.x, top: box.y, width: box.w, height: box.h }}>
+    <svg
+      aria-hidden
+      className="pointer-events-none absolute left-0 top-0 overflow-visible"
+      style={{ width: box.w, height: box.h, transform: `translate3d(${box.x}px, ${box.y}px, 0)` }}
+    >
       <motion.path
         d={path}
         fill="none"
@@ -24,7 +29,7 @@ function Stroke({ path, box, delay = 0 }: { path: string; box: { x: number; y: n
         strokeLinejoin="round"
         initial={reduce ? false : { pathLength: 0 }}
         animate={{ pathLength: 1 }}
-        transition={{ ...DRAW, delay }}
+        transition={{ ...DRAW, duration, delay }}
       />
     </svg>
   );
@@ -60,10 +65,11 @@ export function CrayonArrow({ from, to, bend = -14 }: { from: Point; to: Point; 
   const left = Math.min(x0, x1, cx) - 16, top = Math.min(y0, y1, cy) - 16;
   const shift = (p: Point[]) => p.map(([x, y]) => [x - left, y - top] as Point);
   const box = { x: left, y: top, w: Math.max(x0, x1, cx) + 16 - left, h: Math.max(y0, y1, cy) + 16 - top };
+  // The shaft is drawn, then the head flicked on as it lands, the way a hand finishes an arrow.
   return (
     <>
       <Stroke path={d(shift(pts))} box={box} delay={0.15} />
-      <Stroke path={d(shift(head(0.5))) + " " + d(shift(head(-0.5)))} box={box} delay={0.5} />
+      <Stroke path={d(shift(head(0.5))) + " " + d(shift(head(-0.5)))} box={box} delay={0.15 + DRAW.duration - 0.04} duration={0.2} />
     </>
   );
 }

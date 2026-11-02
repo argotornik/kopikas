@@ -10,7 +10,7 @@ import { ConfettiBurst, alwaysOffer, alwaysTakes, eur, label, lastTimeOf, looseC
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 import { cn, shareLabel } from "@/lib/utils";
 import { forgetUndo, rememberUndo, useLatestUndo } from "@/lib/undo";
-import { QueueTipLabel, QueueTipNote } from "@/components/queue-tip";
+import { QueueTipLabel, QueueTipLine, QueueTipNote } from "@/components/queue-tip";
 
 // The phone's To file tab: the backlog one coin at a time. The coin on top shows its
 // merchant, amount and day; the categories wait below it as big tiles for the thumb.
@@ -180,9 +180,10 @@ export function CoinQueue({
 
   return (
     <section aria-labelledby="queue-heading" className={cn(PANEL, "bg-oat px-3 pb-4 pt-5 dark:bg-oat-night")}>
-      <div className={cn("flex justify-between gap-3 px-1 text-[13px] tabular-nums", MUTED)}>
-        {/* Progress first: what's done, then what's left. What a filing did is said above the tiles. */}
-        <span>
+      <div className={cn("flex flex-wrap justify-between gap-x-3 px-1 text-[13px] tabular-nums", MUTED)}>
+        {/* Progress first: what's done, then what's left. What a filing did is said above the tiles.
+            Short of room, what follows it takes a line of its own rather than splitting it. */}
+        <span className="whitespace-nowrap">
           <span className="font-medium text-ink dark:text-chalk">{count.format(filed)} filed</span> · {count.format(queue.length)} to go
           {!said && latest && (
             <>
@@ -253,7 +254,7 @@ export function CoinQueue({
         )}
       </div>
       <div className="mt-5 flex items-center justify-between gap-2 px-1">
-        <QueueTipLabel>
+        <QueueTipLabel always={always}>
           <p className="text-[15px] font-medium">Where do I go?</p>
         </QueueTipLabel>
         {/* Set before the tap, beside the choices it changes: file the whole shop and teach the rule.
@@ -283,11 +284,13 @@ export function CoinQueue({
         {said ? (
           <div className={cn("text-[13px]", MUTED)}>{saidLine(said)}</div>
         ) : (
-          !!tx.rulePattern && (
-            <p aria-hidden className={cn("text-[12px] text-pretty", MUTED)}>
-              {always ? alwaysTakes(1, alikeTxs) : alwaysOffer(alwaysTakes(1, alikeTxs))}
-            </p>
-          )
+          <QueueTipLine always={always}>
+            {!!tx.rulePattern && (
+              <p aria-hidden className={cn("text-[12px] text-pretty", MUTED)}>
+                {always ? alwaysTakes(1, alikeTxs) : alwaysOffer(alwaysTakes(1, alikeTxs))}
+              </p>
+            )}
+          </QueueTipLine>
         )}
       </div>
       <div role="group" aria-label={`Categories for ${tx.name}`} className="mt-2 grid grid-cols-2 gap-2">
