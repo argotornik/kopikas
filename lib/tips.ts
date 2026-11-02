@@ -50,6 +50,25 @@ export const tips = {
   },
 };
 
+// Whether the page has its board as this browser left it (lib/demo-browser.ts says so once it has
+// read it): the first tip waits for it, so it never rings a pile that is about to change.
+let settled = false;
+const waiting = new Set<() => void>();
+export function settle() {
+  if (settled) return;
+  settled = true;
+  waiting.forEach((go) => go());
+  waiting.clear();
+}
+export function onSettled(go: () => void): () => void {
+  if (settled) {
+    go();
+    return () => {};
+  }
+  waiting.add(go);
+  return () => waiting.delete(go);
+}
+
 export function useTour(): Tour {
   return useSyncExternalStore(
     (redraw) => {

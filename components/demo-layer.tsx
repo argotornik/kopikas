@@ -2,8 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { motion, useReducedMotion } from "motion/react";
-import { tips, useTour, type Tour } from "@/lib/tips";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { onSettled, tips, useTour, type Tour } from "@/lib/tips";
 import { PARTNER_NAME } from "@/lib/names";
 import { CrayonArrow, CrayonRing } from "@/components/crayon";
 import { PaintedCoin } from "@/components/painted";
@@ -17,6 +17,10 @@ import { cn } from "@/lib/utils";
 
 const REPO = "https://github.com/argotornik/kopikas";
 const LINK = cn("relative underline-offset-2 hover:underline pointer-coarse:after:absolute pointer-coarse:after:-inset-x-2 pointer-coarse:after:-inset-y-3 pointer-coarse:after:content-['']", FOCUS);
+// A tip's small text buttons, 44px to press on a touch screen however small they read.
+const TAP = "relative pointer-coarse:after:absolute pointer-coarse:after:-inset-x-2 pointer-coarse:after:-inset-y-4 pointer-coarse:after:content-['']";
+// The board's pills give a little under the thumb; so do the end card's.
+const PRESS = "transition-transform motion-safe:active:scale-[0.96]";
 // The crayon's blue, a step lighter on Oat Paper Night so the words keep their contrast.
 const CRAYON_TEXT = "text-[#4C6FE0] dark:text-[#8FA6F0]";
 
@@ -188,7 +192,7 @@ function specFor(tour: Tour, narrow: boolean): Spec | null {
         title: "Pooleks",
         body: `Split a charge with ${PARTNER_NAME} from its menu, and it lands on your shared statement: nobody types it twice.`,
         extra: (
-          <button type="button" onClick={() => tips.go("end")} className={cn("font-medium underline underline-offset-2", FOCUS)}>
+          <button type="button" onClick={() => tips.go("end")} className={cn(TAP, "font-medium underline underline-offset-2", FOCUS)}>
             Finish the tour
           </button>
         ),
@@ -223,17 +227,36 @@ function advance(tour: Tour, narrow: boolean, since: number) {
   else if (step === "pooleks" && window.location.pathname === "/pooleks") tips.go("end");
 }
 
+// What a tip draws, as text: a page that moved without moving the tip draws nothing new.
+const drawnAs = (s: Spec | null) =>
+  s && JSON.stringify([s.anchor, s.ring, s.point, s.arrow, s.place, s.title, s.body, !!s.next].map((v) => (typeof v === "object" && v && "x" in v ? [v.x, v.y, v.w, v.h].map(Math.round) : v)));
+
 function DemoTips() {
   const tour = useTour();
+  const reduce = useReducedMotion();
   const [spec, setSpec] = useState<Spec | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const shown = useRef<string | null>(null);
   const words = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
-
-  useEffect(() => setMounted(true), []);
+  // The first tip waits for the pile to land (its coins drop in over half a second) and for the
+  // board this browser kept, so its ring goes round the coins that stay.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    let landed = false, kept = false;
+    const go = () => landed && kept && setReady(true);
+    const land = setTimeout(() => ((landed = true), go()), reduce ? 0 : 600);
+    const late = setTimeout(() => ((kept = true), go()), 2500);
+    const off = onSettled(() => ((kept = true), go()));
+    return () => {
+      clearTimeout(land);
+      clearTimeout(late);
+      off();
+    };
+  }, [reduce]);
   // Read the page again whenever it moves: a scroll, a resize, a coin hopping, a roll growing.
   useEffect(() => {
     if (tour.step === "off" || tour.step === "end") {
+      shown.current = null;
       setSpec(null);
       return;
     }
@@ -243,7 +266,11 @@ function DemoTips() {
       frame = 0;
       const narrow = narrowNow();
       advance(tour, narrow, since);
-      setSpec(specFor(tour, narrow));
+      const next = specFor(tour, narrow);
+      const as = drawnAs(next);
+      if (as === shown.current) return;
+      shown.current = as;
+      setSpec(next);
     };
     const soon = () => {
       if (!frame) frame = requestAnimationFrame(read);
@@ -271,9 +298,22 @@ function DemoTips() {
     const ro = new ResizeObserver(() => setSize({ w: el.offsetWidth, h: el.offsetHeight }));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [spec?.title]);
+  }, [spec?.title, ready]);
 
-  if (!mounted || !spec) return null;
+  if (!ready) return null;
+  const key = tour.step + (tour.filing?.always ? "+" : "");
+  return createPortal(
+    <div className="pointer-events-none fixed inset-0 z-[45]">
+      {spec && <Drawing key={key} spec={spec} size={size} />}
+      {/* The words fade out quicker than they came, as the next tip draws itself in. */}
+      <AnimatePresence>{spec?.title && <Placed key={key} spec={spec} size={size} words={words} />}</AnimatePresence>
+    </div>,
+    document.body
+  );
+}
+
+// Where a tip's words go and where its arrow runs, from its anchor and the words' own size.
+function layout(spec: Spec, size: { w: number; h: number }) {
   const vw = window.innerWidth, vh = window.innerHeight;
   const W = Math.min(narrowNow() ? 300 : 272, vw - 32);
   const { anchor: a } = spec;
@@ -316,52 +356,61 @@ function DemoTips() {
           : place === "below-left"
             ? [a.x + a.w * 0.25, a.y + a.h + 14]
             : [target[0], a.y + a.h + 16];
+  return { x, y, W, place, from, to };
+}
 
-  return createPortal(
-    <div className="pointer-events-none fixed inset-0 z-[45]" key={tour.step + (tour.filing?.always ? "+" : "")}>
+// The crayon: a tip's ring and arrows, drawn in afresh with each tip and simply gone with it.
+function Drawing({ spec, size }: { spec: Spec; size: { w: number; h: number } }) {
+  const { place, from, to } = layout(spec, size);
+  return (
+    <>
       {spec.ring && <CrayonRing {...spec.ring} />}
       {spec.arrow && spec.arrow[1][0] - spec.arrow[0][0] > 24 && <CrayonArrow from={spec.arrow[0]} to={spec.arrow[1]} bend={-6} />}
       {spec.title && size.h > 0 && Math.hypot(to[0] - from[0], to[1] - from[1]) > 40 && (
         <CrayonArrow from={from} to={to} bend={place === "left" || place === "right" ? -16 : 12} />
       )}
-      {spec.title && (
-        <Words ref={words} x={x} y={y} w={W} spec={spec} />
-      )}
-    </div>,
-    document.body
+    </>
   );
 }
 
-function Words({ ref, x, y, w, spec }: { ref: React.Ref<HTMLDivElement>; x: number; y: number; w: number; spec: Spec }) {
+// The words, placed by transform; they rise in on their scrap of paper and fade out quicker.
+function Placed({ spec, size, words }: { spec: Spec; size: { w: number; h: number }; words: React.RefObject<HTMLDivElement | null> }) {
   const reduce = useReducedMotion();
+  const { x, y, W } = layout(spec, size);
   return (
     <motion.div
-      ref={ref}
-      role="status"
-      className={cn("pointer-events-auto absolute rounded-2xl px-3 py-2.5", OAT)}
-      style={{ left: x - 12, top: y - 10, width: w + 24 }}
-      initial={reduce ? false : { opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      className="absolute left-0 top-0"
+      style={{ width: W + 24, transform: `translate3d(${x - 12}px, ${y - 10}px, 0)` }}
+      initial={false}
+      exit={{ opacity: 0, transition: { duration: 0.15, ease: [0.23, 1, 0.32, 1] } }}
     >
-      <p className={cn("text-[12px]", MUTED)}>
-        {spec.tag} ·{" "}
-        <button type="button" onClick={() => tips.go("off")} className={cn("underline underline-offset-2 hover:text-ink dark:hover:text-chalk", FOCUS)}>
-          Skip the tips
-        </button>
-      </p>
-      <p className={cn(DISPLAY, CRAYON_TEXT, "mt-1 text-[22px] font-semibold leading-tight")}>{spec.title}</p>
-      <p className="mt-1 text-[15px] leading-snug text-ink dark:text-chalk">{spec.body}</p>
-      {(spec.next || spec.extra) && (
-        <p className="mt-2 flex gap-4 text-[15px] text-ink dark:text-chalk">
-          {spec.next && (
-            <button type="button" onClick={spec.next} className={cn("font-medium underline underline-offset-2", FOCUS)}>
-              Next tip
-            </button>
-          )}
-          {spec.extra}
+      <motion.div
+        ref={words}
+        role="status"
+        className={cn("pointer-events-auto rounded-2xl px-3 py-2.5", OAT)}
+        initial={reduce ? false : { opacity: 0, transform: "translateY(6px)" }}
+        animate={{ opacity: 1, transform: "translateY(0px)" }}
+        transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+      >
+        <p className={cn("text-[12px]", MUTED)}>
+          {spec.tag} ·{" "}
+          <button type="button" onClick={() => tips.go("off")} className={cn(TAP, "underline underline-offset-2 hover:text-ink dark:hover:text-chalk", FOCUS)}>
+            Skip the tips
+          </button>
         </p>
-      )}
+        <p className={cn(DISPLAY, CRAYON_TEXT, "mt-1 text-[22px] font-semibold leading-tight")}>{spec.title}</p>
+        <p className="mt-1 text-[15px] leading-snug text-ink dark:text-chalk">{spec.body}</p>
+        {(spec.next || spec.extra) && (
+          <p className="mt-2 flex gap-4 text-[15px] text-ink dark:text-chalk">
+            {spec.next && (
+              <button type="button" onClick={spec.next} className={cn(TAP, "font-medium underline underline-offset-2", FOCUS)}>
+                Next tip
+              </button>
+            )}
+            {spec.extra}
+          </p>
+        )}
+      </motion.div>
     </motion.div>
   );
 }
@@ -370,12 +419,20 @@ function Words({ ref, x, y, w, spec }: { ref: React.Ref<HTMLDivElement>; x: numb
 
 function EndCard() {
   const tour = useTour();
-  const mist = cn(PILL, "inline-flex items-center justify-center whitespace-nowrap bg-mist text-ink hover:bg-mist-hover dark:bg-mist-night dark:text-chalk dark:hover:bg-card-night-hover", FOCUS);
+  const reduce = useReducedMotion();
+  const mist = cn(PILL, PRESS, "inline-flex items-center justify-center whitespace-nowrap bg-mist text-ink hover:bg-mist-hover dark:bg-mist-night dark:text-chalk dark:hover:bg-card-night-hover", FOCUS);
   return (
     <Dialog open={tour.step === "end"} onOpenChange={(open) => !open && tips.go("off")}>
-      <DialogContent className="gap-0 rounded-[28px] p-0 sm:max-w-[500px]">
+      <DialogContent className="gap-0 rounded-[28px] p-0 sm:max-w-[520px]">
         <div className="flex flex-col items-center px-6 pb-7 pt-8 text-center sm:px-9">
-          <PaintedCoin size={64} seed={3} />
+          {/* The tour's finish line, seen once: the coin hops in on a spring as the card opens. */}
+          <motion.div
+            initial={reduce ? false : { opacity: 0, transform: "translateY(-14px) scale(0.9)" }}
+            animate={{ opacity: 1, transform: "translateY(0px) scale(1)" }}
+            transition={{ type: "spring", duration: 0.5, bounce: 0.25, delay: 0.08 }}
+          >
+            <PaintedCoin size={64} seed={3} />
+          </motion.div>
           <DialogTitle className={cn(DISPLAY, "mt-4 text-[34px] font-semibold leading-none sm:text-[40px]")}>That&apos;s Kopikas</DialogTitle>
           <DialogDescription className="mt-3 text-[15px] leading-snug text-ink dark:text-chalk">
             With a real bank behind it, every charge arrives by itself and Always keeps filing them: the month at a glance, nothing typed twice.
@@ -387,7 +444,7 @@ function EndCard() {
             </p>
           </div>
           <div className="mt-5 flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-center">
-            <button type="button" onClick={() => tips.go("off")} className={cn(PILL, INK, "whitespace-nowrap", FOCUS)}>
+            <button type="button" onClick={() => tips.go("off")} className={cn(PILL, INK, PRESS, "whitespace-nowrap", FOCUS)}>
               Keep playing
             </button>
             <a href={REPO} target="_blank" rel="noreferrer" className={mist}>

@@ -33,7 +33,8 @@ export function QueueTipLabel({ children }: { children: ReactNode }) {
 export function QueueTipNote() {
   const tip = useQueueTip();
   if (!tip) return null;
-  const link = cn("underline underline-offset-2 hover:text-ink dark:hover:text-chalk", FOCUS);
+  // 44px to press on a touch screen, as the tips over the page (components/demo-layer.tsx).
+  const link = cn("relative underline underline-offset-2 hover:text-ink pointer-coarse:after:absolute pointer-coarse:after:-inset-x-2 pointer-coarse:after:-inset-y-4 pointer-coarse:after:content-[''] dark:hover:text-chalk", FOCUS);
   return (
     <span className="shrink-0 text-[12px]">
       Tip {tip.n} of 4 ·{" "}
