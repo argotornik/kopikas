@@ -1,0 +1,503 @@
+import type { Db, Merchant, Tx } from "./types";
+import type { RowCollection } from "./rows";
+import {
+  FIXED_CATEGORIES,
+  SAVINGS,
+  SUBSCRIPTIONS,
+  matches,
+  partnerShareOf,
+  inferCadence,
+  renameCategory,
+  subscriptionCharges,
+  subscriptionStatus,
+} from "./engine.ts";
+import { merchantOf, rulePattern } from "./icons.ts";
+import { RESTORABLE, restoreRecord, type RestoreCollection } from "./restore.ts";
+import { newId } from "./ids.ts";
+
+// Every change the pages can ask for, made to the household's data in memory. The action route
+// runs it against the stored copy and writes back what it changed; the demo runs the same thing
+// against the copy in the visitor's browser, so the two never drift apart.
+
+export type Action =
+  | { type: "rule"; txId: string; category: string }
+  | { type: "override"; txId: string; category: string; always?: boolean }
+  | { type: "unoverride"; txId: string; previous: string | null; previousAt?: string; ruleId?: string }
+  | { type: "override-many"; txIds: string[]; category: string }
+  | { type: "unoverride-many"; items: { txId: string; previous: string | null; previousAt?: string }[] }
+  | { type: "unrule"; ruleId: string }
+  | { type: "share"; txId: string; partnerShare?: number; always?: boolean }
+  | { type: "unshare"; shareId: string; ruleId?: string }
+  | { type: "unshare-rule"; ruleId: string }
+  | { type: "quickadd"; description: string; amount: number; date: string; partnerShare?: number; category?: string }
+  | { type: "settle"; amount: number; date: string; txId?: string; note?: string }
+  | { type: "unsettle"; settlementId: string }
+  | { type: "subscribe"; txId: string }
+  | { type: "unsubscribe-new"; subId?: string; ruleId?: string }
+  | { type: "unsubscribe"; subId: string }
+  | { type: "resubscribe"; subId: string }
+  | { type: "accept-price"; subId: string }
+  | { type: "set-price"; subId: string; expectedAmount: number }
+  | { type: "restore"; collection: RestoreCollection; record: unknown }
+  | { type: "cadence"; subId: string; cadence: "monthly" | "yearly" }
+  | { type: "snapshot"; total: number; holdings: { name: string; pct: number }[]; returnPct?: number; source?: string }
+  | { type: "category-add"; name: string }
+  | { type: "category-rename"; from: string; to: string }
+  | { type: "category-order"; order: string[] }
+  | { type: "category-budget"; name: string; budget: number | null }
+  | { type: "merchant"; txId?: string; subId?: string; name: string; domain?: string; emoji?: string }
+  | { type: "merchant-reset"; txId?: string; subId?: string }
+  | { type: "set-lhv-token"; refreshToken: string };
+
+export type Collection = RowCollection | "categories";
+
+// What a change did: the collections to write back, in the order they changed, and, for a change
+// that can be taken back, the action that reverses it, so Undo needs no knowledge of how each
+// thing is put back. Or why it was refused.
+export type Applied = { ok: true; undo?: Action; changed: Set<Collection> } | { ok: false; error: string };
+
+// `role` is who asked, once the caller has checked they may; `now` stamps what is created.
+// Connecting LHV is not here: it calls LHV and stores a sealed token, which only the server does.
+export function applyAction(db: Db, action: Action, role: "owner" | "partner", now: string): Applied {
+  const changed = new Set<Collection>();
+  const bad = (error: string): Applied => ({ ok: false, error });
+  let undo: Action | undefined;
+
+  switch (action.type) {
+    case "rule": {
+      const tx = db.transactions.find((t) => t.id === action.txId);
+      if (!tx || !action.category) return bad("txId and category required");
+      if (!rulePattern(tx)) return bad("This charge's name is too short to match others on, so Always can't be taught.");
+      const ruleId = teachRule(db, tx, action.category, now, changed);
+      if (ruleId) undo = { type: "unrule", ruleId };
+      break;
+    }
+    case "unrule": {
+      // Forgetting a rule un-files everything it decided; overrides and
+      // other rules still apply. Already gone (a second click) is not an error.
+      const removed = db.rules.find((r) => r.id === action.ruleId);
+      if (!removed) break;
+      db.rules = db.rules.filter((r) => r.id !== action.ruleId);
+      changed.add("rules");
+      undo = { type: "restore", collection: "rules", record: removed };
+      break;
+    }
+    case "override": {
+      // Always teaches the rule first, then pins this row, so one Undo takes back both.
+      let ruleId: string | undefined;
+      if (action.always) {
+        const tx = db.transactions.find((t) => t.id === action.txId);
+        if (!tx || !action.category) return bad("txId and category required");
+        ruleId = teachRule(db, tx, action.category, now, changed);
+      }
+      const old = db.overrides.find((o) => o.txId === action.txId);
+      const previous = old?.category ?? null;
+      db.overrides = db.overrides.filter((o) => o.txId !== action.txId);
+      db.overrides.push({ txId: action.txId, category: action.category, at: now });
+      changed.add("overrides");
+      undo = { type: "unoverride", txId: action.txId, previous, ...(old?.at ? { previousAt: old.at } : {}), ...(ruleId ? { ruleId } : {}) };
+      break;
+    }
+    case "unoverride": {
+      // Puts back the hand-filing this one replaced, if any; without one the
+      // charge goes back to what its rules say, or to the loose change.
+      db.overrides = db.overrides.filter((o) => o.txId !== action.txId);
+      if (typeof action.previous === "string" && db.categories.some((c) => c.name === action.previous)) {
+        db.overrides.push({ txId: action.txId, category: action.previous, ...(typeof action.previousAt === "string" ? { at: action.previousAt } : {}) });
+      }
+      changed.add("overrides");
+      if (action.ruleId) {
+        db.rules = db.rules.filter((r) => r.id !== action.ruleId);
+        changed.add("rules");
+      }
+      break;
+    }
+    case "override-many": {
+      // A shop's charges or a stack of coins, pinned at once without a rule, so one Undo
+      // takes them all back to what they were.
+      if (!Array.isArray(action.txIds) || action.txIds.length === 0 || !action.category) return bad("txIds and category required");
+      const ids = new Set(action.txIds);
+      const items = [...ids].map((txId) => {
+        const old = db.overrides.find((o) => o.txId === txId);
+        return { txId, previous: old?.category ?? null, ...(old?.at ? { previousAt: old.at } : {}) };
+      });
+      db.overrides = [...db.overrides.filter((o) => !ids.has(o.txId)), ...[...ids].map((txId) => ({ txId, category: action.category, at: now }))];
+      changed.add("overrides");
+      undo = { type: "unoverride-many", items };
+      break;
+    }
+    case "unoverride-many": {
+      // Each charge gets back the hand-filing it had, or goes back to its rules or the loose change.
+      const ids = new Set(action.items.map((i) => i.txId));
+      db.overrides = db.overrides.filter((o) => !ids.has(o.txId));
+      for (const i of action.items) {
+        if (typeof i.previous === "string" && db.categories.some((c) => c.name === i.previous))
+          db.overrides.push({ txId: i.txId, category: i.previous, ...(typeof i.previousAt === "string" ? { at: i.previousAt } : {}) });
+      }
+      changed.add("overrides");
+      break;
+    }
+    case "share": {
+      if (!db.transactions.some((t) => t.id === action.txId)) return bad("unknown tx");
+      const fraction = Number(action.partnerShare ?? 0.5);
+      if (!(fraction > 0 && fraction < 1)) return bad("partnerShare must be between 0 and 1");
+      const tx = db.transactions.find((t) => t.id === action.txId)!;
+      const existing = db.shares.find((s) => s.txId === action.txId);
+      // Each split answers with its own way back: a new one is taken off again, a
+      // changed one goes back to its old part, and Always forgets the rule it taught.
+      if (!existing) {
+        const id = newId("share");
+        db.shares.push({
+          id,
+          paidBy: "owner",
+          txId: action.txId,
+          partnerShare: fraction,
+          createdAt: now,
+        });
+        changed.add("shares");
+        undo = { type: "unshare", shareId: id };
+      } else if (partnerShareOf(existing) !== fraction) {
+        // Re-dropping with a different toggle just changes the split.
+        undo = { type: "share", txId: action.txId, partnerShare: partnerShareOf(existing) };
+        existing.partnerShare = fraction;
+        changed.add("shares");
+      }
+      // From now on: every new charge matching this merchant lands on
+      // Pooleks at this split. Teaching again with another split updates it.
+      // A charge with nothing to match on is split by itself and teaches nothing.
+      const match = action.always ? rulePattern(tx) : "";
+      if (match) {
+        const rule = db.shareRules.find((r) => r.match === match);
+        if (rule) rule.partnerShare = fraction;
+        else {
+          const id = newId("srule");
+          db.shareRules.push({ id, match, partnerShare: fraction, createdAt: now });
+          // A split made and taught in one go is taken back in one go.
+          undo = undo?.type === "unshare" ? { ...undo, ruleId: id } : { type: "unshare-rule", ruleId: id };
+        }
+        changed.add("shareRules");
+      }
+      break;
+    }
+    case "unshare-rule": {
+      const removed = db.shareRules.find((r) => r.id === action.ruleId);
+      if (!removed) break;
+      db.shareRules = db.shareRules.filter((r) => r.id !== action.ruleId);
+      changed.add("shareRules");
+      undo = { type: "restore", collection: "shareRules", record: removed };
+      break;
+    }
+    case "unshare": {
+      const removed = db.shares.find((s) => s.id === action.shareId);
+      if (action.ruleId) {
+        db.shareRules = db.shareRules.filter((r) => r.id !== action.ruleId);
+        changed.add("shareRules");
+      }
+      if (!removed) break;
+      db.shares = db.shares.filter((s) => s.id !== action.shareId);
+      changed.add("shares");
+      undo = { type: "restore", collection: "shares", record: removed };
+      break;
+    }
+    case "quickadd": {
+      const amount = Number(action.amount);
+      if (!action.description?.trim() || !(amount > 0)) return bad("description and positive amount required");
+      const fraction = Number(action.partnerShare ?? 0.5);
+      if (!(fraction > 0 && fraction < 1)) return bad("partnerShare must be between 0 and 1");
+      const category =
+        action.category && db.categories.some((c) => c.name === action.category) ? action.category : undefined;
+      db.shares.push({
+        id: newId("share"),
+        // Whoever is adding paid for it — the partner's card, the owner's cash.
+        paidBy: role === "partner" ? "partner" : "owner",
+        manual: { date: action.date, description: action.description.trim(), amount, category },
+        partnerShare: fraction,
+        createdAt: now,
+      });
+      changed.add("shares");
+      break;
+    }
+    case "settle": {
+      // Sign is direction: positive = the partner paid the owner, negative = the owner paid the partner.
+      const amount = Number(action.amount);
+      if (!Number.isFinite(amount) || amount === 0) return bad("Enter an amount other than zero.");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(action.date))) return bad("The repayment needs a date.");
+      const id = newId("stl");
+      db.settlements.push({
+        id,
+        amount,
+        date: action.date,
+        txId: action.txId,
+        note: action.note?.trim() || undefined,
+        recordedBy: role === "partner" ? "partner" : "owner",
+      });
+      changed.add("settlements");
+      undo = { type: "unsettle", settlementId: id };
+      break;
+    }
+    case "unsettle": {
+      // Either of the two can take back a repayment; the row says who recorded it.
+      const removed = db.settlements.find((s) => s.id === action.settlementId);
+      if (!removed) break;
+      db.settlements = db.settlements.filter((s) => s.id !== action.settlementId);
+      changed.add("settlements");
+      undo = { type: "restore", collection: "settlements", record: removed };
+      break;
+    }
+    case "subscribe": {
+      const tx = db.transactions.find((t) => t.id === action.txId);
+      if (!tx) return bad("unknown tx");
+      const cleanName = merchantOf(tx, db.merchants).name;
+      const match = rulePattern(tx);
+      // A subscription and its rule are their pattern: without one they would claim every charge.
+      if (!match) return bad("This charge's name is too short to track as a subscription. File it under another roll.");
+      // Aggregators bill many subscriptions under one merchant string —
+      // amount-match those so each stays a distinct record.
+      const raw = tx.counterparty.toLowerCase();
+      const isAggregator = ["apple.com/bill", "google play"].some((a) => raw.includes(a));
+      const txAmount = Math.abs(tx.amount);
+      const duplicate = db.subscriptions.some(
+        (s) =>
+          s.active &&
+          s.match === match &&
+          (!s.matchAmount || Math.abs(s.expectedAmount - txAmount) <= 0.01)
+      );
+      // What this creates, Undo removes again: the subscription and its rule.
+      let subId: string | undefined;
+      let ruleId: string | undefined;
+      if (!duplicate) {
+        subId = newId("sub");
+        db.subscriptions.push({
+          id: subId,
+          name: cleanName,
+          matchAmount: isAggregator,
+          match,
+          expectedAmount: txAmount,
+          cadence: inferCadence(
+            subscriptionCharges({ match, expectedAmount: txAmount, matchAmount: isAggregator }, db.transactions)
+          ),
+          active: true,
+          createdAt: now,
+        });
+        changed.add("subscriptions");
+      }
+      if (!db.rules.some((r) => r.match === match)) {
+        ruleId = newId("rule");
+        db.rules.push({ id: ruleId, match, category: SUBSCRIPTIONS, createdAt: now });
+        changed.add("rules");
+      }
+      if (subId || ruleId) undo = { type: "unsubscribe-new", ...(subId ? { subId } : {}), ...(ruleId ? { ruleId } : {}) };
+      break;
+    }
+    case "unsubscribe-new": {
+      // Takes back a subscription made a moment ago, rule and all, so its charges are loose again.
+      if (action.subId) {
+        db.subscriptions = db.subscriptions.filter((s) => s.id !== action.subId);
+        changed.add("subscriptions");
+      }
+      if (action.ruleId) {
+        db.rules = db.rules.filter((r) => r.id !== action.ruleId);
+        changed.add("rules");
+      }
+      break;
+    }
+    case "accept-price": {
+      // The last matched charge becomes the expected price — the badge's
+      // "10,99 € → 8,00 €" stops nagging once the new price is blessed.
+      const sub = db.subscriptions.find((s) => s.id === action.subId);
+      if (!sub) return bad("That subscription is gone. Reload to see the latest.");
+      const status = subscriptionStatus(sub, db.transactions, new Date());
+      if (!status.lastCharge) return bad("There is no charge to take the new price from.");
+      const previous = sub.expectedAmount;
+      sub.expectedAmount = status.lastCharge.amount;
+      changed.add("subscriptions");
+      undo = { type: "set-price", subId: sub.id, expectedAmount: previous };
+      break;
+    }
+    case "set-price": {
+      // Undo of accept-price: the expected amount as it was before.
+      const sub = db.subscriptions.find((s) => s.id === action.subId);
+      if (!sub) return bad("That subscription is gone. Reload to see the latest.");
+      const amount = Number(action.expectedAmount);
+      if (!(amount > 0 && amount < 1e6)) return bad("A positive price is needed.");
+      sub.expectedAmount = amount;
+      changed.add("subscriptions");
+      break;
+    }
+    case "cadence": {
+      // The guess from one charge can be wrong; the owner says which it is.
+      const sub = db.subscriptions.find((s) => s.id === action.subId);
+      if (!sub) return bad("unknown subscription");
+      if (action.cadence !== "monthly" && action.cadence !== "yearly") return bad("cadence must be monthly or yearly");
+      sub.cadence = action.cadence;
+      sub.cadenceByHand = true;
+      changed.add("subscriptions");
+      break;
+    }
+    case "unsubscribe": {
+      const sub = db.subscriptions.find((s) => s.id === action.subId);
+      if (sub?.active) {
+        sub.active = false;
+        changed.add("subscriptions");
+        undo = { type: "resubscribe", subId: sub.id };
+      }
+      break;
+    }
+    case "resubscribe": {
+      // Undo of unsubscribe: the same record, watched again.
+      const sub = db.subscriptions.find((s) => s.id === action.subId);
+      if (!sub) return bad("That subscription is gone. Reload to see the latest.");
+      if (!sub.active) {
+        sub.active = true;
+        changed.add("subscriptions");
+      }
+      break;
+    }
+    case "restore": {
+      if (!RESTORABLE.includes(action.collection)) return bad("That can't be put back.");
+      const err = restoreRecord(db, action.collection, action.record);
+      if (err) return bad(`Couldn't put it back: ${err}.`);
+      changed.add(action.collection);
+      break;
+    }
+    case "snapshot": {
+      const total = Number(action.total);
+      if (!(total >= 0)) return bad("total required");
+      const holdings = (action.holdings ?? []).filter((h) => h.name?.trim() && h.pct > 0);
+      const returnPct = Number.isFinite(Number(action.returnPct)) ? Number(action.returnPct) : undefined;
+      const source = action.source === "lhv" ? "lhv" : "lightyear";
+      db.snapshots.push({ id: newId("snap"), source, total, holdings, returnPct, at: now });
+      changed.add("snapshots");
+      break;
+    }
+    case "category-add": {
+      const name = categoryName(action.name);
+      if (!name) return bad("a short name is required");
+      if (db.categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) return bad("that category already exists");
+      db.categories.push({ name });
+      changed.add("categories");
+      break;
+    }
+    case "category-rename": {
+      // Everything filed under the old name follows it: rules, hand-filed
+      // tiles, quick-added shared expenses.
+      const i = db.categories.findIndex((c) => c.name === action.from);
+      if (i < 0) return bad("unknown category");
+      if (FIXED_CATEGORIES.includes(action.from)) return bad(`${action.from} keeps its name`);
+      const to = categoryName(action.to);
+      if (!to) return bad("a short name is required");
+      if (to === action.from) break;
+      if (db.categories.some((c, j) => j !== i && c.name.toLowerCase() === to.toLowerCase())) {
+        return bad("that category already exists");
+      }
+      renameCategory(db, action.from, to);
+      for (const c of ["categories", "rules", "overrides", "shares"] as const) changed.add(c);
+      break;
+    }
+    case "category-order": {
+      // The same names as now, in the order the dialog shows them after a drag.
+      const order = Array.isArray(action.order) ? action.order : [];
+      const complete =
+        order.length === db.categories.length &&
+        new Set(order).size === order.length &&
+        order.every((n) => db.categories.some((c) => c.name === n));
+      if (!complete) return bad("order must list every category once");
+      db.categories = order.map((n) => db.categories.find((c) => c.name === n)!);
+      changed.add("categories");
+      break;
+    }
+    case "category-budget": {
+      // A monthly limit in euros, or none. Savings is a transfer, not spending.
+      const cat = db.categories.find((c) => c.name === action.name);
+      if (!cat) return bad("unknown category");
+      if (cat.name === SAVINGS) return bad("Savings has no limit");
+      const budget = action.budget == null ? undefined : Number(action.budget);
+      if (budget !== undefined && !(budget > 0 && budget < 1e7)) return bad("a positive amount, or empty for no limit");
+      cat.budget = budget === undefined ? undefined : Math.round(budget * 100) / 100;
+      changed.add("categories");
+      break;
+    }
+    case "merchant": {
+      // The owner's identity for a merchant. Applies to every charge the
+      // pattern matches, like a rule, and wins over the built-in table. An
+      // identity already covering the tile or subscription is edited in place.
+      const scope = merchantScope(db, action);
+      if (!scope) return bad("unknown tx or subscription");
+      const name = String(action.name ?? "").replace(/\s+/g, " ").trim();
+      if (!name || name.length > 40) return bad("a short name is required");
+      const domain = hostname(action.domain);
+      if (domain === null) return bad("the website should look like delice.ee");
+      const emoji = String(action.emoji ?? "").trim();
+      if (emoji.length > 16) return bad("one emoji is enough");
+      const fields = { name, domain: domain || undefined, emoji: emoji || undefined };
+      const existing = db.merchants.findLast(scope.covers);
+      if (existing) Object.assign(existing, fields);
+      // A new identity without a pattern would rename every charge.
+      else if (!scope.pattern) return bad("This charge's name is too short to match others on, so it can't have a name or icon of its own.");
+      else db.merchants.push({ id: newId("mer"), match: scope.pattern, ...fields, createdAt: now });
+      changed.add("merchants");
+      break;
+    }
+    case "merchant-reset": {
+      // Back to the built-in table for this merchant.
+      const scope = merchantScope(db, action);
+      if (!scope) return bad("unknown tx or subscription");
+      db.merchants = db.merchants.filter((m) => !scope.covers(m));
+      changed.add("merchants");
+      break;
+    }
+    default:
+      return bad("unknown action");
+  }
+  return { ok: true, ...(undo ? { undo } : {}), changed };
+}
+
+// What an identity edit is about. From a tile: the pattern a rule would use,
+// covering any identity that matches the charge. From a subscription row: its
+// own pattern, covering identities whose pattern sits inside it (so they apply
+// to every charge the subscription matches).
+function merchantScope(
+  db: Db,
+  target: { txId?: string; subId?: string }
+): { pattern: string; covers: (m: Merchant) => boolean } | undefined {
+  if (target.txId) {
+    const tx = db.transactions.find((t) => t.id === target.txId);
+    return tx && { pattern: rulePattern(tx), covers: (m) => matches(tx, m.match) };
+  }
+  if (target.subId) {
+    const sub = db.subscriptions.find((s) => s.id === target.subId);
+    return sub && { pattern: sub.match, covers: (m) => sub.match.includes(m.match) };
+  }
+}
+
+// "https://www.delice.ee/menu" → "delice.ee". Empty stays empty; anything
+// that does not look like a hostname is null.
+function hostname(raw: unknown): string | null {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (!s) return "";
+  const host = s.replace(/^[a-z]+:\/\//, "").replace(/^www\./, "").split(/[/?#:]/)[0];
+  return /^[a-z0-9][a-z0-9.-]{1,60}$/.test(host) && host.includes(".") ? host : null;
+}
+
+// A category name as typed on the board: one line, trimmed, short, and not
+// one of the two words the feed filter reserves.
+function categoryName(raw: unknown): string | null {
+  const name = String(raw ?? "").replace(/\s+/g, " ").trim();
+  if (!name || name.length > 32) return null;
+  if (["uncategorized", "incoming"].includes(name.toLowerCase())) return null;
+  return name;
+}
+
+// "Always": a rule that files every charge like this one under `category`.
+// The pattern comes from the transaction, never from the client: the merchant
+// token for known merchants, the counterparty minus per-charge noise otherwise
+// (see rulePattern). Returns the new rule's id, or nothing when it already
+// exists or the charge has nothing to match on.
+function teachRule(db: Db, tx: Tx, category: string, now: string, changed: Set<Collection>): string | undefined {
+  const match = rulePattern(tx);
+  if (!match || db.rules.some((r) => r.match === match && r.category === category)) return undefined;
+  const id = newId("rule");
+  db.rules.push({ id, match, category, createdAt: now });
+  changed.add("rules");
+  return id;
+}

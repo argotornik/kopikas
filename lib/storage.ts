@@ -31,10 +31,6 @@ const FILES: (keyof Db)[] = [
   "snapshots",
 ];
 
-export function newId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
 // What each request read, as stored (before the repairs below), so a save sends only what the
 // request changed, the repairs included.
 const asRead = new WeakMap<Db, Db>();

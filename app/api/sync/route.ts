@@ -3,7 +3,6 @@ import type { Tx } from "@/lib/types";
 import {
   cleanupMockData,
   getLhvTokens,
-  newId,
   readDb,
   saveAccounts,
   saveLhvTokens,
@@ -14,6 +13,7 @@ import { fetchAccounts, fetchInvestments, fetchStatement, refreshAccessToken } f
 import { applyShareRules, recheckCadences, recordInvestments } from "@/lib/engine";
 import { currentRole } from "@/lib/auth";
 import { sameSecret } from "@/lib/crypto";
+import { newId } from "@/lib/ids";
 import { backUpOnceADay } from "@/lib/backup";
 
 export const dynamic = "force-dynamic";
