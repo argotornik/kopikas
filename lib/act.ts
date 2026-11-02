@@ -2,13 +2,22 @@
 // the way — no network, an expired sign-in, a refusal, a crash — comes back
 // as a sentence a person can act on, never as silence.
 
+import { DEMO } from "./demo-flag";
+import type { Action } from "./apply";
+
 export type Undo = { type: string } & Record<string, unknown>;
 // `fresh` is the view the caller asked for, as it stands after the change.
 export type ActResult<V = unknown> = { ok: true; undo?: Undo; fresh?: V } | { ok: false; error: string };
 
 // `view` asks the server to send that page's data back with the reply, so
-// the page needs no second request to catch up.
+// the page needs no second request to catch up. In the demo the change is
+// made in this browser instead, by the same function the server runs.
 export async function act<V = unknown>(action: object, view?: "board" | "shared"): Promise<ActResult<V>> {
+  if (DEMO) {
+    const { demoAct } = await import("./demo-browser");
+    const { result, fresh } = demoAct(action as Action, view);
+    return result.ok ? { ok: true, undo: result.undo, fresh: fresh as V } : { ok: false, error: sentence(result.error) };
+  }
   let res: Response;
   try {
     res = await fetch(view ? `/api/action?view=${view}` : "/api/action", {
@@ -29,6 +38,17 @@ export async function act<V = unknown>(action: object, view?: "board" | "shared"
     ok: false,
     error: res.status >= 500 ? "The server hit a problem. Reload to see whether that saved." : "That didn't save. Try again.",
   };
+}
+
+// A page's data read again: from the server, or in the demo from this browser's copy.
+export async function readFresh<V>(view: "board" | "shared"): Promise<V> {
+  if (DEMO) {
+    const { demoView } = await import("./demo-browser");
+    return demoView(view) as V;
+  }
+  const res = await fetch(`/api/${view}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(String(res.status));
+  return res.json();
 }
 
 // Server reasons are short phrases ("unknown tx"); shown as sentences.

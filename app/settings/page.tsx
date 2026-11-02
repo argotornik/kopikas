@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { pageRole } from "@/lib/auth";
+import { DEMO } from "@/lib/demo-flag";
 import { getAccounts, getLhvTokens, readDb } from "@/lib/storage";
 import { matches } from "@/lib/engine";
 import { SettingsView } from "@/components/settings-view";
@@ -11,7 +12,8 @@ export const metadata: Metadata = { title: "Settings · Kopikas" };
 
 export default async function SettingsPage() {
   const role = await pageRole();
-  if (role !== "owner") redirect("/");
+  // The demo has no bank to connect: Settings is not part of it.
+  if (role !== "owner" || DEMO) redirect("/");
 
   // Only metadata crosses to the client — never the token itself.
   const [tokens, { accounts, fetchedAt }, db] = await Promise.all([getLhvTokens(), getAccounts(), readDb()]);

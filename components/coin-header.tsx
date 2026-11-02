@@ -4,6 +4,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 import { DISPLAY, FOCUS } from "@/components/coin-look";
 import { cn } from "@/lib/utils";
+import { DEMO } from "@/lib/demo-flag";
 
 // The header of every page in the new look: the coin and the wordmark, a line under it
 // when the page has one to say, the other pages (icons on a phone), the theme, and the
@@ -29,7 +30,8 @@ export function CoinHeader({
         </div>
       </div>
       <nav aria-label="Pages" className="ml-auto flex items-center gap-1.5 text-[15px] font-medium">
-        {links.map(({ href, label, icon: Icon }) => (
+        {/* The demo has no bank to connect and no rules page to tend: no Settings. */}
+        {links.filter(({ href }) => !(DEMO && href === "/settings")).map(({ href, label, icon: Icon }) => (
           <a
             key={href}
             href={href}

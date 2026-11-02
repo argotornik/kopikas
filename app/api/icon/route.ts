@@ -2,6 +2,8 @@ import { promises as fs } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
 import { currentRole, refusalStatus } from "@/lib/auth";
+import { DEMO } from "@/lib/demo-flag";
+import { DEMO_DOMAINS } from "@/lib/demo";
 
 // Server-side favicon proxy with a local cache. Browsers only ever talk to
 // this app — the merchant list never leaks to the favicon service from
@@ -16,6 +18,8 @@ export async function GET(req: Request) {
   if (!(await currentRole())) return new NextResponse(null, { status: await refusalStatus() });
   const domain = new URL(req.url).searchParams.get("domain") ?? "";
   if (!DOMAIN_RE.test(domain)) return new NextResponse(null, { status: 400 });
+  // Everyone is the demo's owner, so it fetches only the icons of its own shops.
+  if (DEMO && !DEMO_DOMAINS.has(domain)) return new NextResponse(null, { status: 404 });
 
   const file = path.join(CACHE_DIR, `${domain}.png`);
   try {

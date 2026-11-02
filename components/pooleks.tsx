@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRightIcon, PlusIcon, XIcon } from "lucide-react";
 import { motion, MotionConfig } from "motion/react";
 import { amountInput, cn, parseAmount, shareLabel } from "@/lib/utils";
-import { act, focusAfterRemoval } from "@/lib/act";
+import { act, focusAfterRemoval, readFresh } from "@/lib/act";
+import { DEMO } from "@/lib/demo-flag";
 import { OWNER_NAME, PARTNER_NAME } from "@/lib/names";
 import { Button } from "@/components/ui/button";
 import {
@@ -148,14 +149,16 @@ export function Pooleks({ role, initial, fontClass }: { role: Person; initial: S
   // with nothing on screen yet, the page offers to try again.
   const refetch = useCallback(async () => {
     try {
-      const res = await fetch("/api/shared", { cache: "no-store" });
-      if (!res.ok) throw new Error(String(res.status));
-      setView(await res.json());
+      setView(await readFresh<SharedView>("shared"));
       setLoadError(false);
     } catch {
       setLoadError(true);
     }
   }, []);
+  // In the demo, the statement as this browser left it.
+  useEffect(() => {
+    if (DEMO) void refetch();
+  }, [refetch]);
   useEffect(() => {
     if (loadError) announceError("Pooleks couldn't refresh. Reload to see the latest.", () => window.location.reload());
   }, [loadError]);
