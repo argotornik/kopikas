@@ -85,6 +85,8 @@ type Spec = {
   point?: Point;
   // A tip whose words are written elsewhere (the phone's queue) still gets its arrow.
   arrow?: [Point, Point];
+  // Two lines in a strip of room (the header): the title runs into its sentence.
+  compact?: boolean;
   tag?: string;
   title?: string;
   body?: string;
@@ -142,12 +144,13 @@ function specFor(tour: Tour, narrow: boolean): Spec | null {
       return tab && { anchor: tab, ring: tab, place: "above", tag: "Tip 3 of 4", title: "See the month", body: "Every category is a roll, as tall as what went into it." };
     }
   }
-  if (step === "pick" && pile) {
-    const r = rectOf(pile);
-    return r && { anchor: r, ring: r, place: "left", tag: "Tip 1 of 4", title: "Pick up a coin!", body: "These are charges from the bank that nobody has filed yet." };
+  // The coins themselves, not the pile's box: it is a fixed square the coins only partly fill.
+  const coins = union([...(pile?.querySelectorAll("[data-coin]") ?? [])].map(rectOf).filter((r): r is Rect => !!r));
+  if (step === "pick" && coins) {
+    return { anchor: coins, ring: coins, place: "left", tag: "Tip 1 of 4", title: "Pick up a coin!", body: "These are charges from the bank that nobody has filed yet." };
   }
-  if (step === "drop" && pile) {
-    const r = rectOf(pile), floor = union(rolls);
+  if (step === "drop" && coins) {
+    const r = coins, floor = union(rolls);
     return r && floor && { anchor: r, place: "left", point: [floor.x + floor.w * 0.45, floor.y - 12], tag: "Tip 2 of 4", title: "Now tap its roll", body: "With Always on, its shop's other coins go along, now and every month." };
   }
   if (step === "always" && filing) {
@@ -183,14 +186,20 @@ function specFor(tour: Tour, narrow: boolean): Spec | null {
   }
   if (step === "pooleks") {
     const link = rectOf(shown("a[href='/pooleks']"));
+    // On a wide screen anything under the link is a card (the charges, the tray), so the words
+    // stay in the header's own white space, beside it.
     return (
       link && {
         anchor: link,
         ring: link,
-        place: "below-left",
+        place: narrow ? "below-left" : "left",
+        compact: !narrow,
         tag: "One more thing",
         title: "Pooleks",
-        body: `Split a charge with ${PARTNER_NAME} from its menu, and it lands on your shared statement: nobody types it twice.`,
+        // One line in the header, so it stays out of the cards under it.
+        body: narrow
+          ? `Split a charge with ${PARTNER_NAME} from its menu, and it lands on your shared statement: nobody types it twice.`
+          : `Split a charge with ${PARTNER_NAME}, and it lands on your shared statement.`,
         extra: (
           <button type="button" onClick={() => tips.go("end")} className={cn(TAP, "font-medium underline underline-offset-2", FOCUS)}>
             Finish the tour
@@ -315,9 +324,10 @@ function DemoTips() {
 // Where a tip's words go and where its arrow runs, from its anchor and the words' own size.
 function layout(spec: Spec, size: { w: number; h: number }) {
   const vw = window.innerWidth, vh = window.innerHeight;
-  const W = Math.min(narrowNow() ? 300 : 272, vw - 32);
   const { anchor: a } = spec;
-  const gap = narrowNow() ? 44 : 84;
+  // A compact tip takes the header's room between the wordmark (about 216px) and its anchor.
+  const gap = spec.compact ? 56 : narrowNow() ? 44 : 84;
+  const W = spec.compact ? Math.max(240, Math.min(560, a.x - gap - 216)) : Math.min(narrowNow() ? 300 : 272, vw - 32);
   // On a phone the tab bar holds the foot of the screen. Words with no room below go above.
   const floor = vh - (narrowNow() ? 84 : 8);
   const place = spec.place === "below" && a.y + a.h + gap + size.h > floor ? "above" : spec.place;
@@ -331,6 +341,8 @@ function layout(spec: Spec, size: { w: number; h: number }) {
   // The words' paper reaches 12px past them: it keeps the page's 16px margin.
   x = Math.max(28, Math.min(x, vw - W - 28));
   y = Math.max(8, Math.min(y, (spec.place === "above" ? vh - 8 : floor) - size.h));
+  // A compact tip lives in the header: below the demo bar, never over it.
+  if (spec.compact) y = Math.max(y, (document.querySelector("header")?.getBoundingClientRect().top ?? 0) + 16);
   // The arrow leaves the words on the side facing what it points at, and stops short of the ring.
   // A point below the words (the floor, from the head) is reached from their foot.
   const target: Point = spec.point ?? [a.x + a.w / 2, a.y + a.h / 2];
@@ -392,15 +404,33 @@ function Placed({ spec, size, words }: { spec: Spec; size: { w: number; h: numbe
         animate={{ opacity: 1, transform: "translateY(0px)" }}
         transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
       >
-        <p className={cn("text-[12px]", MUTED)}>
-          {spec.tag} ·{" "}
-          <button type="button" onClick={() => tips.go("off")} className={cn(TAP, "underline underline-offset-2 hover:text-ink dark:hover:text-chalk", FOCUS)}>
-            Skip the tips
-          </button>
-        </p>
-        <p className={cn(DISPLAY, CRAYON_TEXT, "mt-1 text-[22px] font-semibold leading-tight")}>{spec.title}</p>
-        <p className="mt-1 text-[15px] leading-snug text-ink dark:text-chalk">{spec.body}</p>
-        {(spec.next || spec.extra) && (
+        {spec.compact ? (
+          <>
+            <p className="text-[15px] leading-snug text-ink dark:text-chalk">
+              <span className={cn(DISPLAY, CRAYON_TEXT, "mr-1.5 text-[20px] font-semibold")}>{spec.title}</span>
+              {spec.body}
+            </p>
+            <p className={cn("mt-1 text-[12px]", MUTED)}>
+              {spec.tag} ·{" "}
+              <button type="button" onClick={() => tips.go("off")} className={cn(TAP, "underline underline-offset-2 hover:text-ink dark:hover:text-chalk", FOCUS)}>
+                Skip the tips
+              </button>{" "}
+              · <span className="text-ink dark:text-chalk">{spec.extra}</span>
+            </p>
+          </>
+        ) : (
+          <>
+            <p className={cn("text-[12px]", MUTED)}>
+              {spec.tag} ·{" "}
+              <button type="button" onClick={() => tips.go("off")} className={cn(TAP, "underline underline-offset-2 hover:text-ink dark:hover:text-chalk", FOCUS)}>
+                Skip the tips
+              </button>
+            </p>
+            <p className={cn(DISPLAY, CRAYON_TEXT, "mt-1 text-[22px] font-semibold leading-tight")}>{spec.title}</p>
+            <p className="mt-1 text-[15px] leading-snug text-ink dark:text-chalk">{spec.body}</p>
+          </>
+        )}
+        {!spec.compact && (spec.next || spec.extra) && (
           <p className="mt-2 flex gap-4 text-[15px] text-ink dark:text-chalk">
             {spec.next && (
               <button type="button" onClick={spec.next} className={cn(TAP, "font-medium underline underline-offset-2", FOCUS)}>
