@@ -93,13 +93,9 @@ export function demoDb(today = new Date()): Db {
   for (let k = 11; k >= 0; k--) addOn(new Date(today.getTime() - (26 + 30 * k) * 86400000).toISOString().slice(0, 10), -11.99, "Spotify AB", "Spotify Premium");
 
   // The loose change: shops nobody has taught Kopikas yet. The dry cleaner has five, two of them
-  // this month, so Always files a handful at once.
+  // this month, so Always files a handful at once; its newest is the newest of all (the latest day,
+  // the last made), so it leads the phone's queue.
   const loose: [ago: number, day: number, amount: number, counterparty: string, description?: string][] = [
-    [0, 3, -18, "Pesumaja Puhas OÜ"],
-    [0, 10, -24.5, "Pesumaja Puhas OÜ"],
-    [1, 14, -18, "Pesumaja Puhas OÜ"],
-    [2, 9, -31, "Pesumaja Puhas OÜ"],
-    [3, 20, -18, "Pesumaja Puhas OÜ"],
     [0, 2, -6.8, "Kohvik Komeet"],
     [0, 8, -12.4, "Kohvik Komeet"],
     [1, 6, -9.9, "Kohvik Komeet"],
@@ -110,6 +106,11 @@ export function demoDb(today = new Date()): Db {
     [1, 11, -15.2, "Benu Apteek"],
     [3, 4, -6.3, "Benu Apteek"],
     [0, 11, -26, "Tallinna Loomaaed", "Piletid 2 täiskasvanut"],
+    [3, 20, -18, "Pesumaja Puhas OÜ"],
+    [2, 9, -31, "Pesumaja Puhas OÜ"],
+    [1, 14, -18, "Pesumaja Puhas OÜ"],
+    [0, 3, -18, "Pesumaja Puhas OÜ"],
+    [0, 12, -24.5, "Pesumaja Puhas OÜ"],
   ];
   for (const [ago, day, amount, who, what] of loose) add(ago, day, amount, who, what);
 

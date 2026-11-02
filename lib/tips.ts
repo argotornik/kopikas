@@ -1,0 +1,62 @@
+import { useSyncExternalStore } from "react";
+
+// The demo's tour: where the visitor is in it, kept in the browser so a reload or a visit to
+// Pooleks carries on from there. Each tip moves on when the visitor does what it says; the
+// demo's own copy of the board reports filings here (lib/demo-browser.ts).
+//   pick → drop → always → (month, on a phone) → year → pooleks → end, or off once skipped.
+
+export type TipStep = "pick" | "drop" | "always" | "month" | "year" | "pooleks" | "end" | "off";
+// What the filing that ended the first tips did: Always tells it, or asks for it.
+export type Filing = { shop: string; category: string; others: number; always: boolean };
+export type Tour = { step: TipStep; filing?: Filing };
+
+const KEY = "kopikas-demo-tips";
+const START: Tour = { step: "pick" };
+// The server has no tour: nothing is drawn until the browser says where the visitor is.
+const OFF: Tour = { step: "off" };
+let tour: Tour | null = null;
+const readers = new Set<() => void>();
+
+function current(): Tour {
+  if (tour) return tour;
+  try {
+    const kept = JSON.parse(localStorage.getItem(KEY) ?? "null");
+    tour = kept?.step ? (kept as Tour) : START;
+  } catch {
+    tour = START;
+  }
+  return tour;
+}
+
+function set(next: Tour) {
+  tour = next;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(next));
+  } catch {
+    // Kept for this tab only.
+  }
+  readers.forEach((redraw) => redraw());
+}
+
+export const tips = {
+  go: (step: TipStep) => set({ ...current(), step }),
+  restart: () => set(START),
+  // A filing in the demo. The first ends the pick-and-drop tips; one with Always answers the
+  // tip that asked for it.
+  filed(filing: Filing) {
+    const { step, filing: before } = current();
+    if (step === "pick" || step === "drop") set({ step: "always", filing });
+    else if (step === "always" && !before?.always && filing.always) set({ step: "always", filing });
+  },
+};
+
+export function useTour(): Tour {
+  return useSyncExternalStore(
+    (redraw) => {
+      readers.add(redraw);
+      return () => readers.delete(redraw);
+    },
+    current,
+    () => OFF
+  );
+}

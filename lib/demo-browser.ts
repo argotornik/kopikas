@@ -2,6 +2,9 @@ import { applyAction, type Action, type Applied } from "./apply";
 import { buildBoard, packBoard } from "./board";
 import { sharedView } from "./shared-view";
 import { DEMO_ACCOUNTS, demoDb } from "./demo";
+import { matches } from "./engine";
+import { merchantOf, rulePattern } from "./icons";
+import { tips } from "./tips";
 import type { Db } from "./types";
 
 // The demo's household lives in this browser: changes are made here with the same function the
@@ -36,10 +39,24 @@ export function demoView(view: "board" | "shared") {
 }
 
 export function demoAct(action: Action, view?: "board" | "shared"): { result: Applied; fresh?: unknown } {
-  const result = applyAction(load(), action, "owner", new Date().toISOString());
+  const d = load();
+  const result = applyAction(d, action, "owner", new Date().toISOString());
   if (!result.ok) return { result };
   keep();
+  tell(d, action, result.changed.has("rules"));
   return { result, fresh: view ? demoView(view) : undefined };
+}
+
+// The tour hears about filings: which shop, where to, and whether Always took its other charges.
+function tell(d: Db, action: Action, taught: boolean) {
+  if (action.type !== "override" && action.type !== "override-many" && action.type !== "rule") return;
+  const ids = action.type === "override-many" ? action.txIds : [action.txId];
+  const tx = d.transactions.find((t) => t.id === ids[0]);
+  if (!tx) return;
+  const pattern = rulePattern(tx);
+  const always = taught || (action.type === "override" && !!action.always);
+  const others = always && pattern ? d.transactions.filter((t) => t.amount < 0 && matches(t, pattern)).length - ids.length : 0;
+  tips.filed({ shop: merchantOf(tx, d.merchants).name, category: action.category, others: Math.max(0, others), always });
 }
 
 // Start over: the made-up household as it arrived.

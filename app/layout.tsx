@@ -6,6 +6,7 @@ import { authEnabled } from "@/lib/auth";
 import { ClerkThemed } from "@/components/clerk-themed";
 import { Toaster } from "@/components/toaster";
 import { Blinker } from "@/components/blinker";
+import { DemoMount } from "@/components/demo-mount";
 // Rubik and Fredoka for everything, notices and Clerk's card included.
 import { coinFontVariables } from "@/components/coin-fonts";
 
@@ -30,6 +31,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // ThemeProvider outside so Clerk's components can follow the resolved theme.
   const content = (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      {/* The demo's bar, tips and end card: on the demo's deployment only. */}
+      <DemoMount />
       {authEnabled ? <ClerkThemed>{children}</ClerkThemed> : children}
       <Toaster />
       <Blinker />

@@ -9,6 +9,7 @@ import { PaintedCoin, PaintedMini } from "@/components/painted";
 import { ConfettiBurst, alwaysOffer, alwaysTakes, eur, label, lastTimeOf, looseCoins, monthOf, wrapperOf, type BurstMark } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 import { cn, shareLabel } from "@/lib/utils";
+import { QueueTipLabel, QueueTipNote } from "@/components/queue-tip";
 
 // The phone's To file tab: the backlog one coin at a time. The coin on top shows its
 // merchant, amount and day; the categories wait below it as big tiles for the thumb.
@@ -176,6 +177,7 @@ export function CoinQueue({
           <span className="font-medium text-ink dark:text-chalk">{count.format(filed)} filed</span> · {count.format(queue.length)} to go
         </span>
         {waiting > 0 && <span className="shrink-0">{waiting} skipped</span>}
+        <QueueTipNote />
       </div>
       {/* The coin on top: it hops out as it is filed, and the next one drops in. Room for a
           two-line name and the "more from here" line, so Skip and Split stay put from coin to coin. */}
@@ -234,7 +236,9 @@ export function CoinQueue({
         )}
       </div>
       <div className="mt-5 flex items-center justify-between gap-2 px-1">
-        <p className="text-[15px] font-medium">Where do I go?</p>
+        <QueueTipLabel>
+          <p className="text-[15px] font-medium">Where do I go?</p>
+        </QueueTipLabel>
         {/* Set before the tap, beside the choices it changes: file the whole shop and teach the rule.
             A coin with no name to match others on has nothing to teach, so it has no switch. */}
         <button
