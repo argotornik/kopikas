@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { tips, useTour } from "@/lib/tips";
+import { handOff, tips, useTour } from "@/lib/tips";
 import { DEMO } from "@/lib/demo-flag";
 import { DISPLAY, FOCUS } from "@/components/coin-look";
 import { cn } from "@/lib/utils";
@@ -63,13 +63,13 @@ export function QueueTipNote() {
       Tip {tip.n} of 4 ·{" "}
       {tip.next && (
         <>
-          <button type="button" onClick={() => tips.go("month")} className={link}>
+          <button type="button" onClick={(e) => (handOff(e), tips.go("month"))} className={link}>
             Next tip
           </button>{" "}
           ·{" "}
         </>
       )}
-      <button type="button" onClick={() => tips.go("off")} className={link}>
+      <button type="button" onClick={(e) => (handOff(e), tips.go("off"))} className={link}>
         Skip the tips
       </button>
     </span>

@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { BLUE } from "@/components/painted";
 
 // The demo's tips are written on the paper in crayon, like the marks on the stage: a ring round
-// the thing to do and an arrow to it, their edges wobbling in the path (never a filter). They draw
+// the thing to do (a line under words too wide to ring) and an arrow to it, their edges wobbling in the path (never a filter). They draw
 // themselves in once, from the pen's start; with reduced motion they are simply there.
 
 type Point = [number, number];
@@ -47,6 +47,17 @@ export function CrayonRing({ x, y, w, h, seed = 0.7 }: { x: number; y: number; w
     pts.push([cx + Math.cos(t) * rx * k, cy + Math.sin(t) * ry * k]);
   }
   return <Stroke path={d(pts)} box={{ x: x + w / 2 - cx, y: y + h / 2 - cy, w: cx * 2, h: cy * 2 }} />;
+}
+
+// A line under words too wide to ring, left to right, wavering a little and rising to its end as a
+// hand's does.
+export function CrayonUnderline({ x, y, w, h, seed = 0.7 }: { x: number; y: number; w: number; h: number; seed?: number }) {
+  const pts: Point[] = [];
+  for (let i = 0, n = 40; i <= n; i++) {
+    const t = i / n;
+    pts.push([6 + t * (w + 4), 6 + 1.2 * Math.sin(7 * t + seed * 3) - 2 * t]);
+  }
+  return <Stroke path={d(pts)} box={{ x: x - 8, y: y + h - 2, w: w + 16, h: 12 }} />;
 }
 
 // A gently bent arrow from one point to another, its head in two strokes.

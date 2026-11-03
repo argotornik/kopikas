@@ -41,7 +41,7 @@ function set(next: Tour) {
 
 export const tips = {
   go: (step: TipStep) => set({ ...current(), step }),
-  restart: () => set(START),
+  restart: (from: TipStep = START.step) => set({ step: from }),
   // A filing in the demo. The first ends the pick-and-drop tips; one with Always answers the
   // tip that asked for it.
   filed(filing: Filing) {
@@ -50,6 +50,15 @@ export const tips = {
     else if (step === "always" && !before?.always && filing.always) set({ step: "always", filing });
   },
 };
+
+// The demo bar's Show tips and Skip tips button, where the tour's controls start.
+export const TIPS_BUTTON = "demo-tips";
+// A tip's own button is gone once pressed. Pressed from a keyboard (a click with no detail), it
+// hands focus to the bar's tips button first, so Tab carries on from the tour's controls (the
+// tips come right after the bar) rather than from wherever the browser starts again.
+export function handOff(e: { detail: number }) {
+  if (e.detail === 0) document.getElementById(TIPS_BUTTON)?.focus({ preventScroll: true });
+}
 
 // Whether the page has its board as this browser left it (lib/demo-browser.ts says so once it has
 // read it): the first tip waits for it, so it never rings a pile that is about to change.
