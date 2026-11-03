@@ -33,6 +33,8 @@ export interface BoardTx {
   customMerchant: boolean;
   category: string | null;
   categorySource: "rule" | "override" | null;
+  // Filed by hand with no rule for its shop: taking the filing back returns it to the loose change.
+  handFiled: boolean;
   // When it was filed: its hand-filing's time, or when the rule that files it was taught.
   // Null when loose, or filed before times were kept.
   filedAt: string | null;
@@ -89,6 +91,7 @@ export function buildBoard(db: Db, today = new Date(), lhvAccounts: LhvAccount[]
         micro: (tx.counterparty + " " + tx.description).toLowerCase().includes("mikroinvesteering"),
         category: cat,
         categorySource: override && override.category !== ruleCategory ? "override" : cat ? "rule" : null,
+        handFiled: !!override && !rule,
         filedAt: iso(override ? override.at : rule?.createdAt),
         shared: !!share,
         shareId: share?.id,
@@ -212,6 +215,7 @@ const SAYS_ANYWAY = {
   customMerchant: false,
   category: null,
   categorySource: null,
+  handFiled: false,
   filedAt: null,
   shared: false,
   micro: false,

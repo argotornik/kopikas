@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { pageRole } from "@/lib/auth";
+import { hasPartner, pageRole } from "@/lib/auth";
 import { DEMO } from "@/lib/demo-flag";
 import { getAccounts, getLhvTokens, readDb } from "@/lib/storage";
 import { matches } from "@/lib/engine";
@@ -40,6 +40,7 @@ export default async function SettingsPage() {
       rules={rules}
       categories={db.categories.map((c) => c.name)}
       shareRules={shareRules}
+      partner={hasPartner(db)}
     />
   );
 }

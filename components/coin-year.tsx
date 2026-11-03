@@ -96,6 +96,9 @@ export function CoinYear({
                 )}
               >
                 <svg viewBox={`0 0 ${COL} ${H}`} aria-hidden className="block w-full overflow-visible">
+                  {/* A month before the charges start is a faint tick on the baseline, so the strip
+                      always runs the full twelve under its title. */}
+                  {before && <line x1={GAP / 2 + 3} x2={COL - GAP / 2 - 3} y1={H - 1} y2={H - 1} strokeWidth="2" strokeLinecap="round" className="stroke-ink/15 dark:stroke-white/15" />}
                   {!before && (
                     <g className={cn("transition-opacity", !shown && "opacity-55 group-hover:opacity-80")}>
                       <path d={wobblyRect(GAP / 2, H - h, COL - GAP, h, 7, seed + i * 101, 0.8, 32)} fill={colour} />

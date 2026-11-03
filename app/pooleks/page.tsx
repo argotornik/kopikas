@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { pageRole } from "@/lib/auth";
+import { hasPartner, pageRole } from "@/lib/auth";
 import { Pooleks } from "@/components/pooleks";
 import { coinFonts } from "@/components/coin-fonts";
 import { readDb } from "@/lib/storage";
@@ -13,6 +13,9 @@ export const metadata: Metadata = { title: "Pooleks · Kopikas" };
 export default async function PooleksPage() {
   const role = await pageRole();
   if (!role) redirect("/");
+  const db = await readDb();
+  // A household of one has nobody to split with: the board has no Pooleks link, and this is its board.
+  if (role === "owner" && !hasPartner(db)) redirect("/");
   // Rendered with its statement, not fetched after the page arrives.
-  return <Pooleks role={role} initial={sharedView(await readDb(), role)} fontClass={coinFonts} />;
+  return <Pooleks role={role} initial={sharedView(db, role)} fontClass={coinFonts} />;
 }

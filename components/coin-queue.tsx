@@ -9,6 +9,7 @@ import { PaintedCoin, PaintedMini } from "@/components/painted";
 import { ConfettiBurst, alwaysOffer, alwaysTakes, eur, label, lastTimeOf, looseCoins, monthOf, wrapperOf, type BurstMark } from "@/components/coin-stage";
 import { DISPLAY, FOCUS, MUTED, PANEL } from "@/components/coin-look";
 import { cn, shareLabel } from "@/lib/utils";
+import { forgetUndo, rememberUndo, useLatestUndo } from "@/lib/undo";
 import { QueueTipLabel, QueueTipLine, QueueTipNote } from "@/components/queue-tip";
 
 // The phone's To file tab: the backlog one coin at a time. The coin on top shows its
@@ -76,9 +77,17 @@ export function CoinQueue({
     return () => clearTimeout(t);
   }, [said]);
   const undo = (run: () => Promise<boolean>) => {
+    forgetUndo();
     setSaid(null);
     void run().then((ok) => ok && setSaid({ lead: "Undone", tail: "" }));
   };
+  // Its Undo is the latest change's: once the line has gone, the progress line keeps it until the
+  // next change, as ⌘Z does on a keyboard.
+  const tell = (s: Said) => {
+    setSaid(s);
+    if (s.undo) rememberUndo(`${s.lead}${s.tail}`, () => undo(s.undo!));
+  };
+  const latest = useLatestUndo();
   // Its words in Ink; the start gives way when the line is short of room, never Undo. The links'
   // tap areas reach 44px on a touch screen.
   const LINK = cn(
@@ -132,7 +141,7 @@ export function CoinQueue({
     const wide = always && category !== SUBSCRIPTIONS;
     // The burst waits for the server to have the last filing; one that failed brings its coin back.
     const last = (wide ? alike + 1 : 1) === queue.length;
-    void onFile(tx, category, wide, setSaid).then((ok) => ok && last && setParty(true));
+    void onFile(tx, category, wide, tell).then((ok) => ok && last && setParty(true));
   };
   const filed = txs.filter((t) => t.amount < 0 && !t.micro && t.category).length;
   // Each tile carries what its category holds in the coin's month, for a sense of scale.
@@ -176,6 +185,14 @@ export function CoinQueue({
             Short of room, what follows it takes a line of its own rather than splitting it. */}
         <span className="whitespace-nowrap">
           <span className="font-medium text-ink dark:text-chalk">{count.format(filed)} filed</span> · {count.format(queue.length)} to go
+          {!said && latest && (
+            <>
+              {" · "}
+              <button type="button" onClick={latest.run} aria-label={`Undo: ${latest.what}`} className={LINK}>
+                Undo
+              </button>
+            </>
+          )}
         </span>
         {waiting > 0 && <span className="shrink-0">{waiting} skipped</span>}
         <QueueTipNote />
@@ -227,7 +244,7 @@ export function CoinQueue({
         {partner && (
           <button
             type="button"
-            onClick={() => onSplit(tx, 0.5, setSaid)}
+            onClick={() => onSplit(tx, 0.5, tell)}
             disabled={tx.shared}
             aria-label={tx.shared ? `Split with ${partner} already` : `Split with ${partner}, who pays 1/2`}
             className={cn("h-11 flex-[2] rounded-full inset-ring-[1.5px] inset-ring-ink/15 text-[15px] font-medium transition-transform disabled:opacity-40 motion-safe:active:scale-[0.96] dark:inset-ring-white/15", FOCUS)}

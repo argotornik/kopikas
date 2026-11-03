@@ -199,5 +199,7 @@
     }
   html {
     @apply font-sans;
+    /* A short month that needs no scrollbar keeps the scrollbar's room, so the page never jumps sideways. */
+    scrollbar-gutter: stable;
     }
 }

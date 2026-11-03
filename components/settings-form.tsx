@@ -138,7 +138,7 @@ export function SettingsForm({
         )}
       </div>
       {stored && (
-        <p className={cn("mt-3 max-w-[72ch] text-[13px]", MUTED)}>
+        <p className={cn("mt-3 max-w-[52ch] text-[13px]", MUTED)}>
           Syncs by itself every morning at {cronTime()} (Tallinn time), and every hour if the GitHub workflow from the
           README is set up. Running it now is safe: nothing is fetched twice.
         </p>
@@ -146,7 +146,7 @@ export function SettingsForm({
       {tokenOpen && (
         <div id="token-section" className={cn("mt-4 rounded-2xl p-4", CARD)}>
           <h3 className="text-[15px] font-medium">{stored ? "Replace the token" : "Connect LHV"}</h3>
-          <p className={cn("mt-1 max-w-[72ch] text-[13px]", MUTED)}>
+          <p className={cn("mt-1 max-w-[52ch] text-[13px]", MUTED)}>
             Sign in at{" "}
             <a href="https://api.lhv.ai/api-access" className={cn("underline underline-offset-2", INK_TEXT, FOCUS)} target="_blank" rel="noreferrer">
               api.lhv.ai/api-access

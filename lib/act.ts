@@ -4,6 +4,7 @@
 
 import { DEMO } from "./demo-flag";
 import type { Action } from "./apply";
+import { forgetUndo } from "./undo";
 
 export type Undo = { type: string } & Record<string, unknown>;
 // `fresh` is the view the caller asked for, as it stands after the change.
@@ -16,6 +17,7 @@ export async function act<V = unknown>(action: object, view?: "board" | "shared"
   if (DEMO) {
     const { demoAct } = await import("./demo-browser");
     const { result, fresh } = demoAct(action as Action, view);
+    if (result.ok) forgetUndo();
     return result.ok ? { ok: true, undo: result.undo, fresh: fresh as V } : { ok: false, error: sentence(result.error) };
   }
   let res: Response;
@@ -31,7 +33,11 @@ export async function act<V = unknown>(action: object, view?: "board" | "shared"
   const body = (await res.json().catch(() => null)) as
     | { ok?: boolean; error?: string; undo?: Undo; board?: V; shared?: V }
     | null;
-  if (res.ok && body?.ok !== false) return { ok: true, undo: body?.undo, fresh: body?.board ?? body?.shared };
+  if (res.ok && body?.ok !== false) {
+    // A change that saved is the latest: what could be undone before it no longer can.
+    forgetUndo();
+    return { ok: true, undo: body?.undo, fresh: body?.board ?? body?.shared };
+  }
   if (res.status === 401) return { ok: false, error: "Your sign-in has expired. Reload the page and sign in again." };
   if (body?.error) return { ok: false, error: sentence(body.error) };
   return {

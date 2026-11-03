@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { onSettled, tips, useTour, type Tour } from "@/lib/tips";
+import { handOff, onSettled, tips, TIPS_BUTTON, useTour, type TipStep, type Tour } from "@/lib/tips";
 import { PARTNER_NAME } from "@/lib/names";
-import { CrayonArrow, CrayonRing } from "@/components/crayon";
+import { CrayonArrow, CrayonRing, CrayonUnderline } from "@/components/crayon";
 import { PaintedCoin } from "@/components/painted";
 import { CRAYON_TEXT } from "@/components/queue-tip";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -17,7 +16,8 @@ import { cn } from "@/lib/utils";
 // that ends the tour.
 
 const REPO = "https://github.com/argotornik/kopikas";
-const LINK = cn("relative underline-offset-2 hover:underline pointer-coarse:after:absolute pointer-coarse:after:-inset-x-2 pointer-coarse:after:-inset-y-3 pointer-coarse:after:content-['']", FOCUS);
+// The bar is Ink in light mode too, so its focus ring is Chalk in both.
+const LINK = cn("relative underline-offset-2 hover:underline pointer-coarse:after:absolute pointer-coarse:after:-inset-x-2 pointer-coarse:after:-inset-y-3 pointer-coarse:after:content-['']", FOCUS, "focus-visible:outline-chalk");
 // A tip's small text buttons, 44px to press on a touch screen however small they read.
 const TAP = "relative pointer-coarse:after:absolute pointer-coarse:after:-inset-x-2 pointer-coarse:after:-inset-y-4 pointer-coarse:after:content-['']";
 // The board's pills give a little under the thumb; so do the end card's.
@@ -36,9 +36,14 @@ export function DemoLayer() {
 function DemoBar() {
   const { step } = useTour();
   const touring = step !== "off" && step !== "end";
-  const showTips = () => {
-    tips.restart();
-    if (window.location.pathname !== "/") window.location.assign("/");
+  const showTips = async () => {
+    const { demoLeft } = await import("@/lib/demo-browser");
+    const narrow = narrowNow();
+    // With every coin filed, the tour starts at the first tip that still has something to do.
+    const from: TipStep = demoLeft() > 0 ? "pick" : narrow ? "month" : "year";
+    tips.restart(from);
+    // A board opened afresh shows what that tip is about: To file, or a month with loose change.
+    if (window.location.pathname !== "/" || !specFor({ step: from }, narrow)) window.location.assign("/");
     else window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const startOver = async () => {
@@ -58,17 +63,18 @@ function DemoBar() {
           </span>
         </p>
         <nav aria-label="Demo" className="flex shrink-0 items-center gap-5">
-          {/* While the tour runs, the way out of it is the first thing a keyboard reaches. */}
-          {touring ? (
-            <button type="button" onClick={() => tips.go("off")} className={LINK}>
-              Skip tips
-            </button>
-          ) : (
-            <button type="button" onClick={showTips} className={LINK}>
-              <span className="max-sm:hidden">Show tips</span>
-              <span className="sm:hidden">Tips</span>
-            </button>
-          )}
+          {/* While the tour runs, the way out of it is the first thing a keyboard reaches. One
+              button either way, so focus stays on it as it turns from one to the other. */}
+          <button id={TIPS_BUTTON} type="button" onClick={touring ? () => tips.go("off") : showTips} className={LINK}>
+            {touring ? (
+              "Skip tips"
+            ) : (
+              <>
+                <span className="max-sm:hidden">Show tips</span>
+                <span className="sm:hidden">Tips</span>
+              </>
+            )}
+          </button>
           {/* The code stays a tap away on a phone too, after the end card is closed. */}
           <a href={`${REPO}#how-it-was-made`} target="_blank" rel="noreferrer" className={cn(LINK, "max-sm:hidden")}>
             How it was made
@@ -95,6 +101,8 @@ type Spec = {
   // "foot": at the foot of a phone's screen, over its tab bar, for an anchor up top.
   place?: "left" | "right" | "above" | "below" | "below-left" | "foot";
   ring?: Rect;
+  // Words too wide to ring are underlined.
+  underline?: Rect;
   point?: Point;
   // A tip whose words are written elsewhere (the phone's queue) still gets its arrow.
   arrow?: [Point, Point];
@@ -103,7 +111,7 @@ type Spec = {
   tag?: string;
   title?: string;
   body?: string;
-  next?: () => void;
+  next?: (e: { detail: number }) => void;
   extra?: ReactNode;
   // What a screen reader hears, when the words are not the tip's own (the phone's queue).
   say?: string;
@@ -122,9 +130,14 @@ const union = (rs: Rect[]): Rect | null => {
   return { x, y, w: Math.max(...rs.map((r) => r.x + r.w)) - x, h: Math.max(...rs.map((r) => r.y + r.h)) - y };
 };
 const narrowNow = () => window.matchMedia("(max-width: 639px)").matches;
-// What is painted inside a roll's button, which itself stands the floor's full height.
-const drawn = (el: Element | null) =>
-  el && union([...el.querySelectorAll("path, rect, ellipse, circle")].map(rectOf).filter((r): r is Rect => !!r && r.w < 400));
+// What is painted inside a roll's button, which itself stands the floor's full height: where it
+// stands, not where it has bobbed to while a coin is held, so an arrow to the floor keeps still.
+const drawn = (el: Element | null) => {
+  const box = el && union([...el.querySelectorAll("path, rect, ellipse, circle")].map(rectOf).filter((r): r is Rect => !!r && r.w < 400));
+  if (!el || !box) return box;
+  const bob = new DOMMatrixReadOnly(getComputedStyle(el).transform);
+  return { ...box, x: box.x - bob.m41, y: box.y - bob.m42 };
+};
 
 // Each tip, found on the page as it stands. Phone tips about the queue write their words in the
 // queue itself (components/queue-tip.tsx); here they only draw the ring.
@@ -132,10 +145,13 @@ function specFor(tour: Tour, narrow: boolean): Spec | null {
   const { step, filing } = tour;
   const pile = shown("[data-coin]")?.parentElement;
   const stage = pile?.closest("section") ?? document;
-  const rolls = [...stage.querySelectorAll("[data-roll]")].map(drawn).filter((r): r is Rect => !!r);
+  // Every roll's painting, shape by shape: measured only by the tips that need them.
+  const rolls = () => [...stage.querySelectorAll("[data-roll]")].map(drawn).filter((r): r is Rect => !!r);
   const roll = (name: string) => drawn(shown(`[data-roll="${CSS.escape(name)}"]`, stage));
-  const tallest = rolls.length ? rolls.reduce((a, b) => (b.h > a.h ? b : a)) : null;
-  const next = () => tips.go(narrow ? "month" : "year");
+  const next = (e: { detail: number }) => {
+    handOff(e);
+    tips.go(narrow ? "month" : "year");
+  };
 
   if (narrow) {
     const queue = shown("section[aria-labelledby='queue-heading']");
@@ -161,9 +177,11 @@ function specFor(tour: Tour, narrow: boolean): Spec | null {
       };
     }
     if (step === "always") {
-      const line = queue && shown("[role=status]", queue);
-      const said = line?.textContent?.includes("Undo") ? rectOf(line) : null;
-      return said ? { anchor: said, ring: said, say: "Tip 2 of 4. That's Always!" } : null;
+      // The line runs the queue's width with Undo at its end, so it is underlined rather than
+      // ringed: under its words (its pieces), not its box, which keeps a second line's room.
+      const line = queue && shown("[role=status]", queue)?.querySelector("span");
+      const said = line?.textContent?.includes("Undo") ? union([...line.children].map(rectOf).filter((r): r is Rect => !!r)) : null;
+      return said ? { anchor: said, underline: said, say: "Tip 2 of 4. That's Always!" } : null;
     }
     if (step === "month") {
       const tab = rectOf(document.querySelectorAll("nav[aria-label='Board views'] button")[1] ?? null);
@@ -177,7 +195,7 @@ function specFor(tour: Tour, narrow: boolean): Spec | null {
     return { anchor: coins, ring: coins, place: "left", tag: "Tip 1 of 4", title: "Pick up a coin!", body: "These are charges from the bank that nobody has filed yet." };
   }
   if (step === "drop" && coins) {
-    const r = coins, floor = union(rolls);
+    const r = coins, floor = union(rolls());
     return r && floor && { anchor: r, place: "left", point: [floor.x + floor.w * 0.45, floor.y - 12], tag: "Tip 2 of 4", title: "Now tap its roll", body: "With Always on, its shop's other coins go along, now and every month." };
   }
   if (step === "always" && filing) {
@@ -207,6 +225,7 @@ function specFor(tour: Tour, narrow: boolean): Spec | null {
           next,
         };
   }
+  const tallest = step === "year" ? rolls().reduce<Rect | null>((a, b) => (a && a.h >= b.h ? a : b), null) : null;
   if (step === "year" && tallest) {
     const side = tallest.x + tallest.w / 2 < window.innerWidth / 2 ? "right" : "left";
     return { anchor: tallest, ring: tallest, place: narrow ? "below" : side, tag: "Tip 4 of 4", title: "Tap a roll", body: "It shows that category's charges, and its last twelve months." };
@@ -303,7 +322,7 @@ function advance(tour: Tour, narrow: boolean, since: number) {
 
 // What a tip draws, as text: a page that moved without moving the tip draws nothing new.
 const drawnAs = (s: Spec | null) =>
-  s && JSON.stringify([s.anchor, s.ring, s.point, s.arrow, s.place, s.title, s.body, !!s.next].map((v) => (typeof v === "object" && v && "x" in v ? [v.x, v.y, v.w, v.h].map(Math.round) : v)));
+  s && JSON.stringify([s.anchor, s.ring, s.underline, s.point, s.arrow, s.place, s.title, s.body, !!s.next].map((v) => (typeof v === "object" && v && "x" in v ? [v.x, v.y, v.w, v.h].map(Math.round) : v)));
 
 function DemoTips() {
   const tour = useTour();
@@ -311,6 +330,7 @@ function DemoTips() {
   const [spec, setSpec] = useState<Spec | null>(null);
   const shown = useRef<string | null>(null);
   const words = useRef<HTMLDivElement>(null);
+  const layer = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   // What a screen reader hears: one region that stays, so each tip is heard as it comes.
   const [say, setSay] = useState("");
@@ -360,7 +380,14 @@ function DemoTips() {
     read();
     // A page at rest sends no changes, so the tip also looks once a second.
     const tick = setInterval(soon, 1000);
-    const mo = new MutationObserver(soon);
+    // Not for the tips' own drawing, nor for the rolls bobbing while a coin is held: a bob moves no
+    // tip, and reading every roll each frame made the drop tip's arrow bob along.
+    const mo = new MutationObserver((changes) => {
+      const held = !!document.querySelector("[data-coin][aria-pressed='true']");
+      const moved = (c: MutationRecord) =>
+        !layer.current?.contains(c.target) && !(held && c.attributeName === "style" && (c.target as Element).closest("[data-roll], [data-jar]"));
+      if (changes.some(moved)) soon();
+    });
     mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["aria-pressed", "style", "class", "data-coin"] });
     window.addEventListener("scroll", soon, { capture: true, passive: true });
     window.addEventListener("resize", soon);
@@ -382,22 +409,34 @@ function DemoTips() {
     return () => ro.disconnect();
   }, [spec?.title, ready]);
 
+  // A phone's tip at the foot of the screen would cover the page's end for as long as it waits:
+  // the page gets that much more room at its foot, so every row can scroll clear of it. Set only
+  // when the room changes: taken away for a moment as the page scrolls, it would cut the scroll short.
+  const atFoot = !!spec?.title && size.h > 0 && narrowNow() && (spec.place === "foot" || spec.anchor.y > window.innerHeight - 84);
+  const room = atFoot ? Math.round(window.innerHeight - 84 - (layout(spec, size).y - 10) + 16) : 0;
+  useEffect(() => {
+    if (!room) return;
+    document.body.style.paddingBottom = `${room}px`;
+    return () => {
+      document.body.style.paddingBottom = "";
+    };
+  }, [room]);
+
   const key = tour.step + (tour.filing?.always ? "+" : "");
+  // Right after the bar on the page, so a keyboard reaches a tip's buttons before the board's.
   return (
-    <>
+    <div ref={layer}>
       <p aria-live="polite" className="sr-only">
         {ready ? say : ""}
       </p>
-      {ready &&
-        createPortal(
-          <div className="pointer-events-none fixed inset-0 z-[45]">
-            {spec && <Drawing key={key} spec={spec} size={size} />}
-            {/* The words fade out quicker than they came, as the next tip draws itself in. */}
-            <AnimatePresence>{spec?.title && <Placed key={key} spec={spec} size={size} words={words} />}</AnimatePresence>
-          </div>,
-          document.body
-        )}
-    </>
+      {ready && (
+        <div className="pointer-events-none fixed inset-0 z-[45]">
+          {spec && <Drawing key={key} spec={spec} size={size} />}
+          {/* The words fade out quicker than they came, as the next tip draws itself in. */}
+          <AnimatePresence>{spec?.title && <Placed key={key} spec={spec} size={size} words={words} />}</AnimatePresence>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -458,6 +497,7 @@ function Drawing({ spec, size }: { spec: Spec; size: { w: number; h: number } })
   return (
     <>
       {spec.ring && <CrayonRing {...spec.ring} />}
+      {spec.underline && <CrayonUnderline {...spec.underline} />}
       {spec.arrow && spec.arrow[1][0] - spec.arrow[0][0] > 24 && <CrayonArrow from={spec.arrow[0]} to={spec.arrow[1]} bend={-6} />}
       {/* Words at the foot of the screen name what the ring is round; an arrow up the page would cross it all. */}
       {spec.title && size.h > 0 && place !== "foot" && Math.hypot(to[0] - from[0], to[1] - from[1]) > 40 && (
@@ -467,10 +507,15 @@ function Drawing({ spec, size }: { spec: Spec; size: { w: number; h: number } })
   );
 }
 
-// The words, placed by transform; they rise in on their scrap of paper and fade out quicker.
+// The words, placed by transform; they rise in on their scrap of paper and fade out quicker. The
+// scrap has the notice's hairline edge, so rows passing under it read as covered, not cut.
 function Placed({ spec, size, words }: { spec: Spec; size: { w: number; h: number }; words: React.RefObject<HTMLDivElement | null> }) {
   const reduce = useReducedMotion();
   const { x, y, W } = layout(spec, size);
+  const skip = (e: { detail: number }) => {
+    handOff(e);
+    tips.go("off");
+  };
   return (
     <motion.div
       className="absolute left-0 top-0"
@@ -480,7 +525,7 @@ function Placed({ spec, size, words }: { spec: Spec; size: { w: number; h: numbe
     >
       <motion.div
         ref={words}
-        className={cn("pointer-events-auto rounded-2xl px-3 py-2.5", OAT)}
+        className={cn("pointer-events-auto rounded-2xl px-3 py-2.5 ring-1 ring-ink/10 dark:ring-white/10", OAT)}
         initial={reduce ? false : { opacity: 0, transform: "translateY(6px)" }}
         animate={{ opacity: 1, transform: "translateY(0px)" }}
         transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
@@ -493,7 +538,7 @@ function Placed({ spec, size, words }: { spec: Spec; size: { w: number; h: numbe
             </p>
             <p className={cn("mt-1 text-[12px]", MUTED)}>
               {spec.tag} ·{" "}
-              <button type="button" onClick={() => tips.go("off")} className={cn(TAP, "underline underline-offset-2 hover:text-ink dark:hover:text-chalk", FOCUS)}>
+              <button type="button" onClick={skip} className={cn(TAP, "underline underline-offset-2 hover:text-ink dark:hover:text-chalk", FOCUS)}>
                 Skip the tips
               </button>{" "}
               · <span className="text-ink dark:text-chalk">{spec.extra}</span>
@@ -503,7 +548,7 @@ function Placed({ spec, size, words }: { spec: Spec; size: { w: number; h: numbe
           <>
             <p className={cn("text-[12px]", MUTED)}>
               {spec.tag} ·{" "}
-              <button type="button" onClick={() => tips.go("off")} className={cn(TAP, "underline underline-offset-2 hover:text-ink dark:hover:text-chalk", FOCUS)}>
+              <button type="button" onClick={skip} className={cn(TAP, "underline underline-offset-2 hover:text-ink dark:hover:text-chalk", FOCUS)}>
                 Skip the tips
               </button>
             </p>
@@ -534,7 +579,12 @@ function EndCard() {
   const mist = cn(PILL, PRESS, "inline-flex items-center justify-center whitespace-nowrap bg-mist text-ink hover:bg-mist-hover dark:bg-mist-night dark:text-chalk dark:hover:bg-card-night-hover", FOCUS);
   return (
     <Dialog open={tour.step === "end"} onOpenChange={(open) => !open && tips.go("off")}>
-      <DialogContent className="gap-0 rounded-[28px] p-0 sm:max-w-[520px]">
+      {/* A short screen (a phone's in-app browser, or one on its side) scrolls the card. Closed,
+          it leaves focus on the bar's tips button, where the tour can be started again. */}
+      <DialogContent
+        finalFocus={() => document.getElementById(TIPS_BUTTON)}
+        className="max-h-[calc(100dvh-2rem)] gap-0 overflow-y-auto overscroll-contain rounded-[28px] p-0 sm:max-w-[520px]"
+      >
         <div className="flex flex-col items-center px-6 pb-7 pt-8 text-center sm:px-9">
           {/* The tour's finish line, seen once: the coin hops in on a spring as the card opens. */}
           <motion.div

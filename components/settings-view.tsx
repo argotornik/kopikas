@@ -16,7 +16,10 @@ export function SettingsView({
   rules,
   categories,
   shareRules,
+  partner,
 }: {
+  // Whether the household has someone to split with: without, there is no Pooleks to link to.
+  partner: boolean;
   fontClass: string;
   connection: React.ComponentProps<typeof SettingsForm>;
   rules: RuleRow[];
@@ -29,7 +32,7 @@ export function SettingsView({
         <CoinHeader
           links={[
             { href: "/", label: "Board", icon: HouseIcon },
-            { href: "/pooleks", label: "Pooleks", icon: PooleksIcon },
+            ...(partner ? [{ href: "/pooleks", label: "Pooleks", icon: PooleksIcon }] : []),
           ]}
         />
         {/* The theme's variables re-tinted, so the fields and buttons shared with

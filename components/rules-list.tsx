@@ -97,7 +97,7 @@ export function RulesList({ initial, categories }: { initial: RuleRow[]; categor
         </h2>
         <span className={cn("text-[15px] tabular-nums", MUTED)}>{rules.length}</span>
       </div>
-      <p className={cn("mt-1 max-w-[80ch] px-1 text-[13px]", MUTED)}>
+      <p className={cn("mt-1 max-w-[52ch] px-1 text-[13px]", MUTED)}>
         Made when you choose Always while filing a charge; the number on a rule is how many charges it matches. When two
         rules match, the newer one wins. The ✕ forgets a rule and un-files what it filed; Undo puts it back.
       </p>

@@ -9,8 +9,12 @@ import type { Db } from "./types";
 
 // The demo's household lives in this browser: changes are made here with the same function the
 // server uses, and kept so a reload finds the board as it was left. A board kept from an earlier
-// month starts over, since its loose change and dates belong to that month.
+// month starts over, since its loose change and dates belong to that month, and so does one kept
+// by a deploy whose board was another version.
 const KEY = "kopikas-demo";
+// Raise it with any change to the board's shape (lib/types.ts) or to the made-up household
+// (lib/demo.ts): a board kept by an earlier deploy may not build with this one's code.
+const VERSION = 1;
 let db: Db | null = null;
 // Whether this page found a board kept from an earlier visit.
 let found = false;
@@ -20,7 +24,7 @@ function load(): Db {
   if (db) return db;
   try {
     const kept = JSON.parse(localStorage.getItem(KEY) ?? "null");
-    if (kept?.month === month()) {
+    if (kept?.version === VERSION && kept.month === month()) {
       db = kept.db as Db;
       found = true;
     }
@@ -32,7 +36,7 @@ function load(): Db {
 
 function keep() {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ month: month(), db }));
+    localStorage.setItem(KEY, JSON.stringify({ version: VERSION, month: month(), db }));
   } catch {
     // As above: kept in the tab only.
   }
@@ -49,6 +53,12 @@ export function demoKept() {
   const d = load();
   settle();
   return found ? packBoard(buildBoard(d, new Date(), DEMO_ACCOUNTS)) : null;
+}
+
+// How many charges are still loose, as the To file count has it: none, and the tour's coin tips
+// have nothing to show.
+export function demoLeft() {
+  return buildBoard(load(), new Date(), DEMO_ACCOUNTS).uncategorizedCount;
 }
 
 export function demoAct(action: Action, view?: "board" | "shared"): { result: Applied; fresh?: unknown } {

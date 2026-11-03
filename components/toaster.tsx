@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Toast } from "@base-ui/react/toast";
 import { CircleAlertIcon, XIcon } from "lucide-react";
 import { act, type Undo } from "@/lib/act";
+import { forgetUndo, latestUndo, rememberUndo } from "@/lib/undo";
 import { cn } from "@/lib/utils";
 import { FOCUS, MUTED } from "@/components/coin-look";
 
@@ -12,22 +13,19 @@ import { FOCUS, MUTED } from "@/components/coin-look";
 // region, so what it says is announced without stealing focus.
 export const toasts = Toast.createToastManager();
 
-// The most recent change that can still be taken back, for ⌘Z / Ctrl+Z.
-let latestUndo: { id: string; run: () => void } | null = null;
-
 // A second thing a notice offers beside Undo, such as Always after a filing.
 type Also = { label: string; onClick: () => void };
 
 // One notice at a time: each says the latest thing that happened and takes the place of the one
 // showing, so two identical lines never stack and an error never sits beside an older success.
-// The one it replaces takes its Undo with it, as ⌘Z only ever takes back the latest change.
 function show(options: Parameters<typeof toasts.add>[0]) {
   toasts.close();
   return toasts.add(options);
 }
 
-// After a change that can be taken back: say what happened and offer Undo
-// for a while. `after` brings the page up to date once the undo has landed.
+// After a change that can be taken back: say what happened and offer Undo. The notice goes
+// after a while; the Undo stays with ⌘Z until the next change (lib/undo.ts). `after` brings the
+// page up to date once the undo has landed.
 export function announceUndoable(message: string, undo: Undo | undefined, after: () => unknown, also?: Also) {
   if (!undo) {
     show({ title: message, timeout: 4000, data: also ? { also } : undefined });
@@ -40,16 +38,18 @@ export function announceUndoable(message: string, undo: Undo | undefined, after:
     await after();
     show({ title: "Undone.", timeout: 2500, priority: "low" });
   };
+  // Taken back once: a second ⌘Z before the first has landed finds nothing.
+  const take = () => {
+    forgetUndo();
+    void run();
+  };
   const id = show({
     title: message,
     timeout: 8000,
-    actionProps: { children: "Undo", onClick: () => void run() },
+    actionProps: { children: "Undo", onClick: () => take() },
     data: also ? { also } : undefined,
-    onClose: () => {
-      if (latestUndo?.id === id) latestUndo = null;
-    },
   });
-  latestUndo = { id, run: () => void run() };
+  rememberUndo(message, take);
 }
 
 // A plain line that offers nothing, such as a Try again that had nothing left to do.
@@ -78,14 +78,17 @@ export function announceError(message: string, retry?: () => void) {
 }
 
 export function Toaster() {
-  // ⌘Z / Ctrl+Z takes back the latest change, unless a text field wants it.
+  // ⌘Z / Ctrl+Z takes back the latest change, unless a text field wants it; with nothing left
+  // to take back, it says so rather than doing nothing.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!latestUndo || e.key.toLowerCase() !== "z" || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+      if (e.key.toLowerCase() !== "z" || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
       const t = e.target as HTMLElement | null;
-      if (t?.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (t?.closest?.("input, textarea, select, [contenteditable='true']")) return;
       e.preventDefault();
-      latestUndo.run();
+      const latest = latestUndo();
+      if (latest) latest.run();
+      else announce("Nothing to undo.");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
