@@ -35,22 +35,34 @@ function Stroke({ path, box, delay = 0, duration = DRAW.duration }: { path: stri
   );
 }
 
-// How far a ring reaches from the middle of the box it goes round (a tip keeps its words clear of
-// it). A big box needs less room round it than a pill does to read as circled.
+// How far a ring reaches from the middle of the box it goes round, and how square it is (2 is an
+// oval). A tip keeps its words clear of it, and an arrow to the box stops just short of it.
 export function ringSize(w: number, h: number) {
-  const pad = Math.max(w, h) > 120 ? 4 : 12;
-  return { rx: w / 2 + pad, ry: h / 2 + pad - 2 };
+  // A coin, a pill or a button: an oval a little bigger than it, which misses only corners it
+  // hasn't got.
+  if (Math.max(w, h) <= 120) return { rx: w / 2 + 12, ry: h / 2 + 10, square: 2 };
+  // A line of words fills little of its box's corners, and the lines above and below are close:
+  // an oval just round it.
+  if (w >= h) return { rx: w / 2 + 4, ry: h / 2 + 2, square: 2 };
+  // A tall roll has real corners, and an oval close round it cuts through them. A squarer loop
+  // stays 18px clear of its sides and is just tall enough to keep them inside.
+  const side = w / 2 + 18;
+  return { rx: side, ry: (h / 2 + 4) / (1 - (w / 2 + 4) ** 4 / side ** 4) ** 0.25, square: 4 };
 }
 
 // A loop round a box, a little past where it started, as a hand closes a circle.
 export function CrayonRing({ x, y, w, h, seed = 0.7 }: { x: number; y: number; w: number; h: number; seed?: number }) {
-  const { rx, ry } = ringSize(w, h);
+  const { rx, ry, square } = ringSize(w, h);
   const cx = rx + 6, cy = ry + 6;
+  const bend = (v: number) => Math.sign(v) * Math.abs(v) ** (2 / square);
+  // The hand's wobble and its closing a little wide: in step with an oval's size, and by the same
+  // few pixels all round a long loop, which would otherwise wobble far more along its length.
+  const [wx, wy] = square === 2 ? [rx, ry] : [Math.min(rx, ry), Math.min(rx, ry)];
   const pts: Point[] = [];
-  for (let i = 0, n = 84, a0 = -2.3 + seed; i <= n; i++) {
+  for (let i = 0, n = square === 2 ? 84 : 160, a0 = -2.3 + seed; i <= n; i++) {
     const t = a0 + ((2 * Math.PI + 0.6) * i) / n;
-    const k = 1 + 0.03 * Math.sin(3 * t + seed * 2) + 0.06 * (i / n);
-    pts.push([cx + Math.cos(t) * rx * k, cy + Math.sin(t) * ry * k]);
+    const k = 0.03 * Math.sin(3 * t + seed * 2) + 0.06 * (i / n);
+    pts.push([cx + bend(Math.cos(t)) * (rx + wx * k), cy + bend(Math.sin(t)) * (ry + wy * k)]);
   }
   return <Stroke path={d(pts)} box={{ x: x + w / 2 - cx, y: y + h / 2 - cy, w: cx * 2, h: cy * 2 }} />;
 }
