@@ -47,7 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // ThemeProvider outside so Clerk's components can follow the resolved theme.
   const content = (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-      {/* The demo's bar, tips and end card: on the demo's deployment only. */}
+      {/* The demo's bar, tips, end card and visit count: on the demo's deployment only. */}
       <DemoMount />
       {authEnabled ? <ClerkThemed>{children}</ClerkThemed> : children}
       <Toaster />
