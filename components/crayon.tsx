@@ -35,11 +35,17 @@ function Stroke({ path, box, delay = 0, duration = DRAW.duration }: { path: stri
   );
 }
 
+// How far a ring reaches from the middle of the box it goes round (a tip keeps its words clear of
+// it). A big box needs less room round it than a pill does to read as circled.
+export function ringSize(w: number, h: number) {
+  const pad = Math.max(w, h) > 120 ? 4 : 12;
+  return { rx: w / 2 + pad, ry: h / 2 + pad - 2 };
+}
+
 // A loop round a box, a little past where it started, as a hand closes a circle.
 export function CrayonRing({ x, y, w, h, seed = 0.7 }: { x: number; y: number; w: number; h: number; seed?: number }) {
-  // A big box needs less room round it than a pill does to read as circled.
-  const pad = Math.max(w, h) > 120 ? 4 : 12;
-  const rx = w / 2 + pad, ry = h / 2 + pad - 2, cx = rx + 6, cy = ry + 6;
+  const { rx, ry } = ringSize(w, h);
+  const cx = rx + 6, cy = ry + 6;
   const pts: Point[] = [];
   for (let i = 0, n = 84, a0 = -2.3 + seed; i <= n; i++) {
     const t = a0 + ((2 * Math.PI + 0.6) * i) / n;

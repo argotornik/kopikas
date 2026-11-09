@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { handOff, onSettled, tips, TIPS_BUTTON, useTour, type TipStep, type Tour } from "@/lib/tips";
 import { PARTNER_NAME } from "@/lib/names";
-import { CrayonArrow, CrayonRing, CrayonUnderline } from "@/components/crayon";
+import { CrayonArrow, CrayonRing, CrayonUnderline, ringSize } from "@/components/crayon";
 import { PaintedCoin } from "@/components/painted";
 import { CRAYON_TEXT } from "@/components/queue-tip";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -108,6 +108,9 @@ type Spec = {
   arrow?: [Point, Point];
   // Two lines in a strip of room (the header): the title runs into its sentence.
   compact?: boolean;
+  // A floor tip's: what its words must leave in sight, and the stage they keep to.
+  clear?: Rect[];
+  stage?: Rect;
   tag?: string;
   title?: string;
   body?: string;
@@ -130,6 +133,18 @@ const union = (rs: Rect[]): Rect | null => {
   return { x, y, w: Math.max(...rs.map((r) => r.x + r.w)) - x, h: Math.max(...rs.map((r) => r.y + r.h)) - y };
 };
 const narrowNow = () => window.matchMedia("(max-width: 639px)").matches;
+// Each line of words inside an element: a block's own box runs its column's full width.
+const inked = (el: Element | null | undefined): Rect[] => {
+  const out: Rect[] = [];
+  if (!el) return out;
+  const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+    range.selectNodeContents(n);
+    for (const r of range.getClientRects()) if (r.width > 0 && r.height > 0) out.push({ x: r.left, y: r.top, w: r.width, h: r.height });
+  }
+  return out;
+};
 // What is painted inside a roll's button, which itself stands the floor's full height: where it
 // stands, not where it has bobbed to while a coin is held, so an arrow to the floor keeps still.
 const drawn = (el: Element | null) => {
@@ -151,6 +166,14 @@ function specFor(tour: Tour, narrow: boolean): Spec | null {
   const next = (e: { detail: number }) => {
     handOff(e);
     tips.go(narrow ? "month" : "year");
+  };
+  // A floor tip's words leave the stage in sight: every roll and the words under it, and in the
+  // stage's head the month's words, its buttons and the loose change.
+  const inSight = (): Pick<Spec, "clear" | "stage"> => {
+    const head = document.getElementById("month-heading")?.closest("section > div");
+    const floor = shown("[data-roll]", stage)?.closest("[role=group]");
+    const controls = [...(head?.querySelectorAll("button, a") ?? [])].map(rectOf).filter((r): r is Rect => !!r);
+    return { clear: [...rolls(), ...inked(floor), ...inked(head), ...controls], stage: rectOf(head?.parentElement) ?? undefined };
   };
 
   if (narrow) {
@@ -207,6 +230,7 @@ function specFor(tour: Tour, narrow: boolean): Spec | null {
           anchor: r,
           ring: r,
           place: side,
+          ...inSight(),
           tag: "Tip 3 of 4",
           title: "That's Always!",
           body:
@@ -219,6 +243,7 @@ function specFor(tour: Tour, narrow: boolean): Spec | null {
           anchor: r,
           ring: r,
           place: side,
+          ...inSight(),
           tag: "Tip 3 of 4",
           title: "Now try Always",
           body: "Tap Always in the notice, or switch it on under the pile next time: the shop then files itself, every month.",
@@ -228,7 +253,7 @@ function specFor(tour: Tour, narrow: boolean): Spec | null {
   const tallest = step === "year" ? rolls().reduce<Rect | null>((a, b) => (a && a.h >= b.h ? a : b), null) : null;
   if (step === "year" && tallest) {
     const side = tallest.x + tallest.w / 2 < window.innerWidth / 2 ? "right" : "left";
-    return { anchor: tallest, ring: tallest, place: narrow ? "below" : side, tag: "Tip 4 of 4", title: "Tap a roll", body: "It shows that category's charges, and its last twelve months." };
+    return { anchor: tallest, ring: tallest, place: narrow ? "below" : side, ...(narrow ? {} : inSight()), tag: "Tip 4 of 4", title: "Tap a roll", body: "It shows that category's charges, and its last twelve months." };
   }
   const finish = (
     <button type="button" onClick={() => tips.go("end")} className={cn(TAP, "font-medium underline underline-offset-2", FOCUS)}>
@@ -322,7 +347,12 @@ function advance(tour: Tour, narrow: boolean, since: number) {
 
 // What a tip draws, as text: a page that moved without moving the tip draws nothing new.
 const drawnAs = (s: Spec | null) =>
-  s && JSON.stringify([s.anchor, s.ring, s.underline, s.point, s.arrow, s.place, s.title, s.body, !!s.next].map((v) => (typeof v === "object" && v && "x" in v ? [v.x, v.y, v.w, v.h].map(Math.round) : v)));
+  s &&
+  JSON.stringify(
+    [s.anchor, s.ring, s.underline, s.point, s.arrow, s.place, s.title, s.body, !!s.next, s.stage, ...(s.clear ?? [])].map((v) =>
+      typeof v === "object" && v && "x" in v ? [v.x, v.y, v.w, v.h].map(Math.round) : v,
+    ),
+  );
 
 function DemoTips() {
   const tour = useTour();
@@ -463,37 +493,82 @@ function layout(spec: Spec, size: { w: number; h: number }) {
   y = Math.max(8, Math.min(y, (spec.place === "above" ? vh - 8 : floor) - size.h));
   // A compact tip lives in the header: below the demo bar, never over it.
   if (spec.compact) y = Math.max(y, (document.querySelector("header")?.getBoundingClientRect().top ?? 0) + 16);
+  // On the floor the words go where they cover nothing, and the arrow reaches further.
+  let at = place, moved = false;
+  if (spec.clear && size.h > 0 && (place === "left" || place === "right")) {
+    const [x1, y1, side] = openSpot(spec, x, y, W, size.h);
+    moved = x1 !== x || y1 !== y;
+    if (moved) [x, y, at] = [x1, y1, side];
+  }
   // The arrow leaves the words on the side facing what it points at, and stops short of the ring.
   // A point below the words (the floor, from the head) is reached from their foot.
   const target: Point = spec.point ?? [a.x + a.w / 2, a.y + a.h / 2];
   const from: Point = spec.point
     ? [x + W * 0.35, y + size.h + 10]
-    : place === "left"
+    : at === "left"
       ? [x + W + 10, y + size.h / 2]
-      : place === "right"
+      : at === "right"
         ? [x - 10, y + Math.min(size.h / 2, 40)]
-        : place === "above"
+        : at === "above"
           ? [x + W / 2, y + size.h + 8]
-          : place === "below-left"
+          : at === "below-left"
             ? [x + W - 16, y - 10]
             : [x + W / 2, y - 8];
+  // Words moved up and along reach the ring's upper side, level where they can: over the rolls
+  // between them, not through them.
+  const level = moved ? Math.min(target[1], Math.max(target[1] - 0.6 * ringSize(a.w, a.h).ry, from[1])) : target[1];
   const to: Point = spec.point
     ? target
-    : place === "left"
-      ? [a.x - 18, target[1]]
-      : place === "right"
-        ? [a.x + a.w + 18, target[1]]
-        : place === "above"
+    : at === "left"
+      ? [a.x - 18, level]
+      : at === "right"
+        ? [a.x + a.w + 18, level]
+        : at === "above"
           ? [target[0], a.y - 16]
-          : place === "below-left"
+          : at === "below-left"
             ? [a.x + a.w * 0.25, a.y + a.h + 14]
             : [target[0], a.y + a.h + 16];
-  return { x, y, W, place, from, to };
+  return { x, y, W, place: at, from, to, moved };
+}
+
+// A ring's box as drawn: its loop closes a little wide, by up to 9% of its size.
+function ringBox(r: Rect): Rect {
+  const { rx, ry } = ringSize(r.w, r.h);
+  const [w, h] = [rx * 1.09 + 2, ry * 1.09 + 2];
+  return { x: r.x + r.w / 2 - w, y: r.y + r.h / 2 - h, w: w * 2, h: h * 2 };
+}
+
+// The nearest spot to (x0, y0) where a floor tip's words cover nothing on the stage, nor the ring:
+// lifted into the open oat above the rolls, moved along it, or over the ring. The paper reaches
+// 12px past the words either side and 10px above them, and keeps 12px of oat round it.
+function openSpot(spec: Spec, x0: number, y0: number, W: number, h: number): [number, number, Spec["place"]] {
+  const vw = window.innerWidth;
+  const s = spec.stage ?? { x: 0, y: 0, w: vw, h: window.innerHeight };
+  const ring = ringBox(spec.ring ?? spec.anchor);
+  const keep = [...(spec.clear ?? []), ring];
+  const hit = (x: number, y: number) => keep.find((r) => r.x < x + W + 24 && r.x + r.w > x - 24 && r.y < y + h + 2 && r.y + r.h > y - 22);
+  // On the stage, 16px in from its edges, and on the screen.
+  const top = Math.max(18, s.y + 26), left = Math.max(28, s.x + 28), right = Math.min(vw - W - 28, s.x + s.w - W - 28);
+  const xs = [Math.max(left, Math.min(x0, right))];
+  for (let x = left; x <= right; x += 16) xs.push(x);
+  let best: Point | null = null, cost = Infinity;
+  for (const x of xs) {
+    let y = y0;
+    for (let r = hit(x, y); r && y >= top; r = hit(x, y)) y = r.y - h - 2;
+    if (y < top) continue;
+    const c = Math.abs(x - x0) + y0 - y;
+    if (c < cost) [best, cost] = [[x, y], c];
+  }
+  if (!best) return [x0, y0, spec.place];
+  const [x, y] = best;
+  return [x, y, x + W + 12 <= ring.x ? "left" : x - 12 >= ring.x + ring.w ? "right" : "above"];
 }
 
 // The crayon: a tip's ring and arrows, drawn in afresh with each tip and simply gone with it.
 function Drawing({ spec, size }: { spec: Spec; size: { w: number; h: number } }) {
-  const { place, from, to } = layout(spec, size);
+  const { place, from, to, moved } = layout(spec, size);
+  // Beside its words an arrow bows a little; one reaching over the floor bows up, away from it.
+  const bend = place === "left" || place === "right" ? (moved && from[0] > to[0] ? 16 : -16) : 12;
   return (
     <>
       {spec.ring && <CrayonRing {...spec.ring} />}
@@ -501,7 +576,7 @@ function Drawing({ spec, size }: { spec: Spec; size: { w: number; h: number } })
       {spec.arrow && spec.arrow[1][0] - spec.arrow[0][0] > 24 && <CrayonArrow from={spec.arrow[0]} to={spec.arrow[1]} bend={-6} />}
       {/* Words at the foot of the screen name what the ring is round; an arrow up the page would cross it all. */}
       {spec.title && size.h > 0 && place !== "foot" && Math.hypot(to[0] - from[0], to[1] - from[1]) > 40 && (
-        <CrayonArrow from={from} to={to} bend={place === "left" || place === "right" ? -16 : 12} />
+        <CrayonArrow from={from} to={to} bend={bend} />
       )}
     </>
   );
