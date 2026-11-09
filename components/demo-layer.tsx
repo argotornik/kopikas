@@ -503,6 +503,10 @@ function layout(spec: Spec, size: { w: number; h: number }) {
   // The arrow leaves the words on the side facing what it points at, and stops short of the ring.
   // A point below the words (the floor, from the head) is reached from their foot.
   const target: Point = spec.point ?? [a.x + a.w / 2, a.y + a.h / 2];
+  // How far from the anchor's middle the arrow stops: just off its edge, or 6px short of a ring
+  // that reaches further (a tall roll's).
+  const ring = spec.ring && ringSize(spec.ring.w, spec.ring.h);
+  const reachX = Math.max(a.w / 2 + 18, ring ? ring.rx + 6 : 0), reachY = Math.max(a.h / 2 + 16, ring ? ring.ry + 6 : 0);
   const from: Point = spec.point
     ? [x + W * 0.35, y + size.h + 10]
     : at === "left"
@@ -520,14 +524,14 @@ function layout(spec: Spec, size: { w: number; h: number }) {
   const to: Point = spec.point
     ? target
     : at === "left"
-      ? [a.x - 18, level]
+      ? [target[0] - reachX, level]
       : at === "right"
-        ? [a.x + a.w + 18, level]
+        ? [target[0] + reachX, level]
         : at === "above"
-          ? [target[0], a.y - 16]
+          ? [target[0], target[1] - reachY]
           : at === "below-left"
             ? [a.x + a.w * 0.25, a.y + a.h + 14]
-            : [target[0], a.y + a.h + 16];
+            : [target[0], target[1] + reachY];
   return { x, y, W, place: at, from, to, moved };
 }
 
